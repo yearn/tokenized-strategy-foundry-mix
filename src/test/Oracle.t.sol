@@ -1,7 +1,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup, IStrategyInterface} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 import {StrategyAprOracle} from "../periphery/StrategyAprOracle.sol";
 
@@ -13,11 +13,11 @@ contract OracleTest is Setup {
         oracle = new StrategyAprOracle();
     }
 
-    function checkOracle(IStrategyInterface _strategy, uint256 _delta) public {
+    function checkOracle(address _strategy, uint256 _delta) public {
         // Check set up
         // TODO: Add checks for the setup
 
-        uint256 currentApr = oracle.aprAfterDebtChange(address(_strategy), 0);
+        uint256 currentApr = oracle.aprAfterDebtChange(_strategy, 0);
 
         // Should be greater than 0 but likely less than 100%
         assertGt(currentApr, 0, "ZERO");
@@ -55,7 +55,7 @@ contract OracleTest is Setup {
         // TODO: adjust the number to base _perfenctChange off of.
         uint256 _delta = (_amount * _percentChange) / MAX_BPS;
 
-        checkOracle(strategy, _delta);
+        checkOracle(address(strategy), _delta);
     }
 
     // TODO: Deploy multiple strategies with differen tokens as `asset` to test against the oracle.
