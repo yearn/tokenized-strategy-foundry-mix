@@ -1,8 +1,9 @@
 {
   "solidity.compileUsingRemoteVersion": "v0.8.18",
   "solidity.remappings": [
-    "@openzeppelin/contracts/=contracts/.cache/openzeppelin/v4.8.2/",
-    "@tokenized-strategy/=contracts/.cache/tokenized-strategy/test/",
-    "@periphery/=contracts/.cache/periphery/master/"
+    "@openzeppelin/=./lib/openzeppelin-contracts/",
+    "forge-std/=lib/forge-std/src/",
+    "@tokenized-strategy/=./lib/tokenized-strategy/src/",
+    "@periphery/=./lib/tokenized-strategy-periphery/contracts/"
   ]
 }
