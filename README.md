@@ -18,13 +18,15 @@ NOTE: If you are on a windows machine it is recommended to use [WSL](https://lea
 
     cd tokenized-strategy-foundry-mix
 
+    yarn
+
 
 ### Set your environment Variables
 
 Sign up for [Infura](https://infura.io/) and generate an API key and copy your RPC url. Store it in the `ETH_RPC_URL` environment variable.
 NOTE: you can use other services.
 
-6Use .env file
+Use .env file
   1. Make a copy of `.env.example`
   2. Add the values for `ETH_RPC_URL`, `ETHERSCAN_API_KEY` and other example vars
      NOTE: If you set up a global environment variable, that will take precedence.
@@ -52,7 +54,7 @@ It is important to remember the default behavior for any tokenized strategy is t
 
 It is recommended to build strategies on the assumption that reports will happen based on the strategies specific `profitMaxUnlockTime`. Since this is the only time _totalInvested will be called any strategies that need more frequent checks or updates should override the _tend and tendTrigger functions for any needed mid-report maintenance.
 
-The only global variables from the BaseTokenizedStrategy that can be accessed from storage is `asset` and `TokenizedStrategy`. If other global variables are needed for your specific strategy, you can use the `TokenizedStrategy` variable to quickly retrieve any other needed variables withen the strategy, such as totalAssets, totalDebt, isShutdown etc.
+The only default global variables from the BaseTokenizedStrategy that can be accessed from storage is `asset` and `TokenizedStrategy`. If other global variables are needed for your specific strategy, you can use the `TokenizedStrategy` variable to quickly retrieve any other needed variables withen the strategy, such as totalAssets, totalDebt, isShutdown etc.
 
 
 Example:
