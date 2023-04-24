@@ -1,52 +1,45 @@
 # Tokenized Strategy Mix for Yearn V3 strategies
 
-This repo will allow you to write, test and deploy V3 "Tokenized Strategies".
+This repo will allow you to write, test and deploy V3 "Tokenized Strategies" using [Foundry](https://book.getfoundry.sh/).
 
-You will only need to override the three functions in Strategy.sol of `_invest`, `freeFunds` and `_totalInvested`. With the option to also override `_tend`, `tendTrigger`, `availableDepositLimit` and `availableWithdrawLimit` if desired.
+You will only need to override the three functions in Strategy.sol of `_invest`, `_freeFunds` and `_totalInvested`. With the option to also override `_tend`, `tendTrigger`, `availableDepositLimit` and `availableWithdrawLimit` if desired.
 
-For a more complete overview of how the Tokenized Strategies please visit the [TokenizedStrategy Repo](https://github.com/yearn/tokenized-strategy).
+For a more complete overview of how the Tokenized Strategies work please visit the [TokenizedStrategy Repo](https://github.com/yearn/tokenized-strategy).
 
 ## How to start
 
 ### Requirements
-    Python >=3.8.0, <=3.10
-    Yarn
-    Node.js >=14
-    Hardhat
+First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
+NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
 
 ### Fork this repository
 
-    git clone https://github.com/user/tokenized-strategy-ape-mix
+    git clone --recursive https://github.com/user/tokenized-strategy-foundry-mix
 
-    cd tokenized-strategy-ape-mix
+    cd tokenized-strategy-foundry-mix
 
-### Set up your virtual environment
 
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-Tip: You can make them persistent by adding the variables in ~/.env (ENVVAR=... format), then adding the following in .bashrc: `set -a; source "$HOME/.env"; set +a`
-
-### Install Ape and all dependencies
-
-    pip install -r requirements.txt
-    
-    yarn
-    
-    ape plugins install .
-    
-    ape compile
-    
-    ape test
-    
 ### Set your environment Variables
 
-    export WEB3_INFURA_PROJECT_ID=your_infura_api_key
+Sign up for [Infura](https://infura.io/) and generate an API key and copy your RPC url. Store it in the `ETH_RPC_URL` environment variable.
+NOTE: you can use other services.
 
-    export ETHERSCAN_API_KEY=your_api_key
+6Use .env file
+  1. Make a copy of `.env.example`
+  2. Add the values for `ETH_RPC_URL`, `ETHERSCAN_API_KEY` and other example vars
+     NOTE: If you set up a global environment variable, that will take precedence.
 
-Tip: You can make them persistent by adding the variables in ~/.env (ENVVAR=... format), then adding the following in .bashrc: `set -a; source "$HOME/.env"; set +a`
+
+### Build the project.
+
+```sh
+make build
+```
+
+Run tests
+```sh
+make test
+```
 
 ## Strategy Writing
 
@@ -108,23 +101,43 @@ The expected behavior is that strategies report profits/losses on a set schedule
 
 ## Testing
 
-Due to the nature of the BaseTokenizedStrategy utilizing an external contract for the majority of its logic, the default interface for any tokenized strategy will not allow proper testing of all functions. Testing of your Strategy should utilize the pre-built `IStrategyInterface` interface to cast any deployed strategy through for testing, as seen in the confest example. You can add any external functions that you add for your specific strategy to this interface to be able to test all functions with one variable. 
+Due to the nature of the BaseTokenizedStrategy utilizing an external contract for the majority of its logic, the default interface for any tokenized strategy will not allow proper testing of all functions. Testing of your Strategy should utilize the pre-built [IStrategyInterface](https://github.com/Schlagonia/tokenized-strategy-foundry-mix/blob/master/src/interfaces/IStrategyInterface.sol) interface to cast any deployed strategy through for testing, as seen in the Setup example. You can add any external functions that you add for your specific strategy to this interface to be able to test all functions with one variable. 
 
 Example:
 
-    strategy = management.deploy(project.Strategy, asset, name)
-    strategy =  project.IStrategyInterface.at(strategy.address)
+    Strategy _strategy = new Strategy(asset, name);
+    IStrategyInterface strategy =  IStrategyInterface(address(_strategy));
 
 Due to the permissionless nature of the tokenized Strategies, all tests are written without integration with any meta vault funding it. While those tests can be added, all V3 vaults utilize the ERC-4626 standard for deposit/withdraw and accounting, so they can be plugged in easily to any number of different vaults with the same `asset.`
 
+Tests run in fork environment, you need to complete the full installation and setup to be able to run these commands.
 
-When testing on chains other than mainnet you will need to download the chain specific ape plugin. i.e. "pip install ape-polygon"
+```sh
+make test
+```
+Run tests with traces (very useful)
+
+```sh
+make trace
+```
+Run specific test contract (e.g. `test/StrategyOperation.t.sol`)
+
+```sh
+make test-contract contract=StrategyOperationsTest
+```
+Run specific test contract with traces (e.g. `test/StrategyOperation.t.sol`)
+
+```sh
+make trace-contract contract=StrategyOperationsTest
+```
+
+See here for some tips on testing [`Testing Tips`](https://book.getfoundry.sh/forge/tests.html)
+
+
+When testing on chains other than mainnet you will need to make sure a valid `CAHIN_RPC_URL` for that chain is set in your .env and that chains specific api key is set for `ETHERSCAN_API_KEY`. You will then need to simply adjust the variable that RPCU_URL is set to in the Makefile to match your chain.
 
 
 #### Errors:
-
-"DecodingError: Output corrupted.": Probably due to not running on a forked chain or a chain where the TokenizedStrategy contract isn't deployed.
-"No conversion registered to handle ...": Check the `IStrategyInterface` interface the tests are using is up to date.
 
 ### Deployment
 
