@@ -48,6 +48,14 @@ contract Strategy is BaseTokenizedStrategy {
     // aToken = Morpho Aave Market for want token
     address public aToken;
 
+    /// @notice Emitted when maxGasForMatching is updated.
+    /// @param maxGasForMatching The new maxGasForMatching value.
+    event SetMaxGasForMatching(uint256 maxGasForMatching);
+
+    /// @notice Emitted when rewardsDistributor is updated.
+    /// @param rewardsDistributor The new rewardsDistributor address.
+    event SetRewardsDistributor(address rewardsDistributor);
+
     constructor(
         address _asset,
         string memory _name,
@@ -242,6 +250,7 @@ contract Strategy is BaseTokenizedStrategy {
         uint256 _maxGasForMatching
     ) external onlyManagement {
         maxGasForMatching = _maxGasForMatching;
+        emit SetMaxGasForMatching(_maxGasForMatching);
     }
 
     /**
@@ -252,11 +261,12 @@ contract Strategy is BaseTokenizedStrategy {
         address _rewardsDistributor
     ) external onlyManagement {
         rewardsDistributor = _rewardsDistributor;
+        emit SetRewardsDistributor(_rewardsDistributor);
     }
 
     /**
      * @notice Claims MORPHO rewards. Use Morpho API to get the data: https://api.morpho.xyz/rewards/{address}
-     * @dev See stages of Morpho rewards distibution: https://docs.morpho.xyz/usdmorpho/ages-and-epochs/age-2
+     * @dev See stages of Morpho rewards distibution: https://docs.morpho.xyz/usdmorpho/ages-and-epochs
      * @param _account The address of the claimer.
      * @param _claimable The overall claimable amount of token rewards.
      * @param _proof The merkle proof that validates this claim.
@@ -272,5 +282,19 @@ contract Strategy is BaseTokenizedStrategy {
             _claimable,
             _proof
         );
+    }
+
+    /**
+     * @notice Transfer MORPHO tokens to a given address
+     * @dev MORPHO token was launched as non-transferable with the possibility of
+     * allowing the DAO to turn on transferability anytime.
+     * @param _receiver The address that will receive the MORPHO token.
+     * @param _amount The amount of MORPHO token to transfer.
+     */
+    function transferMorpho(
+        address _receiver,
+        uint256 _amount
+    ) external onlyManagement {
+        ERC20(MORPHO_TOKEN).transfer(_receiver, _amount);
     }
 }
