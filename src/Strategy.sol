@@ -2,9 +2,10 @@
 pragma solidity 0.8.18;
 
 import {BaseTokenizedStrategy} from "@tokenized-strategy/BaseTokenizedStrategy.sol";
+import {HealthCheck} from "@periphery/HealthCheck/HealthCheck.sol";
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IMorpho} from "./interfaces/morpho/IMorpho.sol";
 import {ILens} from "./interfaces/morpho/ILens.sol";
@@ -26,9 +27,10 @@ import {IRewardsDistributor} from "./interfaces/morpho/IRewardsDistributor.sol";
 error MarketPaused();
 error InsufficientLiquidity();
 error InvalidToken();
+error MissingRewardsDistributor();
 
-contract Strategy is BaseTokenizedStrategy {
-    using SafeERC20 for ERC20;
+contract Strategy is BaseTokenizedStrategy, HealthCheck {
+    // using SafeERC20 for ERC20;
 
     // reward token, not currently listed
     address internal constant MORPHO_TOKEN =
@@ -92,17 +94,14 @@ contract Strategy is BaseTokenizedStrategy {
      * to deposit in the yield source.
      */
     function _invest(uint256 _amount) internal override {
-        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(
+            aToken
+        );
         if (market.isSupplyPaused || market.isWithdrawPaused) {
             revert MarketPaused();
         }
 
-        morpho.supply(
-            aToken,
-            address(this),
-            _amount,
-            maxGasForMatching
-        );
+        morpho.supply(aToken, address(this), _amount, maxGasForMatching);
     }
 
     /**
@@ -128,7 +127,9 @@ contract Strategy is BaseTokenizedStrategy {
      */
     function _freeFunds(uint256 _amount) internal override {
         // if the market is paused we cannot withdraw
-        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(
+            aToken
+        );
         if (market.isWithdrawPaused) {
             revert MarketPaused();
         }
@@ -165,6 +166,7 @@ contract Strategy is BaseTokenizedStrategy {
     function _totalInvested() internal override returns (uint256 _invested) {
         (, , uint256 totalUnderlying) = underlyingBalance();
         _invested = ERC20(asset).balanceOf(address(this)) + totalUnderlying;
+        require(_executHealthCheck(_invested), "!healthcheck)");
     }
 
     /**
@@ -211,7 +213,9 @@ contract Strategy is BaseTokenizedStrategy {
     function availableWithdrawLimit(
         address //_owner
     ) public view override returns (uint256) {
-        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(
+            aToken
+        );
         if (market.isWithdrawPaused) {
             return 0;
         }
@@ -222,12 +226,14 @@ contract Strategy is BaseTokenizedStrategy {
      * @notice Gets the max amount of `asset` that can be deposited.
      * @dev Returns 0 if the market is paused.
      * @param . The address that is depositing to the strategy.
-    * @return . The avialable amount that can be deposited in terms of `asset`
+     * @return . The avialable amount that can be deposited in terms of `asset`
      */
     function availableDepositLimit(
         address //_owner
     ) public view override returns (uint256) {
-        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(
+            aToken
+        );
         if (market.isSupplyPaused || market.isWithdrawPaused) {
             return 0;
         }
@@ -276,7 +282,9 @@ contract Strategy is BaseTokenizedStrategy {
         uint256 _claimable,
         bytes32[] calldata _proof
     ) external onlyManagement {
-        require(rewardsDistributor != address(0), "Rewards distributor not set");
+        if (rewardsDistributor == address(0)) {
+            revert MissingRewardsDistributor();
+        }
         IRewardsDistributor(rewardsDistributor).claim(
             _account,
             _claimable,

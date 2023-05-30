@@ -47,9 +47,16 @@ contract StrategyAprOracle is AprOracleBase {
         IStrategyInterface strategy = IStrategyInterface(_strategy);
         address aToken = strategy.aToken();
         if (_delta == 0) {
-            apr = ILens(strategy.lens()).getCurrentUserSupplyRatePerYear(aToken, _strategy);
+            apr = ILens(strategy.lens()).getCurrentUserSupplyRatePerYear(
+                aToken,
+                _strategy
+            );
         } else if (_delta > 0) {
-            (apr, , , ) = ILens(strategy.lens()).getNextUserSupplyRatePerYear(aToken, _strategy, uint256(_delta));
+            (apr, , , ) = ILens(strategy.lens()).getNextUserSupplyRatePerYear(
+                aToken,
+                _strategy,
+                uint256(_delta)
+            );
         } else {
             apr = aprAfterLiquidityWithdraw(strategy, aToken, uint256(-_delta));
         }
@@ -163,7 +170,10 @@ contract StrategyAprOracle is AprOracleBase {
         if (poolData.borrowedFromPool > 0) {
             delta.p2pSupplyAmount -= Math.min(
                 delta.p2pSupplyAmount,
-                WadRayMath.rayDiv(poolData.borrowedFromPool, indexes.p2pSupplyIndex)
+                WadRayMath.rayDiv(
+                    poolData.borrowedFromPool,
+                    indexes.p2pSupplyIndex
+                )
             );
         }
 

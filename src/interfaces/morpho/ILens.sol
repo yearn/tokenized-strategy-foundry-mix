@@ -9,9 +9,13 @@ interface ILens {
         uint256 poolBorrowIndex; // The pool borrow index (in ray), used to multiply the scaled pool borrow balance and get the pool borrow balance (in underlying).
     }
 
-    function getIndexes(address _poolToken) external view returns (Indexes memory indexes);
+    function getIndexes(
+        address _poolToken
+    ) external view returns (Indexes memory indexes);
 
-    function getMainMarketData(address _poolTokenAddress)
+    function getMainMarketData(
+        address _poolTokenAddress
+    )
         external
         view
         returns (
@@ -55,10 +59,5 @@ interface ILens {
     function getCurrentUserSupplyRatePerYear(
         address _poolTokenAddress,
         address _user
-    )
-        external
-        view
-        returns (
-            uint256 supplyRatePerYear
-        );
+    ) external view returns (uint256 supplyRatePerYear);
 }

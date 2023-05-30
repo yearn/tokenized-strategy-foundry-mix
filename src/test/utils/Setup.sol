@@ -75,7 +75,15 @@ contract Setup is ExtendedTest {
 
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy", morpho, lens, aaveToken))
+            address(
+                new Strategy(
+                    address(asset),
+                    "Tokenized Strategy",
+                    morpho,
+                    lens,
+                    aaveToken
+                )
+            )
         );
 
         // set keeper

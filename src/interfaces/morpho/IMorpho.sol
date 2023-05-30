@@ -49,13 +49,29 @@ interface IMorpho {
         uint256 _amount,
         uint256 _maxGasForMatching
     ) external;
+
     function withdraw(address _poolTokenAddress, uint256 _amount) external;
 
-    function getHead(address _poolToken, PositionType _positionType) external view returns (address head);
-    function supplyBalanceInOf(address, address) external view returns (SupplyBalance memory);
-    function borrowBalanceInOf(address, address) external view returns (BorrowBalance memory);
+    function getHead(
+        address _poolToken,
+        PositionType _positionType
+    ) external view returns (address head);
+
+    function supplyBalanceInOf(
+        address,
+        address
+    ) external view returns (SupplyBalance memory);
+
+    function borrowBalanceInOf(
+        address,
+        address
+    ) external view returns (BorrowBalance memory);
 
     function deltas(address _poolToken) external view returns (Delta memory);
+
     function market(address _poolToken) external view returns (Market memory);
-    function marketPauseStatus(address) external view returns (MarketPauseStatus memory);
+
+    function marketPauseStatus(
+        address
+    ) external view returns (MarketPauseStatus memory);
 }
