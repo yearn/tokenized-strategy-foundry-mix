@@ -13,3 +13,6 @@
 [submodule "lib/tokenized-strategy-periphery"]
 	path = lib/tokenized-strategy-periphery
 	url = https://github.com/schlagonia/tokenized-strategy-periphery
+[submodule "lib/morpho-utils"]
+	path = lib/morpho-utils
+	url = https://github.com/morpho-dao/morpho-utils

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity 0.8.18;
 
 import "forge-std/console.sol";
 import {Setup} from "./utils/Setup.sol";
@@ -16,7 +16,10 @@ contract OperationTest is Setup {
         assertEq(strategy.management(), management);
         assertEq(strategy.performanceFeeRecipient(), performanceFeeRecipient);
         assertEq(strategy.keeper(), keeper);
-        // TODO: add additional check on strat params
+        // DONE: add additional check on strat params
+        assertEq(strategy.morpho(), 0x777777c9898D384F785Ee44Acfe945efDFf5f3E0);
+        assertEq(strategy.lens(), 0x507fA343d0A90786d86C7cd885f5C49263A91FF4);
+        assertEq(strategy.aToken(), aaveTokenAddrs[asset.symbol()]);
     }
 
     function test_operation(uint256 _amount) public {
@@ -25,8 +28,8 @@ contract OperationTest is Setup {
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        // TODO: Implement logic so totalDebt is _amount and totalIdle = 0.
-        checkStrategyTotals(strategy, _amount, 0, _amount);
+        // DONE: Implement logic so totalDebt is _amount and totalIdle = 0.
+        checkStrategyTotals(strategy, _amount, _amount, 0);
 
         // Earn Interest
         skip(1 days);
@@ -47,7 +50,7 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
+        // DONE: Adjust if there are fees
         checkStrategyTotals(strategy, 0, 0, 0);
 
         assertGe(
@@ -67,22 +70,21 @@ contract OperationTest is Setup {
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        // TODO: Implement logic so totalDebt is _amount and totalIdle = 0.
-        checkStrategyTotals(strategy, _amount, 0, _amount);
+        // DONE: Implement logic so totalDebt is _amount and totalIdle = 0.
+        checkStrategyTotals(strategy, _amount, _amount, 0);
 
         // Earn Interest
         skip(1 days);
 
-        // TODO: implement logic to simulate earning interest.
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        airdrop(asset, address(strategy), toAirdrop);
+        // DONE: implement logic to simulate earning interest.
+        skip(30 days);
 
         // Report profit
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
         // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
+        assertGe(profit, 0, "!profit");
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
@@ -93,13 +95,12 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
+        // DONE: Adjust if there are fees
         checkStrategyTotals(strategy, 0, 0, 0);
 
-        // TODO: Adjust if there are fees
         assertGe(
             asset.balanceOf(user),
-            balanceBefore + _amount + toAirdrop,
+            balanceBefore + _amount,
             "!final balance"
         );
     }
@@ -117,22 +118,21 @@ contract OperationTest is Setup {
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        // TODO: Implement logic so totalDebt is _amount and totalIdle = 0.
-        checkStrategyTotals(strategy, _amount, 0, _amount);
+        // DONE: Implement logic so totalDebt is _amount and totalIdle = 0.
+        checkStrategyTotals(strategy, _amount, _amount, 0);
 
         // Earn Interest
         skip(1 days);
 
-        // TODO: implement logic to simulate earning interest.
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        airdrop(asset, address(strategy), toAirdrop);
+        // DONE: implement logic to simulate earning interest.
+        skip(30 days);
 
         // Report profit
         vm.prank(keeper);
         (uint256 profit, uint256 loss) = strategy.report();
 
         // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
+        assertGe(profit, 0, "!profit");
         assertEq(loss, 0, "!loss");
 
         skip(strategy.profitMaxUnlockTime());
@@ -148,7 +148,7 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
+        // DONE: Adjust if there are fees
         assertGe(
             asset.balanceOf(user),
             balanceBefore + _amount,

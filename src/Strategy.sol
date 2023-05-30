@@ -6,8 +6,9 @@ import {BaseTokenizedStrategy} from "@tokenized-strategy/BaseTokenizedStrategy.s
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-// Import interfaces for many popular DeFi projects, or add your own!
-//import "../interfaces/<protocol>/<Interface>.sol";
+import {IMorpho} from "./interfaces/morpho/IMorpho.sol";
+import {ILens} from "./interfaces/morpho/ILens.sol";
+import {IRewardsDistributor} from "./interfaces/morpho/IRewardsDistributor.sol";
 
 /**
  * The `TokenizedStrategy` variable can be used to retrieve the strategies
@@ -22,13 +23,50 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 // NOTE: To implement permissioned functions you can use the onlyManagement and onlyKeepers modifiers
 
+error MarketPaused();
+error InsufficientLiquidity();
+error InvalidToken();
+
 contract Strategy is BaseTokenizedStrategy {
     using SafeERC20 for ERC20;
 
+    // reward token, not currently listed
+    address internal constant MORPHO_TOKEN =
+        0x9994E35Db50125E0DF82e4c2dde62496CE330999;
+    // used for claiming reward Morpho token
+    address public rewardsDistributor =
+        0x3B14E5C73e0A56D607A8688098326fD4b4292135;
+    // Max gas used for matching with p2p deals
+    uint256 public maxGasForMatching = 100000;
+    // TODO: see if it is avaiable in the perifery
+    address public tradeFactory = 0xd6a8ae62f4d593DAf72E2D7c9f7bDB89AB069F06;
+
+    // Morpho is a contract to handle interaction with the protocol
+    IMorpho public morpho;
+    // Lens is a contract to fetch data about Morpho protocol
+    ILens public lens;
+    // aToken = Morpho Aave Market for want token
+    address public aToken;
+
     constructor(
         address _asset,
-        string memory _name
-    ) BaseTokenizedStrategy(_asset, _name) {}
+        string memory _name,
+        address _morpho,
+        address _lens,
+        address _aToken
+    ) BaseTokenizedStrategy(_asset, _name) {
+        // TODO: see if the makes sense to create strategy as clonable and move this to initialize
+        morpho = IMorpho(_morpho);
+        lens = ILens(_lens);
+        aToken = _aToken;
+        IMorpho.Market memory market = morpho.market(aToken);
+
+        if (market.underlyingToken != asset) {
+            revert InvalidToken();
+        }
+
+        ERC20(asset).approve(_morpho, type(uint256).max);
+    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDEN BY STRATEGIST
@@ -46,9 +84,17 @@ contract Strategy is BaseTokenizedStrategy {
      * to deposit in the yield source.
      */
     function _invest(uint256 _amount) internal override {
-        // TODO: implement deposit logice EX:
-        //
-        //      lendingpool.deposit(asset, _amount ,0);
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        if (market.isSupplyPaused || market.isWithdrawPaused) {
+            revert MarketPaused();
+        }
+
+        morpho.supply(
+            aToken,
+            address(this),
+            _amount,
+            maxGasForMatching
+        );
     }
 
     /**
@@ -73,9 +119,18 @@ contract Strategy is BaseTokenizedStrategy {
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override {
-        // TODO: implement withdraw logic EX:
-        //
-        //      lendingPool.withdraw(asset, _amount);
+        // if the market is paused we cannot withdraw
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        if (market.isWithdrawPaused) {
+            revert MarketPaused();
+        }
+
+        if (ERC20(asset).balanceOf(address(aToken)) < _amount) {
+            // revert if there is not enough liquidity on aave, don't report loss
+            revert InsufficientLiquidity();
+        }
+
+        morpho.withdraw(aToken, _amount);
     }
 
     /**
@@ -100,80 +155,32 @@ contract Strategy is BaseTokenizedStrategy {
      * amount of 'asset' the strategy currently holds.
      */
     function _totalInvested() internal override returns (uint256 _invested) {
-        // TODO: Implement harvesting logic and accurate accounting EX:
-        //
-        //      _claminAndSellRewards();
-        //      _invested = aToken.balanceof(address(this)) + ERC20(asset).balanceOf(address(this));
-        _invested = ERC20(asset).balanceOf(address(this));
+        (, , uint256 totalUnderlying) = underlyingBalance();
+        _invested = ERC20(asset).balanceOf(address(this)) + totalUnderlying;
+    }
+
+    /**
+     * @notice Returns the value deposited in Morpho protocol
+     * @return balanceInP2P Amount supplied through Morpho that is matched peer-to-peer
+     * @return balanceOnPool Amount supplied through Morpho on the underlying protocol's pool
+     * @return totalBalance Equals `balanceOnPool` + `balanceInP2P`
+     */
+    function underlyingBalance()
+        public
+        view
+        returns (
+            uint256 balanceInP2P,
+            uint256 balanceOnPool,
+            uint256 totalBalance
+        )
+    {
+        (balanceInP2P, balanceOnPool, totalBalance) = lens
+            .getCurrentSupplyBalanceInOf(aToken, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @dev Optional function for strategist to override that can
-     *  be called in between reports.
-     *
-     * If '_tend' is used tendTrigger() will also need to be overridden.
-     *
-     * This call can only be called by a persionned role so may be
-     * through protected relays.
-     *
-     * This can be used to harvest and compound rewards, deposit idle funds,
-     * perform needed poisition maintence or anything else that doesn't need
-     * a full report for.
-     *
-     *   EX: A strategy that can not deposit funds without getting
-     *       sandwhiched can use the tend when a certain threshold
-     *       of idle to totalAssets has been reached.
-     *
-     * The TokenizedStrategy contract will do all needed debt and idle updates
-     * after this has finished and will have no effect on PPS of the strategy 
-     * till report() is called.
-     *
-     * @param _totalIdle The current amount of idle funds that are available to invest.
-     *
-    function _tend(uint256 _totalIdle) internal override {}
-    */
-
-    /**
-     * @notice Returns wether or not tend() should be called by a keeper.
-     * @dev Optional trigger to override if tend() will be used by the strategy.
-     * This must be implemented if the strategy hopes to invoke _tend().
-     *
-     * @return . Should return true if tend() should be called by keeper or false if not.
-     *
-    function tendTrigger() public view override returns (bool) {}
-    */
-
-    /**
-     * @notice Gets the max amount of `asset` that an adress can deposit.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
-     *
-     * This function will be called before any deposit or mints to enforce
-     * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist.
-     *
-     *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
-     *
-     * This does not need to take into account any conversion rates
-     * from shares to assets.
-     *
-     * @param . The address that is depositing into the strategy.
-     * @return . The avialable amount the `_owner can deposit in terms of `asset`
-     *
-    function availableDepositLimit(
-        address _owner
-    ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables EX:
-            
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
-    }
-    */
 
     /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
@@ -192,13 +199,78 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * @param . The address that is withdrawing from the strategy.
      * @return . The avialable amount that can be withdrawn in terms of `asset`
-     *
+     */
     function availableWithdrawLimit(
-        address _owner
+        address //_owner
     ) public view override returns (uint256) {
-        TODO: If desired Implement withdraw limit logic and any needed state variables EX:
-            
-            return TokenizedStrategy.totalIdle();
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        if (market.isWithdrawPaused) {
+            return 0;
+        }
+        return ERC20(asset).balanceOf(address(aToken));
     }
-    */
+
+    /**
+     * @notice Gets the max amount of `asset` that can be deposited.
+     * @dev Returns 0 if the market is paused.
+     * @param . The address that is depositing to the strategy.
+    * @return . The avialable amount that can be deposited in terms of `asset`
+     */
+    function availableDepositLimit(
+        address //_owner
+    ) public view override returns (uint256) {
+        IMorpho.MarketPauseStatus memory market = morpho.marketPauseStatus(aToken);
+        if (market.isSupplyPaused || market.isWithdrawPaused) {
+            return 0;
+        }
+        return type(uint256).max;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    CUSTOM MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /**
+     * @notice Set the maximum amount of gas to consume to get matched in peer-to-peer.
+     * @dev
+     *  This value is needed in Morpho supply liquidity calls.
+     *  Supplyed liquidity goes to loop with current loans on Morpho
+     *  and creates a match for p2p deals. The loop starts from bigger liquidity deals.
+     *  The default value set by Morpho is 100000.
+     * @param _maxGasForMatching new maximum gas value for P2P matching
+     */
+    function setMaxGasForMatching(
+        uint256 _maxGasForMatching
+    ) external onlyManagement {
+        maxGasForMatching = _maxGasForMatching;
+    }
+
+    /**
+     * @notice Set new rewards distributor contract
+     * @param _rewardsDistributor address of new contract
+     */
+    function setRewardsDistributor(
+        address _rewardsDistributor
+    ) external onlyManagement {
+        rewardsDistributor = _rewardsDistributor;
+    }
+
+    /**
+     * @notice Claims MORPHO rewards. Use Morpho API to get the data: https://api.morpho.xyz/rewards/{address}
+     * @dev See stages of Morpho rewards distibution: https://docs.morpho.xyz/usdmorpho/ages-and-epochs/age-2
+     * @param _account The address of the claimer.
+     * @param _claimable The overall claimable amount of token rewards.
+     * @param _proof The merkle proof that validates this claim.
+     */
+    function claimMorphoRewards(
+        address _account,
+        uint256 _claimable,
+        bytes32[] calldata _proof
+    ) external onlyManagement {
+        require(rewardsDistributor != address(0), "Rewards distributor not set");
+        IRewardsDistributor(rewardsDistributor).claim(
+            _account,
+            _claimable,
+            _proof
+        );
+    }
 }
