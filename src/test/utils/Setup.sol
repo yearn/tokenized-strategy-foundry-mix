@@ -9,13 +9,16 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Strategy} from "../../Strategy.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
-interface IFactory {
-    function owner() external view returns (address);
+// Inherit the events so they can be checked if desired.
+import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
 
-    function setFee(uint16) external;
+interface IFactory {
+    function governance() external view returns (address);
+
+    function set_protocol_fee_bps(uint16) external;
 }
 
-contract Setup is ExtendedTest {
+contract Setup is ExtendedTest, IEvents {
     // Contract instancees that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
@@ -29,7 +32,7 @@ contract Setup is ExtendedTest {
     address public performanceFeeRecipient = address(3);
 
     // Address of the real deployed Factory
-    address public factory = 0xa8f46C3f5A89fbC3c80B3EE333a1dAF8FA719061;
+    address public factory = 0x85E2861b3b1a70c90D28DfEc30CE6E07550d83e9;
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
@@ -53,9 +56,6 @@ contract Setup is ExtendedTest {
 
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
-
-        // Default for fees to be 0 for easiser calculations.
-        setFees(0, 0);
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -131,10 +131,10 @@ contract Setup is ExtendedTest {
     }
 
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
-        address gov = IFactory(factory).owner();
+        address gov = IFactory(factory).governance();
 
         vm.prank(gov);
-        IFactory(factory).setFee(_protocolFee);
+        IFactory(factory).set_protocol_fee_bps(_protocolFee);
 
         vm.prank(management);
         strategy.setPerformanceFee(_performanceFee);
