@@ -16,6 +16,8 @@ interface IFactory {
     function governance() external view returns (address);
 
     function set_protocol_fee_bps(uint16) external;
+
+    function set_protocol_fee_recipient(address) external;
 }
 
 contract Setup is ExtendedTest, IEvents {
@@ -132,6 +134,10 @@ contract Setup is ExtendedTest, IEvents {
 
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
         address gov = IFactory(factory).governance();
+
+        // Need to make sure there is a protocol fee recipient to set the fee.
+        vm.prank(gov);
+        IFactory(factory).set_protocol_fee_recipient(gov);
 
         vm.prank(gov);
         IFactory(factory).set_protocol_fee_bps(_protocolFee);
