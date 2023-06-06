@@ -233,7 +233,7 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * @param _amount The amount of asset to attempt to free.
      *
-    function _emergencyWithdraw(uint256 _amount) internal virtual {
+    function _emergencyWithdraw(uint256 _amount) internal override {
         TODO: If desired implement simple logic to free deployed funds.
 
         EX:
