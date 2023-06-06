@@ -93,13 +93,12 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
-        checkStrategyTotals(strategy, 0, 0, 0);
+        uint256 expectedFees = (profit * strategy.performanceFee()) / MAX_BPS;
 
-        // TODO: Adjust if there are fees
+        // TODO: Adjust based on fees.
         assertGe(
             asset.balanceOf(user),
-            balanceBefore + _amount + toAirdrop,
+            balanceBefore + _amount,
             "!final balance"
         );
     }

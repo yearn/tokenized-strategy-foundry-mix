@@ -35,7 +35,7 @@ contract Strategy is BaseTokenizedStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Should invest up to '_amount' of 'asset'.
+     * @dev Should deploy up to '_amount' of 'asset' in the yield source.
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
@@ -45,7 +45,7 @@ contract Strategy is BaseTokenizedStrategy {
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
      */
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         // TODO: implement deposit logice EX:
         //
         //      lendingpool.deposit(asset, _amount ,0);
@@ -57,7 +57,7 @@ contract Strategy is BaseTokenizedStrategy {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * This function is called {withdraw} and {redeem} calls.
+     * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
      * entirely permsionless and thus can be sandwhiched or otherwise
      * manipulated.
@@ -79,32 +79,37 @@ contract Strategy is BaseTokenizedStrategy {
     }
 
     /**
-     * @dev Internal non-view function to harvest all rewards, reinvest
-     * and return the accurate amount of funds currently held by the Strategy.
+     * @dev Internal function to harvest all rewards, redeploy any idle
+     * funds and return an accurate accounting of all funds currently
+     * held by the Strategy.
      *
      * This should do any needed harvesting, rewards selling, accrual,
-     * reinvesting etc. to get the most accurate view of current assets.
+     * redepositing etc. to get the most accurate view of current assets.
      *
-     * All applicable assets including loose assets should be accounted
-     * for in this function.
+     * NOTE: All applicable assets including loose assets should be
+     * accounted for in this function.
      *
      * Care should be taken when relying on oracles or swap values rather
      * than actual amounts as all Strategy profit/loss accounting will
      * be done based on this returned value.
      *
      * This can still be called post a shutdown, a strategist can check
-     * `TokenizedStrategy.isShutdown()` to decide if funds should be reinvested
-     * or simply realize any profits/losses.
+     * `TokenizedStrategy.isShutdown()` to decide if funds should be
+     * redeployed or simply realize any profits/losses.
      *
-     * @return _invested A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds.
+     * @return _totalAssets A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _totalInvested() internal override returns (uint256 _invested) {
+    function _harvestAndReport()
+        internal
+        override
+        returns (uint256 _totalAssets)
+    {
         // TODO: Implement harvesting logic and accurate accounting EX:
         //
         //      _claminAndSellRewards();
-        //      _invested = aToken.balanceof(address(this)) + ERC20(asset).balanceOf(address(this));
-        _invested = ERC20(asset).balanceOf(address(this));
+        //      _totalAssets = aToken.balanceof(address(this)) + ERC20(asset).balanceOf(address(this));
+        _totalAssets = ERC20(asset).balanceOf(address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -129,10 +134,10 @@ contract Strategy is BaseTokenizedStrategy {
      *       of idle to totalAssets has been reached.
      *
      * The TokenizedStrategy contract will do all needed debt and idle updates
-     * after this has finished and will have no effect on PPS of the strategy 
+     * after this has finished and will have no effect on PPS of the strategy
      * till report() is called.
      *
-     * @param _totalIdle The current amount of idle funds that are available to invest.
+     * @param _totalIdle The current amount of idle funds that are available to deploy.
      *
     function _tend(uint256 _totalIdle) internal override {}
     */
@@ -154,22 +159,26 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * This function will be called before any deposit or mints to enforce
      * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist.
+     * traditional deposit limit or for implementing a whitelist etc.
      *
      *   EX:
      *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
      *
      * This does not need to take into account any conversion rates
-     * from shares to assets.
+     * from shares to assets. But should know that any non max uint256
+     * amounts may be converted to shares. So it is recommended to keep
+     * custom amounts low enough as not to cause overflow when multiplied
+     * by `totalSupply`.
      *
      * @param . The address that is depositing into the strategy.
-     * @return . The avialable amount the `_owner can deposit in terms of `asset`
+     * @return . The avialable amount the `_owner` can deposit in terms of `asset`
      *
     function availableDepositLimit(
         address _owner
     ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables EX:
-            
+        TODO: If desired Implement deposit limit logic and any needed state variables .
+        
+        EX:    
             uint256 totalAssets = TokenizedStrategy.totalAssets();
             return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
     }
@@ -196,9 +205,41 @@ contract Strategy is BaseTokenizedStrategy {
     function availableWithdrawLimit(
         address _owner
     ) public view override returns (uint256) {
-        TODO: If desired Implement withdraw limit logic and any needed state variables EX:
-            
+        TODO: If desired Implement withdraw limit logic and any needed state variables.
+        
+        EX:    
             return TokenizedStrategy.totalIdle();
     }
+    */
+
+    /**
+     * @dev Optional function for a strategist to override that will
+     * allow management to manually withdraw deployed funds from the
+     * yield source if a strategy is shutdown.
+     *
+     * This should attempt to free `_amount`, noting that `_amount` may
+     * be more than is currently deployed.
+     *
+     * NOTE: This will not realize any profits or losses. A seperate
+     * {report} will be needed in order to record any profit/loss. If
+     * a report may need to be called after a shutdown it is important
+     * to check if the strategy is shutdown during {_harvestAndReport}
+     * so that it does not simply re-deploy all funds that had been freed.
+     *
+     * EX:
+     *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
+     *       depositFunds...
+     *    }
+     *
+     * @param _amount The amount of asset to attempt to free.
+     *
+    function _emergencyWithdraw(uint256 _amount) internal virtual {
+        TODO: If desired implement simple logic to free deployed funds.
+
+        EX:
+            _amount = min(_amount, atoken.balanceOf(address(this)));
+            lendingPool.withdraw(asset, _amount);
+    }
+
     */
 }
