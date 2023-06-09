@@ -1,4 +1,4 @@
 @openzeppelin/=lib/openzeppelin-contracts/
 forge-std/=lib/forge-std/src/
 @tokenized-strategy/=lib/tokenized-strategy/src/
-@periphery/=lib/tokenized-strategy-periphery/contracts/
+@periphery/=lib/tokenized-strategy-periphery/src/
