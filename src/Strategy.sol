@@ -39,10 +39,10 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
-     * be entirely permsionless and thus can be sandwhiched or otherwise
+     * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt
+     * @param _amount The amount of 'asset' that the strategy should attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
@@ -59,11 +59,11 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
-     * entirely permsionless and thus can be sandwhiched or otherwise
+     * entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
      * Should not rely on asset.balanceOf(address(this)) calls other than
-     * for diff accounting puroposes.
+     * for diff accounting purposes.
      *
      * Any difference between `_amount` and what is actually freed will be
      * counted as a loss and passed on to the withdrawer. This means
@@ -122,15 +122,15 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * If '_tend' is used tendTrigger() will also need to be overridden.
      *
-     * This call can only be called by a persionned role so may be
+     * This call can only be called by a permissioned role so may be
      * through protected relays.
      *
      * This can be used to harvest and compound rewards, deposit idle funds,
-     * perform needed poisition maintence or anything else that doesn't need
+     * perform needed poisition maintenance or anything else that doesn't need
      * a full report for.
      *
      *   EX: A strategy that can not deposit funds without getting
-     *       sandwhiched can use the tend when a certain threshold
+     *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
      * The TokenizedStrategy contract will do all needed debt and idle updates
@@ -143,7 +143,7 @@ contract Strategy is BaseTokenizedStrategy {
     */
 
     /**
-     * @notice Returns wether or not tend() should be called by a keeper.
+     * @notice Returns weather or not tend() should be called by a keeper.
      * @dev Optional trigger to override if tend() will be used by the strategy.
      * This must be implemented if the strategy hopes to invoke _tend().
      *
@@ -153,7 +153,7 @@ contract Strategy is BaseTokenizedStrategy {
     */
 
     /**
-     * @notice Gets the max amount of `asset` that an adress can deposit.
+     * @notice Gets the max amount of `asset` that an address can deposit.
      * @dev Defaults to an unlimited amount for any address. But can
      * be overriden by strategists.
      *
@@ -171,7 +171,7 @@ contract Strategy is BaseTokenizedStrategy {
      * by `totalSupply`.
      *
      * @param . The address that is depositing into the strategy.
-     * @return . The avialable amount the `_owner` can deposit in terms of `asset`
+     * @return . The available amount the `_owner` can deposit in terms of `asset`
      *
     function availableDepositLimit(
         address _owner
@@ -191,7 +191,7 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * This function will be called before any withdraw or redeem to enforce
      * any limits desired by the strategist. This can be used for illiquid
-     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     * or sandwichable strategies. It should never be lower than `totalIdle`.
      *
      *   EX:
      *       return TokenIzedStrategy.totalIdle();
@@ -200,7 +200,7 @@ contract Strategy is BaseTokenizedStrategy {
      * or conversion rates from shares to assets.
      *
      * @param . The address that is withdrawing from the strategy.
-     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     * @return . The available amount that can be withdrawn in terms of `asset`
      *
     function availableWithdrawLimit(
         address _owner
@@ -220,7 +220,7 @@ contract Strategy is BaseTokenizedStrategy {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: This will not realize any profits or losses. A seperate
+     * NOTE: This will not realize any profits or losses. A separate
      * {report} will be needed in order to record any profit/loss. If
      * a report may need to be called after a shutdown it is important
      * to check if the strategy is shutdown during {_harvestAndReport}

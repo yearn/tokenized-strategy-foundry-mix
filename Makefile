@@ -21,4 +21,5 @@ test-test  :; forge test -vv --match-test $(test) --fork-url ${FORK_URL} --ether
 trace-test  :; forge test -vvv --match-test $(test) --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
 
 clean  :; forge clean
-snapshot :; forge snapshot
+snapshot :; forge snapshot --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
+diff :; forge snapshot --diff --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}

@@ -153,5 +153,3 @@ Once the Strategy is fully deployed and verified, you will need to verify the To
 4. Click "Save". 
 
 This should add all of the external `TokenizedStrategy` functions to the contract interface on Etherscan.
-
-See the ApeWorx [documentation](https://docs.apeworx.io/ape/stable/) and [github](https://github.com/ApeWorX/ape) for more information.
