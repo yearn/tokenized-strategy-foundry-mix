@@ -10,3 +10,7 @@
 	path = lib/tokenized-strategy-periphery
 	url = https://github.com/schlagonia/tokenized-strategy-periphery
 	branch = master
+[submodule "lib/tokenized-strategy"]
+	path = lib/tokenized-strategy
+	url = https://github.com/yearn/tokenized-strategy
+	branch = v3.0.0
