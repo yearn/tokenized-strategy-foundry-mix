@@ -25,9 +25,10 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract Strategy is BaseTokenizedStrategy {
     using SafeERC20 for ERC20;
 
-    constructor(address _asset, string memory _name)
-        BaseTokenizedStrategy(_asset, _name)
-    {}
+    constructor(
+        address _asset,
+        string memory _name
+    ) BaseTokenizedStrategy(_asset, _name) {}
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDEN BY STRATEGIST
