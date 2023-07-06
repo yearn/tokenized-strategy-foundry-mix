@@ -141,6 +141,14 @@ When testing on chains other than mainnet you will need to make sure a valid `CA
 
 #### Errors:
 
+To update to a new API version of the TokenizeStrategy you will need to simply remove and reinstall the dependency.
+
+```sh
+git rm -r lib/tokenized-strategy/
+
+forge install yearn/tokenized-strategy@API_VERSION
+```
+
 ### Deployment
 
 #### Contract Verification

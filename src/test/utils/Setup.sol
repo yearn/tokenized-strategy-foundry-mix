@@ -79,7 +79,10 @@ contract Setup is ExtendedTest, IEvents {
         // set treasury
         _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
         // set management of the strategy
-        _strategy.setManagement(management);
+        _strategy.setPendingManagement(management);
+
+        vm.prank(management);
+        _strategy.acceptManagement();
 
         return address(_strategy);
     }
@@ -118,15 +121,20 @@ contract Setup is ExtendedTest, IEvents {
         assertEq(_totalAssets, _totalDebt + _totalIdle, "!Added");
     }
 
-    function airdrop(ERC20 _asset, address _to, uint256 _amount) public {
+    function airdrop(
+        ERC20 _asset,
+        address _to,
+        uint256 _amount
+    ) public {
         uint256 balanceBefore = _asset.balanceOf(_to);
         deal(address(_asset), _to, balanceBefore + _amount);
     }
 
-    function getExpectedProtocolFee(
-        uint256 _amount,
-        uint16 _fee
-    ) public view returns (uint256) {
+    function getExpectedProtocolFee(uint256 _amount, uint16 _fee)
+        public
+        view
+        returns (uint256)
+    {
         uint256 timePassed = block.timestamp - strategy.lastReport();
 
         return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
