@@ -34,7 +34,7 @@ contract Setup is ExtendedTest, IEvents {
     address public performanceFeeRecipient = address(3);
 
     // Address of the real deployed Factory
-    address public factory = 0x85E2861b3b1a70c90D28DfEc30CE6E07550d83e9;
+    address public factory;
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
@@ -58,6 +58,8 @@ contract Setup is ExtendedTest, IEvents {
 
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
+
+        factory = strategy.FACTORY();
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -124,15 +126,6 @@ contract Setup is ExtendedTest, IEvents {
     function airdrop(ERC20 _asset, address _to, uint256 _amount) public {
         uint256 balanceBefore = _asset.balanceOf(_to);
         deal(address(_asset), _to, balanceBefore + _amount);
-    }
-
-    function getExpectedProtocolFee(
-        uint256 _amount,
-        uint16 _fee
-    ) public view returns (uint256) {
-        uint256 timePassed = block.timestamp - strategy.lastReport();
-
-        return (_amount * _fee * timePassed) / MAX_BPS / 31_556_952;
     }
 
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
