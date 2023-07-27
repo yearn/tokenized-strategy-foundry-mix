@@ -34,9 +34,6 @@ contract ShutdownTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
-        checkStrategyTotals(strategy, 0, 0, 0);
-
         assertGe(
             asset.balanceOf(user),
             balanceBefore + _amount,

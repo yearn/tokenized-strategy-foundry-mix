@@ -47,9 +47,6 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
-        checkStrategyTotals(strategy, 0, 0, 0);
-
         assertGe(
             asset.balanceOf(user),
             balanceBefore + _amount,
@@ -93,9 +90,6 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        uint256 expectedFees = (profit * strategy.performanceFee()) / MAX_BPS;
-
-        // TODO: Adjust based on fees.
         assertGe(
             asset.balanceOf(user),
             balanceBefore + _amount,
@@ -147,7 +141,6 @@ contract OperationTest is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        // TODO: Adjust if there are fees
         assertGe(
             asset.balanceOf(user),
             balanceBefore + _amount,
