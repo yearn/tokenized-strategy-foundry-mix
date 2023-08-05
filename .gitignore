@@ -17,3 +17,5 @@ node_modules/
 .gas-snapshot
 
 yarn.lock
+
+.venv
