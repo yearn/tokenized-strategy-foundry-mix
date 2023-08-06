@@ -5,6 +5,7 @@ import {BaseTokenizedStrategy} from "@tokenized-strategy/BaseTokenizedStrategy.s
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IGDai} from "./interfaces/IGDai.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "../interfaces/<protocol>/<Interface>.sol";
@@ -25,10 +26,14 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract Strategy is BaseTokenizedStrategy {
     using SafeERC20 for ERC20;
 
+    IGDai public constant GDAI = IGDai(0x91993f2101cc758D0dEB7279d41e880F7dEFe827);
+
     constructor(
         address _asset,
         string memory _name
-    ) BaseTokenizedStrategy(_asset, _name) {}
+    ) BaseTokenizedStrategy(_asset, _name) {
+        ERC20(_asset).safeApprove(address(GDAI), type(uint256).max);
+    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDEN BY STRATEGIST
@@ -46,9 +51,7 @@ contract Strategy is BaseTokenizedStrategy {
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
-        // TODO: implement deposit logice EX:
-        //
-        //      lendingpool.deposit(asset, _amount ,0);
+        GDAI.deposit(_amount, address(this));
     }
 
     /**
@@ -72,10 +75,13 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
+
+    /**
+    *  Reverts if a withdraw request has not been made or if one
+    *  has been made but the unlock epoch has not been reached.
+    */
     function _freeFunds(uint256 _amount) internal override {
-        // TODO: implement withdraw logic EX:
-        //
-        //      lendingPool.withdraw(asset, _amount);
+        // GDAI.withdraw(_amount, address(this));
     }
 
     /**
@@ -109,7 +115,25 @@ contract Strategy is BaseTokenizedStrategy {
         //
         //      _claminAndSellRewards();
         //      _totalAssets = aToken.balanceof(address(this)) + ERC20(asset).balanceOf(address(this));
-        _totalAssets = ERC20(asset).balanceOf(address(this));
+
+        // If epoch is less than one day old, withdrawals can't be made
+        // revert so we don't report an unnesesary loss
+        // TODO: should this be < or <= ?
+        uint256 gDaiWithdrawWindowStart = GDAI.currentEpochStart() + 1 days;
+        require(block.timestamp > gDaiWithdrawWindowStart, "!gDaiWithdrawWindow");
+
+        // If a withdrawal request hasn't been made for this epoch, withdrawals can't be made
+        // revert so we don't report an unnecesary loss
+        uint256 gDaiSharesToRedeem = GDAI.withdrawRequests(address(this), GDAI.currentEpoch());
+        require(gDaiSharesToRedeem > 0, "!gDaiSharesToRedeem");
+
+        GDAI.redeem(gDaiSharesToRedeem, address(this), address(this));
+        uint256 toRedeploy = GDAI.convertToAssets(gDaiSharesToRedeem);
+        // TODO: should this be toRedeploy or ERC20(asset).balanceOf(address(this))?
+        _deployFunds(toRedeploy);
+
+        uint256 gDaiShares = GDAI.balanceOf(address(this));
+        _totalAssets = GDAI.convertToAssets(gDaiShares) + ERC20(asset).balanceOf(address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,16 +197,17 @@ contract Strategy is BaseTokenizedStrategy {
      * @param . The address that is depositing into the strategy.
      * @return . The avialable amount the `_owner` can deposit in terms of `asset`
      *
-    function availableDepositLimit(
-        address _owner
-    ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-        EX:    
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
-    }
     */
+    // function availableDepositLimit(
+    //     address _owner
+    // ) public view override returns (uint256) {
+    //     // TODO: If desired Implement deposit limit logic and any needed state variables .
+        
+    //     // EX:    
+    //     //     uint256 totalAssets = TokenizedStrategy.totalAssets();
+    //     //     return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
+
+    // }
 
     /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
