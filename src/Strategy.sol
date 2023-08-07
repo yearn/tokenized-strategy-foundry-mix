@@ -106,19 +106,9 @@ contract Strategy is BaseTokenizedStrategy {
      * @return _totalAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _harvestAndReport()
-        internal
-        override
-        returns (uint256 _totalAssets)
-    {
-        // TODO: Implement harvesting logic and accurate accounting EX:
-        //
-        //      _claminAndSellRewards();
-        //      _totalAssets = aToken.balanceof(address(this)) + ERC20(asset).balanceOf(address(this));
-
+    function _harvestAndReport() internal override returns (uint256 _totalAssets) {
         // If epoch is less than one day old, withdrawals can't be made
         // revert so we don't report an unnesesary loss
-        // TODO: should this be < or <= ?
         uint256 gDaiWithdrawWindowStart = GDAI.currentEpochStart() + 1 days;
         require(block.timestamp > gDaiWithdrawWindowStart, "!gDaiWithdrawWindow");
 
@@ -127,15 +117,43 @@ contract Strategy is BaseTokenizedStrategy {
         uint256 gDaiSharesToRedeem = GDAI.withdrawRequests(address(this), GDAI.currentEpoch());
         require(gDaiSharesToRedeem > 0, "!gDaiSharesToRedeem");
 
+        //harvest rewards + deposit any loose DAI funds in the strategy
         GDAI.redeem(gDaiSharesToRedeem, address(this), address(this));
-        uint256 toRedeploy = GDAI.convertToAssets(gDaiSharesToRedeem);
-        // TODO: should this be toRedeploy or ERC20(asset).balanceOf(address(this))?
-        _deployFunds(toRedeploy);
+        uint256 harvestedAsset = GDAI.convertToAssets(gDaiSharesToRedeem);
+        uint256 looseAsset = _balanceAsset();
 
-        uint256 gDaiShares = GDAI.balanceOf(address(this));
-        _totalAssets = GDAI.convertToAssets(gDaiShares) + ERC20(asset).balanceOf(address(this));
+        uint256 toRedeploy = harvestedAsset + looseAsset;
+        
+        if (toRedeploy > 0 && !TokenizedStrategy.isShutdown()) {
+            _deployFunds(toRedeploy);
+        }
+        
+        //total assets of the strategy:
+        _totalAssets = _balanceAsset() + _balanceUpdateGDAI();        
     }
 
+    function _balanceAsset() internal view returns (uint256) {
+        return ERC20(asset).balanceOf(address(this));
+    }
+
+    function _balanceUpdateGDAI() internal view returns (uint256) {
+        uint256 gDaiShares = GDAI.balanceOf(address(this));
+        return GDAI.convertToAssets(gDaiShares);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                EXTERNAL:
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Returns the amount of asset (DAI) the strategy holds.
+    function balanceAsset() external view returns (uint256) {
+        return _balanceAsset();
+    }
+
+    /// @notice Returns the approximate asset (DAI) balance the strategy owns
+    function balanceGDAI() external view returns (uint256) {
+        return _balanceUpdateGDAI();
+    }
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
