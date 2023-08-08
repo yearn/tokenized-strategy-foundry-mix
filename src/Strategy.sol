@@ -108,12 +108,12 @@ contract Strategy is BaseTokenizedStrategy {
      */
     function _harvestAndReport() internal override returns (uint256 _totalAssets) {
         // If epoch is less than one day old, withdrawals can't be made
-        // revert so we don't report an unnesesary loss
+        // revert so we don't report unnesesary loss
         uint256 gDaiWithdrawWindowStart = GDAI.currentEpochStart() + 1 days;
         require(block.timestamp > gDaiWithdrawWindowStart, "!gDaiWithdrawWindow");
 
         // If a withdrawal request hasn't been made for this epoch, withdrawals can't be made
-        // revert so we don't report an unnecesary loss
+        // revert so we don't report unnecesary loss
         uint256 gDaiSharesToRedeem = GDAI.withdrawRequests(address(this), GDAI.currentEpoch());
         require(gDaiSharesToRedeem > 0, "!gDaiSharesToRedeem");
 
@@ -123,7 +123,7 @@ contract Strategy is BaseTokenizedStrategy {
         uint256 looseAsset = _balanceAsset();
 
         uint256 toRedeploy = harvestedAsset + looseAsset;
-        
+
         if (toRedeploy > 0 && !TokenizedStrategy.isShutdown()) {
             _deployFunds(toRedeploy);
         }

@@ -11,4 +11,9 @@ interface IGDai is IERC4626 {
   function currentEpoch() external view returns (uint256);
   function currentEpochStart() external view returns (uint256);
   function convertToAssets(uint256 shares) external view returns (uint256);
+  function distributeReward(uint assets) external;
+  function collateralizationP() external view returns (uint);
+  function currentEpochPositiveOpenPnl() external view returns (uint);
+  function availableAssets() external view returns (uint);
+  function updateAccPnlPerTokenUsed(uint prevPositiveOpenPnl, uint newPositiveOpenPnl) external returns (uint);
 }
