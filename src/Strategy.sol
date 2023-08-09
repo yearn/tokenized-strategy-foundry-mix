@@ -6,6 +6,7 @@ import {BaseTokenizedStrategy} from "@tokenized-strategy/BaseTokenizedStrategy.s
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IGDai} from "./interfaces/IGDai.sol";
+import {IGDaiOpenPnlFeed} from "./interfaces/IGDaiOpenPnlFeed.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "../interfaces/<protocol>/<Interface>.sol";
@@ -27,6 +28,7 @@ contract Strategy is BaseTokenizedStrategy {
     using SafeERC20 for ERC20;
 
     IGDai public constant GDAI = IGDai(0x91993f2101cc758D0dEB7279d41e880F7dEFe827);
+    IGDaiOpenPnlFeed public constant GDAI_PNL_FEED = IGDaiOpenPnlFeed(0x8d687276543b92819F2f2B5C3faad4AD27F4440c);
 
     constructor(
         address _asset,
@@ -75,13 +77,8 @@ contract Strategy is BaseTokenizedStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-
-    /**
-    *  Reverts if a withdraw request has not been made or if one
-    *  has been made but the unlock epoch has not been reached.
-    */
     function _freeFunds(uint256 _amount) internal override {
-        // GDAI.withdraw(_amount, address(this));
+        GDAI.withdraw(_amount, address(this), address(this));
     }
 
     /**
@@ -106,29 +103,9 @@ contract Strategy is BaseTokenizedStrategy {
      * @return _totalAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _harvestAndReport() internal override returns (uint256 _totalAssets) {
-        // If epoch is less than one day old, withdrawals can't be made
-        // revert so we don't report unnesesary loss
-        uint256 gDaiWithdrawWindowStart = GDAI.currentEpochStart() + 1 days;
-        require(block.timestamp > gDaiWithdrawWindowStart, "!gDaiWithdrawWindow");
-
-        // If a withdrawal request hasn't been made for this epoch, withdrawals can't be made
-        // revert so we don't report unnecesary loss
-        uint256 gDaiSharesToRedeem = GDAI.withdrawRequests(address(this), GDAI.currentEpoch());
-        require(gDaiSharesToRedeem > 0, "!gDaiSharesToRedeem");
-
-        //harvest rewards + deposit any loose DAI funds in the strategy
-        GDAI.redeem(gDaiSharesToRedeem, address(this), address(this));
-        uint256 harvestedAsset = GDAI.convertToAssets(gDaiSharesToRedeem);
-        uint256 looseAsset = _balanceAsset();
-
-        uint256 toRedeploy = harvestedAsset + looseAsset;
-
-        if (toRedeploy > 0 && !TokenizedStrategy.isShutdown()) {
-            _deployFunds(toRedeploy);
-        }
-        
-        //total assets of the strategy:
+    function _harvestAndReport() internal view override returns (uint256 _totalAssets) {
+        // All we need is a total assets report
+        // nothing to harvest or redeploy
         _totalAssets = _balanceAsset() + _balanceUpdateGDAI();        
     }
 
@@ -154,6 +131,32 @@ contract Strategy is BaseTokenizedStrategy {
     function balanceGDAI() external view returns (uint256) {
         return _balanceUpdateGDAI();
     }
+
+    /// @notice nextEpochValuesRequestCount goes greater than zero
+    /// when gdai's oracle begins reporting open trader pnl to its vault 
+    /// (and thus update the vault's collateralization ratio).
+    /// This happens towards the end of each epoch.
+    function isRedemptionWindowOpen() external view returns (bool) {
+        return GDAI_PNL_FEED.nextEpochValuesRequestCount() == 0;
+    }
+
+    /// @notice request a redemption of GDAI `shares`
+    function requestGDAIRedemption(uint256 shares) external onlyManagement returns (uint256 unlockEpoch) {
+        GDAI.makeWithdrawRequest(shares, address(this));
+        unlockEpoch = GDAI.currentEpoch() + GDAI.withdrawEpochsTimelock();
+    }
+
+    /// @notice cancel request for GDAI `shares` at epoch `unlockEpoch`
+    function cancelGDAIRedemption(uint256 shares, uint256 unlockEpoch) external onlyManagement {
+        GDAI.cancelWithdrawRequest(shares, address(this), unlockEpoch);
+    }
+
+    /// @notice redeem GDAI `shares`. 
+    /// Reverts if current gdai epoch doesn't show enough requested shares to redeem.
+    function redeemGDAI(uint256 shares) external onlyManagement {
+        GDAI.redeem(shares, address(this), address(this));
+    }
+
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
@@ -245,15 +248,13 @@ contract Strategy is BaseTokenizedStrategy {
      * @param . The address that is withdrawing from the strategy.
      * @return . The avialable amount that can be withdrawn in terms of `asset`
      *
+    */
     function availableWithdrawLimit(
         address _owner
     ) public view override returns (uint256) {
-        TODO: If desired Implement withdraw limit logic and any needed state variables.
-        
-        EX:    
-            return TokenizedStrategy.totalIdle();
+        uint256 redeemableShares = GDAI.withdrawRequests(address(this), GDAI.currentEpoch());
+        return TokenizedStrategy.totalIdle() + GDAI.convertToAssets(redeemableShares);
     }
-    */
 
     /**
      * @dev Optional function for a strategist to override that will
