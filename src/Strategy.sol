@@ -30,6 +30,8 @@ contract Strategy is BaseTokenizedStrategy {
     IGDai public constant GDAI = IGDai(0x91993f2101cc758D0dEB7279d41e880F7dEFe827);
     IGDaiOpenPnlFeed public constant GDAI_PNL_FEED = IGDaiOpenPnlFeed(0x8d687276543b92819F2f2B5C3faad4AD27F4440c);
 
+    mapping(address => bool) whiteList;
+
     constructor(
         address _asset,
         string memory _name
@@ -53,6 +55,8 @@ contract Strategy is BaseTokenizedStrategy {
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
+        require(whiteList[msg.sender]);
+        
         GDAI.deposit(_amount, address(this));
     }
 
@@ -155,6 +159,12 @@ contract Strategy is BaseTokenizedStrategy {
     /// Reverts if current gdai epoch doesn't show enough requested shares to redeem.
     function redeemGDAI(uint256 shares) external onlyManagement {
         GDAI.redeem(shares, address(this), address(this));
+    }
+
+    /// @notice allow addition of vaults to whitelist
+    // This is used to make mint/deposit flow permissioned
+    function addToWhiteList(address vault) external onlyManagement{
+        whiteList[vault] = true;
     }
 
     /*//////////////////////////////////////////////////////////////
