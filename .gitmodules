@@ -1,6 +1,3 @@
-[submodule "lib/tokenized-strategy-periphery"]
-	path = lib/tokenized-strategy-periphery
-	url = https://github.com/yearn/tokenized-strategy-periphery
 [submodule "lib/forge-std"]
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
