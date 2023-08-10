@@ -30,12 +30,17 @@ contract Strategy is BaseTokenizedStrategy {
     IGDai public constant GDAI = IGDai(0x91993f2101cc758D0dEB7279d41e880F7dEFe827);
     IGDaiOpenPnlFeed public constant GDAI_PNL_FEED = IGDaiOpenPnlFeed(0x8d687276543b92819F2f2B5C3faad4AD27F4440c);
 
-    mapping(address => bool) whiteList;
+    address public vault;
+    uint256 public depositLimit;
 
     constructor(
         address _asset,
-        string memory _name
+        string memory _name,
+        address _vault,
+        uint256 _depositLimit
     ) BaseTokenizedStrategy(_asset, _name) {
+        vault = _vault;
+        depositLimit = _depositLimit;
         ERC20(_asset).safeApprove(address(GDAI), type(uint256).max);
     }
 
@@ -54,9 +59,7 @@ contract Strategy is BaseTokenizedStrategy {
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override {
-        require(whiteList[msg.sender]);
-        
+    function _deployFunds(uint256 _amount) internal override {        
         GDAI.deposit(_amount, address(this));
     }
 
@@ -161,12 +164,6 @@ contract Strategy is BaseTokenizedStrategy {
         GDAI.redeem(shares, address(this), address(this));
     }
 
-    /// @notice allow addition of vaults to whitelist
-    // This is used to make mint/deposit flow permissioned
-    function addToWhiteList(address vault) external onlyManagement{
-        whiteList[vault] = true;
-    }
-
     /*//////////////////////////////////////////////////////////////
                     OPTIONAL TO OVERRIDE BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
@@ -229,16 +226,22 @@ contract Strategy is BaseTokenizedStrategy {
      * @return . The avialable amount the `_owner` can deposit in terms of `asset`
      *
     */
-    // function availableDepositLimit(
-    //     address _owner
-    // ) public view override returns (uint256) {
-    //     // TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-    //     // EX:    
-    //     //     uint256 totalAssets = TokenizedStrategy.totalAssets();
-    //     //     return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
+    function availableDepositLimit(
+        address _owner
+    ) public view override returns (uint256) {
+        if (_owner != vault) {
+            return 0;
+        }
 
-    // }
+        uint256 _depositLimit = depositLimit;
+
+        if (_depositLimit == type(uint256).max) {
+            return type(uint256).max;
+        }
+
+        uint256 _totalAssets = TokenizedStrategy.totalAssets();
+        return _totalAssets >= _depositLimit ? 0 : _depositLimit - _totalAssets;
+    }
 
     /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
