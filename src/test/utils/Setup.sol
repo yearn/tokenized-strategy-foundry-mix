@@ -4,9 +4,7 @@ pragma solidity 0.8.18;
 import "forge-std/console.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
-import {Strategy} from "../../Strategy.sol";
+import {Strategy, ERC20} from "../../Strategy.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
@@ -21,7 +19,7 @@ interface IFactory {
 }
 
 contract Setup is ExtendedTest, IEvents {
-    // Contract instancees that we will use repeatedly.
+    // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
 
@@ -44,7 +42,7 @@ contract Setup is ExtendedTest, IEvents {
     uint256 public maxFuzzAmount = 1e30;
     uint256 public minFuzzAmount = 10_000;
 
-    // Default prfot max unlock time is set for 10 days
+    // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
 
     function setUp() public virtual {
