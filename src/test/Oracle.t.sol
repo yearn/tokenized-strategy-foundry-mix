@@ -52,11 +52,11 @@ contract OracleTest is Setup {
 
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        // TODO: adjust the number to base _perfenctChange off of.
+        // TODO: adjust the number to base _percentChange off of.
         uint256 _delta = (_amount * _percentChange) / MAX_BPS;
 
         checkOracle(address(strategy), _delta);
     }
 
-    // TODO: Deploy multiple strategies with differen tokens as `asset` to test against the oracle.
+    // TODO: Deploy multiple strategies with different tokens as `asset` to test against the oracle.
 }

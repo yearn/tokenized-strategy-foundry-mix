@@ -104,7 +104,7 @@ contract OperationTest is Setup {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
         _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
-        // Set protofol fee to 0 and perf fee to 10%
+        // Set protocol fee to 0 and perf fee to 10%
         setFees(0, 1_000);
 
         // Deposit into strategy
@@ -166,31 +166,37 @@ contract OperationTest is Setup {
     function test_tendTrigger(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
 
-        assertTrue(!strategy.tendTrigger());
+        (bool trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         // Skip some time
         skip(1 days);
 
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         vm.prank(keeper);
         strategy.report();
 
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         // Unlock Profits
         skip(strategy.profitMaxUnlockTime());
 
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
 
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        assertTrue(!strategy.tendTrigger());
+        (trigger, ) = strategy.tendTrigger();
+        assertTrue(!trigger);
     }
 }
