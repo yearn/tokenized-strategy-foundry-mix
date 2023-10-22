@@ -149,7 +149,7 @@ contract Strategy is BaseStrategy {
      *
      * @return . Should return true if tend() should be called by keeper or false if not.
      *
-    function _tendTrigger() public view override returns (bool) {}
+    function _tendTrigger() internal view override returns (bool) {}
     */
 
     /**
