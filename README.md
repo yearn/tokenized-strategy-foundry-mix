@@ -48,7 +48,7 @@ make test
 
 ## Strategy Writing
 
-For a complete guide to creating a Tokenized Strategy please visit: https://docs.yearn.fi/developers/v3/strategy_development
+For a complete guide to creating a Tokenized Strategy please visit: https://docs.yearn.fi/developers/v3/strategy_writing_guide
 
 ## Testing
 
