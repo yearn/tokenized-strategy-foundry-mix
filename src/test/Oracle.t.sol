@@ -37,10 +37,12 @@ contract OracleTest is Setup {
 
         // TODO: Uncomment if there are setter functions to test.
         /**
-        vm.expectRevert("Ownable: caller is not the owner");
-        oracle.setterFunction(setterVariable, sender=user);
-    
-        oracle.setterFunction(setterVariable, sender=management);
+        vm.expectRevert("!governance");
+        vm.prank(user);
+        oracle.setterFunction(setterVariable);
+
+        vm.prank(management);
+        oracle.setterFunction(setterVariable);
 
         assertEq(oracle.setterVariable(), setterVariable);
         */
