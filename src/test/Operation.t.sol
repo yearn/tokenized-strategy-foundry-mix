@@ -2,14 +2,14 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
-import {Setup} from "./utils/Setup.sol";
+import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
     }
 
-    function testSetupStrategyOK() public {
+    function test_setupStrategyOK() public {
         console.log("address of strategy", address(strategy));
         assertTrue(address(0) != address(strategy));
         assertEq(strategy.asset(), address(asset));
