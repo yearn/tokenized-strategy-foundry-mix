@@ -30,7 +30,7 @@ contract OracleTest is Setup {
         // The apr should go up if deposits go down
         assertLt(currentApr, negativeDebtChangeApr, "negative change");
 
-        uint256 positiveDebtChangeApr = oracle.aprAfterDebtChange(_strategy, _delta);
+        uint256 positiveDebtChangeApr = oracle.aprAfterDebtChange(_strategy, int256(_delta));
 
         assertGt(currentApr, positiveDebtChangeApr, "positive change");
         */
@@ -54,7 +54,6 @@ contract OracleTest is Setup {
 
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        // TODO: adjust the number to base _percentChange off of.
         uint256 _delta = (_amount * _percentChange) / MAX_BPS;
 
         checkOracle(address(strategy), _delta);
