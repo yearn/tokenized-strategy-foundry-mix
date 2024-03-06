@@ -33,14 +33,14 @@ contract Strategy is BaseStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Should deploy up to '_amount' of 'asset' in the yield source.
+     * @dev Can deploy up to '_amount' of 'asset' in the yield source.
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
      * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attempt
+     * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
@@ -50,9 +50,9 @@ contract Strategy is BaseStrategy {
     }
 
     /**
-     * @dev Will attempt to free the '_amount' of 'asset'.
+     * @dev Should attempt to free the '_amount' of 'asset'.
      *
-     * The amount of 'asset' that is already loose has already
+     * NOTE: The amount of 'asset' that is already loose has already
      * been accounted for.
      *
      * This function is called during {withdraw} and {redeem} calls.
@@ -134,9 +134,7 @@ contract Strategy is BaseStrategy {
      *       sandwiched can use the tend when a certain threshold
      *       of idle to totalAssets has been reached.
      *
-     * The TokenizedStrategy contract will do all needed debt and idle updates
-     * after this has finished and will have no effect on PPS of the strategy
-     * till report() is called.
+     * This will have no effect on PPS of the strategy till report() is called.
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      *
@@ -191,10 +189,10 @@ contract Strategy is BaseStrategy {
      *
      * This function will be called before any withdraw or redeem to enforce
      * any limits desired by the strategist. This can be used for illiquid
-     * or sandwichable strategies. It should never be lower than `totalIdle`.
+     * or sandwichable strategies.
      *
      *   EX:
-     *       return TokenIzedStrategy.totalIdle();
+     *       return asset.balanceOf(address(this));;
      *
      * This does not need to take into account the `_owner`'s share balance
      * or conversion rates from shares to assets.
@@ -208,7 +206,7 @@ contract Strategy is BaseStrategy {
         TODO: If desired Implement withdraw limit logic and any needed state variables.
         
         EX:    
-            return TokenizedStrategy.totalIdle();
+            return asset.balanceOf(address(this));
     }
     */
 
