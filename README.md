@@ -31,7 +31,7 @@ NOTE: you can use other services.
 Use .env file
 
 1. Make a copy of `.env.example`
-2. Add the values for `ETH_RPC_URL`, `ETHERSCAN_API_KEY` and other example vars
+2. Add the value for `ETH_RPC_URL` and other example vars
      NOTE: If you set up a global environment variable, that will take precedence.
 
 ### Build the project
@@ -89,7 +89,7 @@ make trace-contract contract=StrategyOperationsTest
 
 See here for some tips on testing [`Testing Tips`](https://book.getfoundry.sh/forge/tests.html)
 
-When testing on chains other than mainnet you will need to make sure a valid `CHAIN_RPC_URL` for that chain is set in your .env and that chain's specific api key is set for `ETHERSCAN_API_KEY`. You will then need to simply adjust the variable that RPC_URL is set to in the Makefile to match your chain.
+When testing on chains other than mainnet you will need to make sure a valid `CHAIN_RPC_URL` for that chain is set in your .env. You will then need to simply adjust the variable that RPC_URL is set to in the Makefile to match your chain.
 
 To update to a new API version of the TokenizeStrategy you will need to simply remove and reinstall the dependency.
 
@@ -110,6 +110,6 @@ This should add all of the external `TokenizedStrategy` functions to the contrac
 
 This repo uses [GitHub Actions](.github/workflows) for CI. There are three workflows: lint, test and slither for static analysis.
 
-To enable test workflow you need to add `ETHERSCAN_API_KEY` and `ETH_RPC_URL` secrets to your repo. For more info see [GitHub Actions docs](https://docs.github.com/en/codespaces/managing-codespaces-for-your-organization/managing-encrypted-secrets-for-your-repository-and-organization-for-github-codespaces#adding-secrets-for-a-repository).
+To enable test workflow you need to add the `ETH_RPC_URL` secret to your repo. For more info see [GitHub Actions docs](https://docs.github.com/en/codespaces/managing-codespaces-for-your-organization/managing-encrypted-secrets-for-your-repository-and-organization-for-github-codespaces#adding-secrets-for-a-repository).
 
 If the slither finds some issues that you want to suppress, before the issue add comment: `//slither-disable-next-line DETECTOR_NAME`. For more info about detectors see [Slither docs](https://github.com/crytic/slither/wiki/Detector-Documentation).
