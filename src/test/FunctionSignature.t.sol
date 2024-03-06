@@ -15,7 +15,7 @@ contract FunctionSignatureTest is Setup {
     function test_functionCollisions() public {
         uint256 wad = 1e18;
         vm.expectRevert("initialized");
-        strategy.init(
+        strategy.initialize(
             address(asset),
             "name",
             management,
@@ -34,11 +34,8 @@ contract FunctionSignatureTest is Setup {
         assertEq(strategy.totalSupply(), 0, "total supply");
         assertEq(strategy.unlockedShares(), 0, "unlocked shares");
         assertEq(strategy.asset(), address(asset), "asset");
-        assertEq(strategy.apiVersion(), "3.0.1", "api");
-        assertEq(strategy.totalIdle(), 0, "idle");
-        assertEq(strategy.totalDebt(), 0, "debt");
+        assertEq(strategy.apiVersion(), "3.0.2", "api");
         assertEq(strategy.MAX_FEE(), 5_000, "max fee");
-        assertEq(strategy.MIN_FEE(), 500, "min fee");
         assertEq(strategy.fullProfitUnlockDate(), 0, "unlock date");
         assertEq(strategy.profitUnlockingRate(), 0, "unlock rate");
         assertGt(strategy.lastReport(), 0, "last report");
@@ -71,8 +68,6 @@ contract FunctionSignatureTest is Setup {
 
         // Assure checks are being used
         vm.startPrank(strategy.management());
-        vm.expectRevert("MIN FEE");
-        strategy.setPerformanceFee(uint16(0));
         vm.expectRevert("Cannot be self");
         strategy.setPerformanceFeeRecipient(address(strategy));
         vm.expectRevert("too long");
