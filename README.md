@@ -2,7 +2,7 @@
 
 This repo will allow you to write, test and deploy V3 "Tokenized Strategies" using [Foundry](https://book.getfoundry.sh/).
 
-You will only need to override the three functions in Strategy.sol of `_deployFunds`, `_freeFunds` and `_harvestAndReport`. With the option to also override `_tend`, `_tendTrigger`, `availableDepositLimit`, `availableWithdrawLimit` and `_emegencyWithdraw` if desired.
+You will only need to override the three functions in Strategy.sol of `_deployFunds`, `_freeFunds` and `_harvestAndReport`. With the option to also override `_tend`, `_tendTrigger`, `availableDepositLimit`, `availableWithdrawLimit` and `_emergencyWithdraw` if desired.
 
 For a more complete overview of how the Tokenized Strategies work please visit the [TokenizedStrategy Repo](https://github.com/yearn/tokenized-strategy).
 
@@ -13,10 +13,10 @@ For a more complete overview of how the Tokenized Strategies work please visit t
 First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
 NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
 
-### Fork this repository
+### Clone this repository
 
 ```sh
-git clone --recursive https://github.com/user/tokenized-strategy-foundry-mix
+git clone --recursive https://github.com/yearn/tokenized-strategy-foundry-mix
 
 cd tokenized-strategy-foundry-mix
 
@@ -52,7 +52,7 @@ For a complete guide to creating a Tokenized Strategy please visit: https://docs
 
 ## Testing
 
-Due to the nature of the BaseStrategy utilizing an external contract for the majority of its logic, the default interface for any tokenized strategy will not allow proper testing of all functions. Testing of your Strategy should utilize the pre-built [IStrategyInterface](https://github.com/Schlagonia/tokenized-strategy-foundry-mix/blob/master/src/interfaces/IStrategyInterface.sol) to cast any deployed strategy through for testing, as seen in the Setup example. You can add any external functions that you add for your specific strategy to this interface to be able to test all functions with one variable. 
+Due to the nature of the BaseStrategy utilizing an external contract for the majority of its logic, the default interface for any tokenized strategy will not allow proper testing of all functions. Testing of your Strategy should utilize the pre-built [IStrategyInterface](https://github.com/yearn/tokenized-strategy-foundry-mix/blob/master/src/interfaces/IStrategyInterface.sol) to cast any deployed strategy through for testing, as seen in the Setup example. You can add any external functions that you add for your specific strategy to this interface to be able to test all functions with one variable. 
 
 Example:
 
@@ -105,8 +105,6 @@ Once the Strategy is fully deployed and verified, you will need to verify the To
 4. Click "Save"
 
 This should add all of the external `TokenizedStrategy` functions to the contract interface on Etherscan.
-
-See the ApeWorx [documentation](https://docs.apeworx.io/ape/stable/) and [GitHub](https://github.com/ApeWorX/ape) for more information.
 
 ## CI
 
