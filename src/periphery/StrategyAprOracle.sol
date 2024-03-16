@@ -3,34 +3,40 @@ pragma solidity 0.8.18;
 
 import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
 
+interface IStrategy {
+    function curveLendVault() external view returns (address);
+}
+
+interface ICurveVault {
+    function controller() external view returns (address);
+}
+
+interface IController {
+    function monetary_policy() external view returns (address);
+}
+
+interface IMonetaryPolicy {
+    // @param _for	        address	Controller address
+    // @param d_reserves	int256	Change of reserve asset
+    // @param d_debt	    int256	Change of debt
+    // @return .           borrow rate (uint256)
+    // https://docs.curve.fi/lending/contracts/semilog-mp/#future_rate
+    function future_rate(address, int256, int256) external view returns (uint256);
+}
+
 contract StrategyAprOracle is AprOracleBase {
     constructor() AprOracleBase("Strategy Apr Oracle Example", msg.sender) {}
 
-    /**
-     * @notice Will return the expected Apr of a strategy post a debt change.
-     * @dev _delta is a signed integer so that it can also represent a debt
-     * decrease.
-     *
-     * This should return the annual expected return at the current timestamp
-     * represented as 1e18.
-     *
-     *      ie. 10% == 1e17
-     *
-     * _delta will be == 0 to get the current apr.
-     *
-     * This will potentially be called during non-view functions so gas
-     * efficiency should be taken into account.
-     *
-     * @param _strategy The token to get the apr for.
-     * @param _delta The difference in debt.
-     * @return . The expected apr for the strategy represented as 1e18.
-     */
     function aprAfterDebtChange(
         address _strategy,
         int256 _delta
     ) external view override returns (uint256) {
-        // TODO: Implement any necessary logic to return the most accurate
-        //      APR estimation for the strategy.
-        return 1e17;
+        IStrategy strategy = IStrategy(_strategy);
+        ICurveVault curveVault = ICurveVault(strategy.curveLendVault());
+        IController controller = IController(curveVault.controller());
+        IMonetaryPolicy monetaryPolicy = IMonetaryPolicy(controller.monetary_policy());
+
+        // @todo: add APY coming from gauge staking
+        return monetaryPolicy.future_rate(address(controller),_delta,0);
     }
 }
