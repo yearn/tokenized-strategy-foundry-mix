@@ -35,8 +35,15 @@ contract StrategyAprOracle is AprOracleBase {
         ICurveVault curveVault = ICurveVault(strategy.curveLendVault());
         IController controller = IController(curveVault.controller());
         IMonetaryPolicy monetaryPolicy = IMonetaryPolicy(controller.monetary_policy());
-
+        
         // @todo: add APY coming from gauge staking
+        // this is the gauge, reward token expected in CRV for now
+        // https://etherscan.io/address/0x79D584d2D49eC8CE8Ea379d69364b700bd35874D#code
+        // we can use chainlink or redstone oracle for crvusd and crv
+        // https://data.chain.link/feeds/ethereum/mainnet/crvusd-usd
+        // https://data.chain.link/feeds/ethereum/mainnet/crv-usd
+        // https://app.redstone.finance/#/app/token/CRV
+
         return monetaryPolicy.future_rate(address(controller),_delta,0);
     }
 }
