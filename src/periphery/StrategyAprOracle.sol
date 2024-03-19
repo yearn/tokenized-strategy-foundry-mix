@@ -9,6 +9,7 @@ interface IStrategy {
 
 interface ICurveVault {
     function controller() external view returns (address);
+    function totalSupply() external view returns (uint256);
 }
 
 interface IController {
@@ -16,11 +17,6 @@ interface IController {
 }
 
 interface IMonetaryPolicy {
-    // @param _for	        address	Controller address
-    // @param d_reserves	int256	Change of reserve asset
-    // @param d_debt	    int256	Change of debt
-    // @return .           borrow rate (uint256)
-    // https://docs.curve.fi/lending/contracts/semilog-mp/#future_rate
     function future_rate(address, int256, int256) external view returns (uint256);
 }
 
@@ -35,6 +31,10 @@ contract StrategyAprOracle is AprOracleBase {
         ICurveVault curveVault = ICurveVault(strategy.curveLendVault());
         IController controller = IController(curveVault.controller());
         IMonetaryPolicy monetaryPolicy = IMonetaryPolicy(controller.monetary_policy());
+        uint256 secondsInOneYear = 60 * 60 * 24 * 365;
+        uint256 totalSupply = curveVault.totalSupply();
+        uint256 totalDebt = controller.total_debt();
+        uint256 futureRate = monetaryPolicy.future_rate(address(controller),_delta,0)
         
         // @todo: add APY coming from gauge staking
         // this is the gauge, reward token expected in CRV for now
@@ -44,6 +44,6 @@ contract StrategyAprOracle is AprOracleBase {
         // https://data.chain.link/feeds/ethereum/mainnet/crv-usd
         // https://app.redstone.finance/#/app/token/CRV
 
-        return monetaryPolicy.future_rate(address(controller),_delta,0);
+        return futureRate * secondsInOneYear * totalSupply / totalDebt;
     }
 }
