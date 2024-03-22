@@ -143,7 +143,7 @@ contract Strategy is BaseStrategy {
 
         // TODO: If desired implement withdraw limit logic and any needed state variables.
 
-        // EX: 
+        // EX:
         // if(yieldSource.notShutdown()) {
         //    return asset.balanceOf(address(this)) + asset.balanceOf(yieldSource);
         // }
