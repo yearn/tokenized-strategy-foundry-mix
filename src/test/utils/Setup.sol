@@ -22,6 +22,11 @@ contract Setup is ExtendedTest, IEvents {
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
+    address curveLendVault;
+    address liquidityGauge;
+    address base;
+    uint24 feeBaseToAsset;
+    address GOV;
 
     mapping(string => address) public tokenAddrs;
 
@@ -50,6 +55,12 @@ contract Setup is ExtendedTest, IEvents {
 
         // Set asset
         asset = ERC20(tokenAddrs["CRVUSD"]);
+        curveLendVault = 0x07D988ca6C19578a628Fe3b96F6657b6b84bF352; //Mainnet tBTC
+        liquidityGauge = 0x79D584d2D49eC8CE8Ea379d69364b700bd35874D; //non-functional atm
+        base = tokenAddrs["USDC"]; //USDC usually the best base to swap to crvUSD
+        //(0.01% = 100, 0.05% = 500, 0.3% = 3000, 1% = 10000)
+        feeBaseToAsset = 500; //USDC-->crvUSD is 0.05% tier
+        GOV = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52; //Mainnet yearn governance
 
         // Set decimals
         decimals = asset.decimals();
@@ -68,10 +79,11 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
 
+
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new CurveLender(address(asset), "Tokenized Strategy", 0x07D988ca6C19578a628Fe3b96F6657b6b84bF352))
+            address(new CurveLender(address(asset), curveLendVault, liquidityGauge, base, feeBaseToAsset, GOV,  "Tokenized Strategy"))
         );
 
         // set keeper
