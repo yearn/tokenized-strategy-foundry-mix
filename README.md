@@ -26,9 +26,7 @@ yarn
 
 ### Set your environment Variables
 
-Use the `.env.example` template to create a `.env` file and store the environement variables. You will need to populate the `RPC_URL` for the desired network(s), as well as `ETHERSCAN_API_KEY` (available [here](https://etherscan.io/myapikey)).
-
-RPC url can be obtained from various providers, including [Ankr](https://www.ankr.com/rpc/) (no sign-up required) and [Infura](https://infura.io/).
+Use the `.env.example` template to create a `.env` file and store the environement variables. You will need to populate the `RPC_URL` for the desired network(s). RPC url can be obtained from various providers, including [Ankr](https://www.ankr.com/rpc/) (no sign-up required) and [Infura](https://infura.io/).
 
 Use .env file
 
