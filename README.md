@@ -10,8 +10,9 @@ For a more complete overview of how the Tokenized Strategies work please visit t
 
 ### Requirements
 
-First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
+- First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
 NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
+- Install [Node.js](https://nodejs.org/en/download/package-manager/)
 
 ### Clone this repository
 
@@ -25,8 +26,9 @@ yarn
 
 ### Set your environment Variables
 
-Sign up for [Infura](https://infura.io/) and generate an API key and copy your RPC url. Store it in the `ETH_RPC_URL` environment variable.
-NOTE: you can use other services.
+Use the `.env.example` template to create a `.env` file and store the environement variables. You will need to populate the `RPC_URL` for the desired network(s), as well as `ETHERSCAN_API_KEY` (available [here](https://etherscan.io/myapikey)).
+
+RPC url can be obtained from various providers, including [Ankr](https://www.ankr.com/rpc/) (no sign-up required) and [Infura](https://infura.io/).
 
 Use .env file
 
