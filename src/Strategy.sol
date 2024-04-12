@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
-import {ITermController} from "./interfaces/term/ITermController.sol";
+import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
 import {RepoTokenList, ListData} from "./RepoTokenList.sol";
@@ -30,7 +30,7 @@ contract Strategy is BaseStrategy {
     uint256 internal constant INVALID_AUCTION_RATE = 0;
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
     uint256 public constant RATE_PRECISION = 1e18;
-    
+
     error InvalidRepoToken(address token);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
@@ -125,9 +125,14 @@ contract Strategy is BaseStrategy {
         //IYearVault.withdraw(asset, proceeds);
     }
 
-    function _auctionRate() private view returns (uint256) {
-        // TODO: read from auction rate oracle using termController
-        // try { ITermController.getAuctionRate } catch {}
+    function _auctionRate(ITermRepoToken repoToken) private view returns (uint256) {
+        TermAuctionResults memory results = termController.getTermAuctionResults(repoToken.termRepoId());
+
+        uint256 len = results.auctionMetadata.length;
+
+        require(len > 0);
+
+        return results.auctionMetadata[len - 1].auctionClearingRate;
     }
 
     // TODO: reentrancy check
