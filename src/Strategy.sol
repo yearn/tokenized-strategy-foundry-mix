@@ -3,9 +3,11 @@ pragma solidity ^0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-// Import interfaces for many popular DeFi projects, or add your own!
-//import "../interfaces/<protocol>/<Interface>.sol";
+import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
+import {ITermController} from "./interfaces/term/ITermController.sol";
+import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
+import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {RepoTokenList, ListData} from "./RepoTokenList.sol";
 
 /**
  * The `TokenizedStrategy` variable can be used to retrieve the strategies
@@ -22,11 +24,165 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for ERC20;
+    using RepoTokenList for ListData;
+
+    address public constant NULL_NODE = address(0);
+    uint256 internal constant INVALID_AUCTION_RATE = 0;
+    uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
+    uint256 public constant RATE_PRECISION = 1e18;
+    
+    error InvalidRepoToken(address token);
+    error TimeToMaturityAboveThreshold();
+    error BalanceBelowLiquidityThreshold();
+
+    ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
+    uint256 public immutable PURCHASE_TOKEN_PRECISION;
+
+    ITermController public termController;
+    ListData public listData;
+    uint256 public timeToMaturityThreshold; // seconds
+    uint256 public liquidityThreshold;      // purchase token precision (underlying)
+    uint256 public auctionRateMarkup;       // 1e18 (TODO: check this)
+    mapping(address => uint256) public repoTokenAuctionRates;
+
+    function setTermController(address newTermController) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(termController, newTermController);
+        termController = newTermController;
+    }
+
+    function setTimeToMaturityThreshold(uint256 newTimeToMaturityThreshold) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(timeToMaturityThreshold, newTimeToMaturityThreshold);
+        timeToMaturityThreshold = newTimeToMaturityThreshold;
+    }
+
+    function setLiquidityThreshold(uint256 newLiquidityThreshold) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitLiquidityThresholdUpdated(liquidityThreshold, newLiquidityThreshold);
+        liquidityThreshold = newLiquidityThreshold;
+    }
+
+    function setAuctionRateMarkup(uint256 newAuctionRateMarkup) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitAuctionRateMarkupUpdated(auctionRateMarkup, newAuctionRateMarkup);
+        auctionRateMarkup = newAuctionRateMarkup;
+    }
+
+    function _removeRedeemAndCalculateWeightedMaturity(address repoToken, uint256 amount) private returns (uint256) {
+        uint256 weightedTimeToMaturity = listData.getWeightedTimeToMaturity(repoToken, amount);
+        listData.removeAndRedeemMaturedTokens(repoToken, repoTokenAuctionRates, amount);
+        return weightedTimeToMaturity;
+    }
+
+    function getWeightedTimeToMaturity(address repoToken, uint256 amount) external view returns (uint256) {
+        return listData.getWeightedTimeToMaturity(repoToken, amount);
+    }
+
+    function _validateRepoToken(ITermRepoToken repoToken) private 
+        returns (uint256 auctionRate, uint256 redemptionTimestamp) 
+    {
+        auctionRate = repoTokenAuctionRates[repoToken];
+        if (auctionRate != INVALID_AUCTION_RATE) {
+            (redemptionTimestamp, ) = repoToken.config();
+
+            uint256 oracleRate = _auctionRate();
+            if (oracleRate != INVALID_AUCTION_RATE) {
+                if (auctionRate != oracleRate) {
+                    repoTokenAuctionRates[repoToken] = oracleRate;
+                }
+            }
+        } else {
+            auctionRate = _auctionRate();
+
+            if (!termController.isTermDeployed(address(repoToken))) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            address purchaseToken;
+            (redemptionTimestamp, purchaseToken) = repoToken.config();
+            if (purchaseToken != asset) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            if (redemptionTimestamp < block.timestamp) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            _insertSorted(repoToken);
+            repoTokenAuctionRates[repoToken] = auctionRate;
+        }
+    }
+
+    function _totalLiquidBalance(address addr) private view returns (uint256) {
+        // uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        // return IYearnVault.balanceOf(address(this)) + underlyingBalance;
+    }
+
+    function _sweepAsset() private {
+        // uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        // if underlyingBalance > 0
+        //      IYearnVault.deposit(underlyingBalance);
+    }
+
+    function _withdrawAsset(uint256 amount) private {
+        //IYearVault.withdraw(asset, proceeds);
+    }
+
+    function _auctionRate() private view returns (uint256) {
+        // TODO: read from auction rate oracle using termController
+        // try { ITermController.getAuctionRate } catch {}
+    }
+
+    // TODO: reentrancy check
+    function sellRepoToken(address repoToken, uint256 amount) external {
+        (uint256 redemptionTimestamp, ) = _validateRepoToken(ITermRepoToken(repoToken));
+
+        _sweepAsset();
+
+        uint256 resultingTimeToMaturity = listData.removeRedeemAndCalculateWeightedMaturity(repoToken, amount);
+
+        if (resultingTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+
+        uint256 liquidBalance = _totalLiquidBalance(address(this));
+
+        /// @dev in repo token precision
+        uint256 repoTokenPrecision = 10 ** IERC20(repoToken).decimals();
+        uint256 timeLeftToMaturityDayFraction = 
+            ((redemptionTimestamp - block.timestamp) * repoTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
+
+        uint256 purchaseTokenAmountInRepoTokenPrecision = 
+            (repoTokenAmount * repoTokenPrecision) / (repoTokenPrecision + (rate * timeLeftToMaturityDayFraction / RATE_PRECISION));
+        
+        uint256 purchaseTokenAmount = _repoToPurchasePrecision(
+            repoTokenPrecision, purchaseTokenAmountInRepoTokenPrecision
+        );
+
+        liquidBalance -= purchaseTokenAmount;
+
+        if (liquidBalance < liquidityThreshold) {
+            revert BalanceBelowLiquidityThreshold();
+        }
+
+        _withdrawAsset(proceeds);
+        
+        IERC20(repoToken).safeTransferFrom(msg.sender, address(this), amount);
+        IERC20(asset).safeTransfer(msg.sender, proceeds);
+    }
+
+    function _repoToPurchasePrecision(
+        uint256 repoTokenPrecision, 
+        uint256 purchaseTokenAmountInRepoPrecision
+    ) private view returns (uint256) {
+        return (purchaseTokenAmountInRepoPrecision * purchaseTokenPrecision) / PURCHASE_TOKEN_PRECISION;
+    }
 
     constructor(
         address _asset,
-        string memory _name
-    ) BaseStrategy(_asset, _name) {}
+        string memory _name,
+        address _eventEmitter
+    ) BaseStrategy(_asset, _name) {
+        TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
+        PURCHASE_TOKEN_PRECISION = 10**IERC20(asset);
+    }
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
