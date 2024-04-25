@@ -7,6 +7,8 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
+import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, ListData} from "./RepoTokenList.sol";
 
 /**
@@ -34,6 +36,19 @@ contract Strategy is BaseStrategy {
     error InvalidRepoToken(address token);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
+
+    AuctionInfo public auction;
+
+    struct AuctionInfo {
+        ITermAuction termAuction;
+        ITermAuctionOfferLocker offerLocker;
+        ITermRepoServicer repoServicer;
+        ITermRepoCollateralManager collateralManager;
+        uint256 collateralAmount;
+        uint256 purchaseTokenAmount;
+        uint256 escrowDebt;
+        uint256 servicingFeeProRatedMantissa;
+    }
 
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
@@ -171,6 +186,27 @@ contract Strategy is BaseStrategy {
         
         IERC20(repoToken).safeTransferFrom(msg.sender, address(this), amount);
         IERC20(asset).safeTransfer(msg.sender, proceeds);
+    }
+
+    function offerOnNewAuction(
+        address _termAuction,
+        bytes32 _idHash,
+        bytes32 _bidPriceHash,
+        uint256 _purchaseTokenAmount,
+        uint256 _collateralAmount
+    ) external onlyManagement returns (bytes32[] memory offerIds) {
+        auction.termAuction = ITermAuction(_termAuction);
+        auction.bidLocker = ITermAuctionOfferLocker(auction.termAuction.termAuctionBidLocker());
+        require(auction.bidLocker.collateralTokens(address(asset)), "Wrong collateral");
+        require(
+            block.timestamp > auction.bidLocker.auctionStartTime()
+                || block.timestamp < auction.termAuction.auctionEndTime(),
+            "Auction not open"
+        );
+
+        auction.repoServicer = ITermRepoServicer(auction.bidLocker.termRepoServicer());
+        auction.collateralManager = ITermRepoCollateralManager(auction.bidLocker.termRepoCollateralManager());
+
     }
 
     function _repoToPurchasePrecision(
