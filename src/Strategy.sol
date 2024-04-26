@@ -3,6 +3,7 @@ pragma solidity ^0.8.18;
 
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
@@ -37,9 +38,10 @@ contract Strategy is BaseStrategy {
     error InvalidRepoToken(address token);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
-
+    
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
+    IERC4626 public immutable YEARN_VAULT;
 
     ITermController public termController;
     ListData public listData;
@@ -117,22 +119,23 @@ contract Strategy is BaseStrategy {
     }
 
     function _totalLiquidBalance(address addr) private view returns (uint256) {
-        // uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        // return IYearnVault.balanceOf(address(this)) + underlyingBalance;
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        return _assetBalance() + underlyingBalance;
     }
 
     function _sweepAsset() private {
-        // uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        // if underlyingBalance > 0
-        //      IYearnVault.deposit(underlyingBalance);
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        if (underlyingBalance > 0) {
+            YEARN_VAULT.deposit(underlyingBalance, address(this));
+        }
     }
 
     function _withdrawAsset(uint256 amount) private {
-        //IYearVault.withdraw(asset, proceeds);
+        YEARN_VAULT.withdraw(YEARN_VAULT.convertToShares(amount), address(this), address(this));
     }
 
     function _assetBalance() private view returns (uint256) {
-        // return IYearnVault.balanceOf(address(this));
+        return YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
     }
 
     function _auctionRate(ITermRepoToken repoToken) private view returns (uint256) {
@@ -185,11 +188,25 @@ contract Strategy is BaseStrategy {
 
     function offerOnNewAuction(
         address termAuction,
+        address repoToken,
         bytes32 idHash,
         bytes32 offerPriceHash,
         uint256 purchaseTokenAmount
     ) external onlyManagement returns (bytes32[] memory offerIds) {
         ITermAuction termAuction = ITermAuction(termAuction);
+
+        require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId());
+
+        (uint256 auctionRate, uint256 redemptionTimestamp) = _validateRepoToken(ITermRepoToken(repoToken));
+
+        _sweepAsset();
+
+//        uint256 resultingTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(repoToken, repoTokenAmount);
+
+        //if (resultingTimeToMaturity > timeToMaturityThreshold) {
+//            revert TimeToMaturityAboveThreshold();
+//        }
+
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(termAuction.termAuctionOfferLocker());
         require(offerLocker.purchaseToken() == address(asset), "Wrong purchase token");
         require(
@@ -234,8 +251,10 @@ contract Strategy is BaseStrategy {
     constructor(
         address _asset,
         string memory _name,
+        address _yearnVault,
         address _eventEmitter
     ) BaseStrategy(_asset, _name) {
+        YEARN_VAULT = IERC4626(_yearnVault);
         TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
         PURCHASE_TOKEN_PRECISION = 10**ERC20(asset).decimals();
     }
