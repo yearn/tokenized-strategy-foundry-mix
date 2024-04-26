@@ -2,7 +2,6 @@
 pragma solidity ^0.8.18;
 
 import "./interfaces/term/ITermVaultEvents.sol";
-
 import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
@@ -34,6 +33,22 @@ contract TermListingEventEmitter is Initializable, UUPSUpgradeable, AccessContro
 
     function pairVaultContract(address vaultContract) external onlyRole(ADMIN_ROLE){
         _grantRole(VAULT_CONTRACT, vaultContract);
+    }
+
+    function emitTermControllerUpdated(address oldController, address newController) external {
+        emit TermControllerUpdated(oldController, newController);
+    }
+
+    function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external {
+        emit TimeToMaturityThresholdUpdated(oldThreshold, newThreshold);
+    }
+
+    function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external {
+        emit LiquidityThresholdUpdated(oldThreshold, newThreshold);
+    }
+
+    function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external {
+        emit AuctionRateMarkupUpdated(oldMarkup, newMarkup);
     }
 
     // ========================================================================

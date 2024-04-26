@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
-interface ITermListingContractEvents {
+interface ITermVaultEvents {
     event TermControllerUpdated(address oldController, address newController);
 
     event TimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);

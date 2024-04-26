@@ -9,5 +9,7 @@ interface ITermRepoServicer {
     
     function termRepoToken() external view returns (address);
 
+    function termRepoLocker() external view returns (address);
+
     function purchaseToken() external view returns (address);
 }

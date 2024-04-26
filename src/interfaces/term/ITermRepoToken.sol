@@ -13,5 +13,5 @@ interface ITermRepoToken is IERC20 {
         address termRepoCollateralManager
     );
 
-    function termRepoId() external view returns (address);
+    function termRepoId() external view returns (bytes32);
 }

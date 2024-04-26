@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 struct ListNode {
     address next;
@@ -11,11 +12,14 @@ struct ListNode {
 struct ListData {
     address head;
     mapping(address => ListNode) nodes;
+    mapping(address => uint256) repoTokenAuctionRates;
 }
 
 library RepoTokenList {
+    address public constant NULL_NODE = address(0);
+
     function _getRepoTokenMaturity(address repoToken) private view returns (uint256 redemptionTimestamp) {
-        (redemptionTimestamp, ) = ITermRepoToken(repoToken).config();
+        (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
     }
 
     function _getRepoTokenTimeToMaturity(address repoToken) private view returns (uint256) {
@@ -26,8 +30,16 @@ library RepoTokenList {
         return listData.nodes[current].next;
     }
 
-    function getWeightedTimeToMaturity(ListData storage listData, address repoToken, uint256 amount) internal view returns (uint256) {
+    function getWeightedTimeToMaturity(
+        ListData storage listData, 
+        address repoToken, 
+        uint256 repoTokenAmount,
+        uint256 purchaseTokenPrecision,
+        uint256 purchaseTokenBalance
+    ) internal view returns (uint256) {
         if (listData.head == NULL_NODE) return 0;
+
+        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
 
         uint256 cumulativeWeightedMaturityTimestamp;
         uint256 cumulativeRepoTokenAmount;
@@ -43,15 +55,15 @@ library RepoTokenList {
             }
             cumulativeRepoTokenAmount += repoTokenBalance;
 
-            current = _getNext(current);
+            current = _getNext(listData, current);
         }
 
         if (repoToken != address(0)) {
-            cumulativeWeightedMaturityTimestamp += _getRepoTokenTimeToMaturity(repoToken) * amount;
-            cumulativeRepoTokenAmount += amount;
+            cumulativeWeightedMaturityTimestamp += _getRepoTokenTimeToMaturity(repoToken) * repoTokenAmount;
+            cumulativeRepoTokenAmount += repoTokenAmount;
         }
 
-        uint256 excessLiquidity = _assetBalance(address(this)) * repoTokenPrecision / PURCHASE_TOKEN_PRECISION;
+        uint256 excessLiquidity = purchaseTokenBalance * repoTokenPrecision / purchaseTokenPrecision;
 
         /// @dev avoid div by 0
         if (cumulativeRepoTokenAmount == 0 && excessLiquidity == 0) {
@@ -61,7 +73,11 @@ library RepoTokenList {
         return cumulativeWeightedMaturityTimestamp * repoTokenPrecision / (cumulativeRepoTokenAmount + excessLiquidity);
     }
 
-    function removeAndRedeemMaturedTokens(ListData storage listData, address repoServicer, uint256 amount) internal {
+    function removeAndRedeemMaturedTokens(
+        ListData storage listData, 
+        address repoServicer, 
+        uint256 amount
+    ) internal {
         if (listData.head == NULL_NODE) return;
 
         address current = listData.head;
@@ -70,7 +86,7 @@ library RepoTokenList {
             address next;
 
             if (_getRepoTokenMaturity(current) >= block.timestamp) {
-                next = _getNext(current);
+                next = _getNext(listData, current);
 
                 if (current == listData.head) {
                     listData.head = next;
@@ -78,7 +94,7 @@ library RepoTokenList {
                 
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
-                delete repoTokenExists[current];
+                delete listData.repoTokenAuctionRates[current];
 
                 ITermRepoServicer(repoServicer).redeemTermRepoTokens(address(this), amount);
             } else {
@@ -87,7 +103,7 @@ library RepoTokenList {
             }
 
             prev = current;
-            current = _getNext(current);
+            current = _getNext(listData, current);
         }        
     }
 
@@ -116,7 +132,7 @@ library RepoTokenList {
             }
 
             prev = current;
-            current = _getNext(current);
+            current = _getNext(listData, current);
         }
     }
 }
