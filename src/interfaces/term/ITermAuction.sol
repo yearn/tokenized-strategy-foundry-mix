@@ -7,4 +7,6 @@ interface ITermAuction {
     function termRepoId() external view returns (bytes32);
 
     function auctionEndTime() external view returns (uint256);
+
+    function auctionCompleted() external view returns (bool);
 }

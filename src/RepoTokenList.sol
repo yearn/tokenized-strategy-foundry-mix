@@ -4,15 +4,16 @@ pragma solidity 0.8.18;
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
-struct ListNode {
+struct RepoTokenListNode {
     address next;
 }
 
-struct ListData {
+struct RepoTokenListData {
     address head;
-    mapping(address => ListNode) nodes;
-    mapping(address => uint256) repoTokenAuctionRates;
+    mapping(address => RepoTokenListNode) nodes;
+    mapping(address => uint256) auctionRates;
 }
 
 library RepoTokenList {
@@ -26,12 +27,12 @@ library RepoTokenList {
         return _getRepoTokenMaturity(repoToken) - block.timestamp;
     }
 
-    function _getNext(ListData storage listData, address current) private view returns (address) {
+    function _getNext(RepoTokenListData storage listData, address current) private view returns (address) {
         return listData.nodes[current].next;
     }
 
     function getWeightedTimeToMaturity(
-        ListData storage listData, 
+        RepoTokenListData storage listData, 
         address repoToken, 
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision,
@@ -74,7 +75,7 @@ library RepoTokenList {
     }
 
     function removeAndRedeemMaturedTokens(
-        ListData storage listData, 
+        RepoTokenListData storage listData, 
         address repoServicer, 
         uint256 amount
     ) internal {
@@ -94,7 +95,7 @@ library RepoTokenList {
                 
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
-                delete listData.repoTokenAuctionRates[current];
+                delete listData.auctionRates[current];
 
                 ITermRepoServicer(repoServicer).redeemTermRepoTokens(address(this), amount);
             } else {
@@ -107,7 +108,7 @@ library RepoTokenList {
         }        
     }
 
-    function insertSorted(ListData storage listData, address repoToken) internal {
+    function insertSorted(RepoTokenListData storage listData, address repoToken) internal {
         address current = listData.head;
 
         if (current == NULL_NODE) {
@@ -134,5 +135,29 @@ library RepoTokenList {
             prev = current;
             current = _getNext(listData, current);
         }
+    }
+
+    function getPresentValue(RepoTokenListData storage listData, uint256 purchaseTokenPrecision) internal view returns (uint256 totalPresentValue) {
+        if (listData.head == NULL_NODE) return 0;
+        
+        address current = listData.head;
+        while (current != NULL_NODE) {
+            uint256 currentMaturity = _getRepoTokenMaturity(current);
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+            uint256 repoTokenPrecision = 10**ERC20(current).decimals();
+            uint256 auctionRate = listData.auctionRates[current];
+
+            repoTokenBalance = ITermRepoToken(current).redemptionValue() * repoTokenBalance / RepoTokenUtils.RATE_PRECISION;
+
+            if (currentMaturity > block.timestamp) {
+                totalPresentValue += RepoTokenUtils.calculateProceeds(
+                    repoTokenBalance, currentMaturity, repoTokenPrecision, purchaseTokenPrecision, auctionRate
+                );
+            } else {
+                totalPresentValue += RepoTokenUtils.repoToPurchasePrecision(repoTokenPrecision, purchaseTokenPrecision, repoTokenBalance);
+            }
+
+            current = _getNext(listData, current);                    
+        }    
     }
 }
