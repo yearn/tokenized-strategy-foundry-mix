@@ -3,6 +3,7 @@ pragma solidity 0.8.18;
 
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
+import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -18,6 +19,9 @@ struct RepoTokenListData {
 
 library RepoTokenList {
     address public constant NULL_NODE = address(0);
+    uint256 internal constant INVALID_AUCTION_RATE = 0;
+
+    error InvalidRepoToken(address token);
 
     function _getRepoTokenMaturity(address repoToken) private view returns (uint256 redemptionTimestamp) {
         (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
@@ -104,8 +108,57 @@ library RepoTokenList {
             }
 
             prev = current;
-            current = _getNext(listData, current);
+            current = next;
         }        
+    }
+
+    function _auctionRate(ITermController termController, ITermRepoToken repoToken) private view returns (uint256) {
+        TermAuctionResults memory results = termController.getTermAuctionResults(repoToken.termRepoId());
+
+        uint256 len = results.auctionMetadata.length;
+
+        require(len > 0);
+
+        return results.auctionMetadata[len - 1].auctionClearingRate;
+    }
+
+    function validateAndInsertRepoToken(
+        RepoTokenListData storage listData, 
+        ITermRepoToken repoToken,
+        ITermController termController,
+        address asset
+    ) internal returns (uint256 auctionRate, uint256 redemptionTimestamp) 
+    {
+        auctionRate = listData.auctionRates[address(repoToken)];
+        if (auctionRate != INVALID_AUCTION_RATE) {
+            (redemptionTimestamp, , ,) = repoToken.config();
+
+            uint256 oracleRate = _auctionRate(termController, repoToken);
+            if (oracleRate != INVALID_AUCTION_RATE) {
+                if (auctionRate != oracleRate) {
+                    listData.auctionRates[address(repoToken)] = oracleRate;
+                }
+            }
+        } else {
+            auctionRate = _auctionRate(termController, repoToken);
+
+            if (!termController.isTermDeployed(address(repoToken))) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            address purchaseToken;
+            (redemptionTimestamp, purchaseToken, ,) = repoToken.config();
+            if (purchaseToken != address(asset)) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            if (redemptionTimestamp < block.timestamp) {
+                revert InvalidRepoToken(address(repoToken));
+            }
+
+            insertSorted(listData, address(repoToken));
+            listData.auctionRates[address(repoToken)] = auctionRate;
+        }
     }
 
     function insertSorted(RepoTokenListData storage listData, address repoToken) internal {
@@ -117,13 +170,13 @@ library RepoTokenList {
         }
 
         address prev;
-        while (current != address(0)) {
+        while (current != NULL_NODE) {
 
             uint256 currentMaturity = _getRepoTokenMaturity(current);
             uint256 maturityToInsert = _getRepoTokenMaturity(repoToken);
 
             if (maturityToInsert <= currentMaturity) {
-                if (prev == address(0)) {
+                if (prev == NULL_NODE) {
                     listData.head = repoToken;
                 } else {
                     listData.nodes[prev].next = repoToken;

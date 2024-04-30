@@ -6,7 +6,7 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
-import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
+import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
@@ -33,10 +33,6 @@ contract Strategy is BaseStrategy {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
-    address public constant NULL_NODE = address(0);
-    uint256 internal constant INVALID_AUCTION_RATE = 0;
-
-    error InvalidRepoToken(address token);
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
@@ -86,41 +82,6 @@ contract Strategy is BaseStrategy {
         );
     }
 
-    function _validateRepoToken(ITermRepoToken repoToken) private 
-        returns (uint256 auctionRate, uint256 redemptionTimestamp) 
-    {
-        auctionRate = repoTokenListData.auctionRates[address(repoToken)];
-        if (auctionRate != INVALID_AUCTION_RATE) {
-            (redemptionTimestamp, , ,) = repoToken.config();
-
-            uint256 oracleRate = _auctionRate(repoToken);
-            if (oracleRate != INVALID_AUCTION_RATE) {
-                if (auctionRate != oracleRate) {
-                    repoTokenListData.auctionRates[address(repoToken)] = oracleRate;
-                }
-            }
-        } else {
-            auctionRate = _auctionRate(repoToken);
-
-            if (!termController.isTermDeployed(address(repoToken))) {
-                revert InvalidRepoToken(address(repoToken));
-            }
-
-            address purchaseToken;
-            (redemptionTimestamp, purchaseToken, ,) = repoToken.config();
-            if (purchaseToken != address(asset)) {
-                revert InvalidRepoToken(address(repoToken));
-            }
-
-            if (redemptionTimestamp < block.timestamp) {
-                revert InvalidRepoToken(address(repoToken));
-            }
-
-            repoTokenListData.insertSorted(address(repoToken));
-            repoTokenListData.auctionRates[address(repoToken)] = auctionRate;
-        }
-    }
-
     function _totalLiquidBalance(address addr) private view returns (uint256) {
         uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
         return _assetBalance() + underlyingBalance;
@@ -141,19 +102,13 @@ contract Strategy is BaseStrategy {
         return YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
     }
 
-    function _auctionRate(ITermRepoToken repoToken) private view returns (uint256) {
-        TermAuctionResults memory results = termController.getTermAuctionResults(repoToken.termRepoId());
-
-        uint256 len = results.auctionMetadata.length;
-
-        require(len > 0);
-
-        return results.auctionMetadata[len - 1].auctionClearingRate;
-    }
-
     // TODO: reentrancy check
     function sellRepoToken(address repoToken, uint256 repoTokenAmount) external {
-        (uint256 auctionRate, uint256 redemptionTimestamp) = _validateRepoToken(ITermRepoToken(repoToken));
+        (uint256 auctionRate, uint256 redemptionTimestamp) = repoTokenListData.validateAndInsertRepoToken(
+            ITermRepoToken(repoToken),
+            termController,
+            address(asset)
+        );
 
         _sweepAsset();
 
@@ -255,7 +210,7 @@ contract Strategy is BaseStrategy {
     }
 
     function auctionClosed() external {
-        termAuctionListData.removeCompleted();
+        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
 
         _sweepAsset();
     }
