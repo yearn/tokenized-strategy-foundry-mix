@@ -21,22 +21,20 @@ library RepoTokenUtils {
         return (repoTokenAmount * repoTokenPrecision) / purchaseTokenPrecision;
     }
 
-    function calculateProceeds(
-        uint256 repoTokenAmount,
-        uint256 redemptionTimestamp, 
-        uint256 repoTokenPrecision, 
+    function calculatePresentValue(
+        uint256 repoTokenAmountInBaseAssetPrecision,
         uint256 purchaseTokenPrecision, 
+        uint256 redemptionTimestamp, 
         uint256 auctionRate
     ) internal view returns (uint256) {
         uint256 timeLeftToMaturityDayFraction = 
-            ((redemptionTimestamp - block.timestamp) * repoTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
+            ((redemptionTimestamp - block.timestamp) * purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
 
-        uint256 purchaseTokenAmountInRepoTokenPrecision = 
-            (repoTokenAmount * repoTokenPrecision) / 
-            (repoTokenPrecision + (auctionRate * timeLeftToMaturityDayFraction / RATE_PRECISION));
+        // repoTokenAmountInBaseAssetPrecision / (1 + r * days / 360)
+        uint256 presentValue = 
+            (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) / 
+            (purchaseTokenPrecision + (auctionRate * timeLeftToMaturityDayFraction / RATE_PRECISION));
 
-        return repoToPurchasePrecision(
-            repoTokenPrecision, purchaseTokenPrecision, purchaseTokenAmountInRepoTokenPrecision
-        );
+        return presentValue;
     }
 }

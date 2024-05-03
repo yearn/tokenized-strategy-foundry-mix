@@ -9,4 +9,6 @@ interface ITermAuction {
     function auctionEndTime() external view returns (uint256);
 
     function auctionCompleted() external view returns (bool);
+
+    function auctionCancelledForWithdrawal() external view returns (bool);
 }

@@ -61,7 +61,32 @@ library TermAuctionList {
             PendingOffer memory offer = listData.offers[current];
             bytes32 next = _getNext(listData, current);
 
+            uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+            bool removeNode;
+            bool insertRepoToken;
+
             if (offer.termAuction.auctionCompleted()) {
+                removeNode = true;
+                insertRepoToken = true;
+            } else {
+                if (offerAmount == 0) {
+                    // auction canceled or deleted
+                    removeNode = true;
+                } else {
+                    // offer pending, do nothing
+                }
+
+                if (offer.termAuction.auctionCancelledForWithdrawal()) {
+                    removeNode = true;
+
+                    // withdraw manually
+                    bytes32[] memory offerIds = new bytes32[](1);
+                    offerIds[0] = offer.offerId;
+                    offer.offerLocker.unlockOffers(offerIds);
+                }
+            }
+
+            if (removeNode) {
                 if (current == listData.head) {
                     listData.head = next;
                 }
@@ -69,7 +94,9 @@ library TermAuctionList {
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
                 delete listData.offers[current];
+            }
 
+            if (insertRepoToken) {
                 repoTokenListData.validateAndInsertRepoToken(ITermRepoToken(offer.repoToken), termController, asset);
             }
 
@@ -90,8 +117,9 @@ library TermAuctionList {
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
 
-            /// @dev checking repoTokenAuctionRates to make sure we are not double counting on re-openings
-            if (offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
+            /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
+            /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
+            if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
                 totalValue += offer.offerAmount;
             } else {
                 totalValue += offerAmount;
@@ -101,3 +129,11 @@ library TermAuctionList {
         }        
     }
 }
+
+/*
+offer submitted; auction still open => include offerAmount in totalValue (otherwise locked purchaseToken will be missing from TV)
+offer submitted; auction completed; !auctionClosed() => include offer.offerAmount in totalValue (because the offerLocker will have already deleted offer on completeAuction)
+                                                       + even though repoToken has been transferred it hasn't been added to the repoTokenList
+                                                       BUT only if it is new not a reopening
+offer submitted; auction completed; auctionClosed() => repoToken has been added to the repoTokenList
+*/

@@ -55,4 +55,6 @@ interface ITermAuctionOfferLocker {
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external returns (bytes32[] memory);
+
+    function unlockOffers(bytes32[] calldata offerIds) external;
 }
