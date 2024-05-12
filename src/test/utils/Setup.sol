@@ -9,6 +9,16 @@ import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
 import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC4626Mock} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
+
+import {TermVaultEventEmitter} from "../../TermVaultEventEmitter.sol";
+import {MockTermAuction} from "../mocks/MockTermAuction.sol";
+import {MockTermAuctionOfferLocker} from "../mocks/MockTermAuctionOfferLocker.sol";
+import {MockTermController} from "../mocks/MockTermController.sol";
+import {MockTermRepoCollateralManager} from "../mocks/MockTermRepoCollateralManager.sol";
+import {MockTermRepoServicer} from "../mocks/MockTermRepoServicer.sol";
+import {MockTermRepoToken} from "../mocks/MockTermRepoToken.sol";
 
 interface IFactory {
     function governance() external view returns (address);
@@ -30,6 +40,8 @@ contract Setup is ExtendedTest, IEvents {
     address public keeper = address(4);
     address public management = address(1);
     address public performanceFeeRecipient = address(3);
+    address public adminWallet = address(111);
+    address public devopsWallet = address(222);
 
     // Address of the real deployed Factory
     address public factory;
@@ -44,6 +56,12 @@ contract Setup is ExtendedTest, IEvents {
 
     // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
+
+    // Term finance mocks
+    MockTermController termController;
+    TermVaultEventEmitter termVaultEventEmitterImpl;
+    TermVaultEventEmitter termVaultEventEmitter;
+    ERC4626Mock mockYearnVault;
 
     function setUp() public virtual {
         _setTokenAddrs();
@@ -66,12 +84,18 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
+
+        termController = new MockTermController();
+        termVaultEventEmitterImpl = new TermVaultEventEmitter();
+        termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
+
+        termVaultEventEmitter.initialize(adminWallet, devopsWallet);
     }
 
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy", address(0), address(0)))
+            address(new Strategy(address(asset), "Tokenized Strategy", address(mockYearnVault), address(termVaultEventEmitter)))
         );
 
         // set keeper
@@ -83,6 +107,8 @@ contract Setup is ExtendedTest, IEvents {
 
         vm.prank(management);
         _strategy.acceptManagement();
+
+        _strategy.setTermController(address(termController));
 
         return address(_strategy);
     }

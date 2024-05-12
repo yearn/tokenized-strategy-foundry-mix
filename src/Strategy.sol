@@ -153,7 +153,7 @@ contract Strategy is BaseStrategy {
         IERC20(repoToken).safeTransferFrom(msg.sender, address(this), repoTokenAmount);
         IERC20(asset).safeTransfer(msg.sender, proceeds);
     }
-
+    
     function deleteAuctionOffer(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
         if (!termController.isTermDeployed(termAuction)) {
             revert InvalidTermAuction(termAuction);
@@ -273,7 +273,7 @@ contract Strategy is BaseStrategy {
         _sweepAsset();
     }
 
-    function totalAssetValue() internal view returns (uint256 totalValue) {
+    function _totalAssetValue() internal view returns (uint256 totalValue) {
         return _totalLiquidBalance(address(this)) + 
             repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION) + 
             termAuctionListData.getPresentValue(repoTokenListData);
@@ -307,11 +307,7 @@ contract Strategy is BaseStrategy {
      * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override {
-        // TODO: implement deposit logic EX:
-        //
-        //      lendingPool.deposit(address(asset), _amount ,0);
-    }
+    function _deployFunds(uint256 _amount) internal override { }
 
     /**
      * @dev Should attempt to free the '_amount' of 'asset'.
@@ -334,11 +330,7 @@ contract Strategy is BaseStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-    function _freeFunds(uint256 _amount) internal override {
-        // TODO: implement withdraw logic EX:
-        //
-        //      lendingPool.withdraw(address(asset), _amount);
-    }
+    function _freeFunds(uint256 _amount) internal override { }
 
     /**
      * @dev Internal function to harvest all rewards, redeploy any idle
@@ -367,14 +359,7 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _totalAssets)
     {
-        // TODO: Implement harvesting logic and accurate accounting EX:
-        //
-        //      if(!TokenizedStrategy.isShutdown()) {
-        //          _claimAndSellRewards();
-        //      }
-        //      _totalAssets = aToken.balanceOf(address(this)) + asset.balanceOf(address(this));
-        //
-        _totalAssets = asset.balanceOf(address(this));
+        return _totalAssetValue();
     }
 
     /*//////////////////////////////////////////////////////////////

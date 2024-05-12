@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgrad
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract TermListingEventEmitter is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ITermVaultEvents {
+contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ITermVaultEvents {
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DEVOPS_ROLE = keccak256("DEVOPS_ROLE");
