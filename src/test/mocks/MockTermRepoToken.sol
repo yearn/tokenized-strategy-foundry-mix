@@ -22,17 +22,16 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
     address internal collateralManager;
 
     constructor(
-        string memory name_,
-        string memory symbol_,
         bytes32 _termRepoId,
         address _purchaseToken,
         address _collateral,
-        uint256 _maintenanceRatio
-    ) ERC20(name_, symbol_) {
+        uint256 _maintenanceRatio,
+        uint256 _timeToMaturity
+    ) ERC20("MockRepo", "MockRepo") {
         termRepoId = _termRepoId;
+        repoTokenContext.redemptionTimestamp = block.timestamp + _timeToMaturity;
         repoTokenContext.purchaseToken = _purchaseToken;
-
-        repoTokenContext.termRepoServicer = new MockTermRepoServicer(ITermRepoToken(address(this)));
+        repoTokenContext.termRepoServicer = new MockTermRepoServicer(ITermRepoToken(address(this)), _purchaseToken);
         repoTokenContext.termRepoCollateralManager = new MockTermRepoCollateralManager(
             ITermRepoToken(address(this)), _collateral, _maintenanceRatio
         );
@@ -42,6 +41,14 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
         return 1e18;
     }
 
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+
+    function burn(address account, uint256 amount) external {
+        _burn(account, amount);
+    }
+    
     function config()
         external
         view

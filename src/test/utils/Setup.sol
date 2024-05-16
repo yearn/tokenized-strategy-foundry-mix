@@ -66,16 +66,27 @@ contract Setup is ExtendedTest, IEvents {
     function setUp() public virtual {
         _setTokenAddrs();
 
+        _setUp(ERC20(tokenAddrs["DAI"]));
+    }
+
+    function _setUp(ERC20 _underlying) internal {
         // Set asset
-        asset = ERC20(tokenAddrs["DAI"]);
+        asset = _underlying;
 
         // Set decimals
         decimals = asset.decimals();
 
+        termController = new MockTermController();
+        termVaultEventEmitterImpl = new TermVaultEventEmitter();
+        termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
+        mockYearnVault = new ERC4626Mock(address(asset));
+
+        termVaultEventEmitter.initialize(adminWallet, devopsWallet);
+
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        factory = strategy.FACTORY();
+//        factory = strategy.FACTORY();
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -84,12 +95,6 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
-
-        termController = new MockTermController();
-        termVaultEventEmitterImpl = new TermVaultEventEmitter();
-        termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
-
-        termVaultEventEmitter.initialize(adminWallet, devopsWallet);
     }
 
     function setUpStrategy() public returns (address) {

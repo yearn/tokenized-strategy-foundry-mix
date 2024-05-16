@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
+import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
@@ -47,28 +48,28 @@ library RepoTokenList {
     ) internal view returns (uint256) {
         if (listData.head == NULL_NODE) return 0;
 
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-
         uint256 cumulativeWeightedTimeToMaturity;  // in seconds
         uint256 cumulativeRepoTokenAmount;  // in purchase token precision
         address current = listData.head;
         bool found;
         while (current != NULL_NODE) {
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
-
-            if (repoToken == current) {
-                repoTokenBalance += repoTokenAmount;
-                found = true;
-            }
-
-            uint256 repoTokenBalanceInBaseAssetPrecision = 
-                (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
 
             if (repoTokenBalance > 0) {
+                uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
+                uint256 repoTokenPrecision = 10**ERC20(current).decimals();
+
+                if (repoToken == current) {
+                    repoTokenBalance += repoTokenAmount;
+                    found = true;
+                }
+
+                uint256 repoTokenBalanceInBaseAssetPrecision = 
+                    (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
+                    (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+
+                uint256 currentMaturity = _getRepoTokenMaturity(current);
+
                 if (currentMaturity > block.timestamp) {
                     uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, current);
                     // Not matured yet
@@ -83,13 +84,14 @@ library RepoTokenList {
 
         /// @dev token is not found in the list (i.e. called from view function)
         if (!found && repoToken != address(0)) {
-            uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
             uint256 repoTokenAmountInBaseAssetPrecision =
                 (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / 
                 (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
 
             cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
-            uint256 maturity = _getRepoTokenMaturity(current);
+            uint256 maturity = _getRepoTokenMaturity(repoToken);
             if (maturity > block.timestamp) {
                 uint256 timeToMaturity = _getRepoTokenTimeToMaturity(maturity, repoToken);
                 cumulativeWeightedTimeToMaturity += 
@@ -113,7 +115,7 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
-            if (_getRepoTokenMaturity(current) >= block.timestamp) {
+            if (_getRepoTokenMaturity(current) < block.timestamp) {
                 next = _getNext(listData, current);
 
                 if (current == listData.head) {

@@ -8,13 +8,20 @@ import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
 contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
     address public purchaseToken;
+    address public termRepoServicer;
     MockTermRepoLocker internal repoLocker;
     ITermAuction internal auction;
     mapping(bytes32 => TermAuctionOffer) internal lockedOffers;
     
-    constructor(ITermAuction _auction, address _repoLocker, address _purchaseToken) {
+    constructor(
+        ITermAuction _auction, 
+        address _repoLocker, 
+        address _repoServicer, 
+        address _purchaseToken
+    ) {
         auction = _auction;
         purchaseToken = _purchaseToken;
+        termRepoServicer = _repoServicer;
         repoLocker = MockTermRepoLocker(_repoLocker);
     }
 
@@ -38,19 +45,15 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
     }
 
-    function termRepoServicer() external view returns (address) {
-
-    }
-
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {
         return lockedOffers[id];
     }
 
-    /// @param offerSubmissions An array of offer submissions
-    /// @return A bytes32 array of unique on chain offer ids.
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
-    ) external returns (bytes32[] memory) {
+    ) external returns (bytes32[] memory offerIds) {
+        offerIds = new bytes32[](offerSubmissions.length);
+
         for (uint256 i; i < offerSubmissions.length; i++) {
             TermAuctionOfferSubmission memory submission = offerSubmissions[i];
             TermAuctionOffer memory offer;
@@ -64,6 +67,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
             lockedOffers[offer.id] = offer;
 
             repoLocker.lockPurchaseTokens(msg.sender, offer.amount);
+            offerIds[i] = offer.id;
         }
     }
 

@@ -9,9 +9,9 @@ contract MockTermRepoServicer is ITermRepoServicer {
     ITermRepoToken internal repoToken;
     MockTermRepoLocker internal repoLocker;
 
-    constructor(ITermRepoToken _repoToken) {
+    constructor(ITermRepoToken _repoToken, address purchaseToken) {
         repoToken = _repoToken;
-        repoLocker = new MockTermRepoLocker(purchaseToken());
+        repoLocker = new MockTermRepoLocker(purchaseToken);
     }
 
     function redeemTermRepoTokens(
@@ -29,7 +29,7 @@ contract MockTermRepoServicer is ITermRepoServicer {
         return address(repoLocker);
     }
 
-    function purchaseToken() public view returns (address) {
+    function purchaseToken() external view returns (address) {
         (, address purchaseToken, ,) = repoToken.config();
         return purchaseToken;
     }
