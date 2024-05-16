@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
+import "forge-std/console.sol";
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -195,6 +196,7 @@ contract Strategy is BaseStrategy {
     // TODO: reentrancy check
     function sellRepoToken(address repoToken, uint256 repoTokenAmount) external {
         require(repoTokenAmount > 0);
+        require(_totalLiquidBalance(address(this)) > 0);
 
         (uint256 auctionRate, uint256 redemptionTimestamp) = repoTokenListData.validateAndInsertRepoToken(
             ITermRepoToken(repoToken),
