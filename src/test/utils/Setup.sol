@@ -12,6 +12,7 @@ import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {ERC4626Mock} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
 
+import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
 import {TermVaultEventEmitter} from "../../TermVaultEventEmitter.sol";
 import {MockTermAuction} from "../mocks/MockTermAuction.sol";
 import {MockTermAuctionOfferLocker} from "../mocks/MockTermAuctionOfferLocker.sol";
@@ -29,6 +30,11 @@ interface IFactory {
 }
 
 contract Setup is ExtendedTest, IEvents {
+    struct StrategySnapshot {
+        uint256 totalAssetValue;
+        uint256 totalLiquidBalance;
+    }
+
     // Contract instances that we will use repeatedly.
     ERC20 public asset;
     IStrategyInterface public strategy;
@@ -62,6 +68,7 @@ contract Setup is ExtendedTest, IEvents {
     TermVaultEventEmitter termVaultEventEmitterImpl;
     TermVaultEventEmitter termVaultEventEmitter;
     ERC4626Mock mockYearnVault;
+    TokenizedStrategy tokenizedStrategy;
 
     function setUp() public virtual {
         _setTokenAddrs();
@@ -76,6 +83,10 @@ contract Setup is ExtendedTest, IEvents {
         // Set decimals
         decimals = asset.decimals();
 
+        // Factory from mainnet, tokenized strategy needs to be hardcoded to 0xBB51273D6c746910C7C06fe718f30c936170feD0
+        tokenizedStrategy = new TokenizedStrategy(0x444045c5C13C246e117eD36437303cac8E250aB0);
+        vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
+
         termController = new MockTermController();
         termVaultEventEmitterImpl = new TermVaultEventEmitter();
         termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
@@ -86,7 +97,7 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-//        factory = strategy.FACTORY();
+        factory = strategy.FACTORY();
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -113,6 +124,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.prank(management);
         _strategy.acceptManagement();
 
+        vm.prank(management);
         _strategy.setTermController(address(termController));
 
         return address(_strategy);

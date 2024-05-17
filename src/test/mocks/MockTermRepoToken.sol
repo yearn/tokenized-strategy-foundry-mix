@@ -26,10 +26,10 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
         address _purchaseToken,
         address _collateral,
         uint256 _maintenanceRatio,
-        uint256 _timeToMaturity
+        uint256 _redemptionTimestamp
     ) ERC20("MockRepo", "MockRepo") {
         termRepoId = _termRepoId;
-        repoTokenContext.redemptionTimestamp = block.timestamp + _timeToMaturity;
+        repoTokenContext.redemptionTimestamp = _redemptionTimestamp;
         repoTokenContext.purchaseToken = _purchaseToken;
         repoTokenContext.termRepoServicer = new MockTermRepoServicer(ITermRepoToken(address(this)), _purchaseToken);
         repoTokenContext.termRepoCollateralManager = new MockTermRepoCollateralManager(

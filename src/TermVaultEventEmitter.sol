@@ -51,6 +51,10 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit AuctionRateMarkupUpdated(oldMarkup, newMarkup);
     }
 
+    function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external {
+        emit MinCollateralRatioUpdated(collateral, minCollateralRatio);
+    }
+
     // ========================================================================
     // = Admin  ===============================================================
     // ========================================================================

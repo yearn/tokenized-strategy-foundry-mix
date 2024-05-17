@@ -56,17 +56,28 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
         for (uint256 i; i < offerSubmissions.length; i++) {
             TermAuctionOfferSubmission memory submission = offerSubmissions[i];
-            TermAuctionOffer memory offer;
-            
-            offer.id = submission.id;
-            offer.offeror = submission.offeror;
-            offer.offerPriceHash = submission.offerPriceHash;
-            offer.amount = submission.amount;
-            offer.purchaseToken = submission.purchaseToken;
+            TermAuctionOffer memory offer = lockedOffers[submission.id];
 
+            // existing offer
+            if (offer.amount > 0) {
+                if (offer.amount > submission.amount) {
+                    // current amount > new amount, release tokens
+                    repoLocker.releasePurchaseTokens(msg.sender, offer.amount - submission.amount);
+                } else if (offer.amount < submission.amount) {
+                    repoLocker.lockPurchaseTokens(msg.sender, submission.amount - offer.amount);
+                }
+                // update locked amount
+                offer.amount = submission.amount;
+            } else {
+                offer.id = submission.id;
+                offer.offeror = submission.offeror;
+                offer.offerPriceHash = submission.offerPriceHash;
+                offer.amount = submission.amount;
+                offer.purchaseToken = submission.purchaseToken;
+
+                repoLocker.lockPurchaseTokens(msg.sender, offer.amount);
+            }            
             lockedOffers[offer.id] = offer;
-
-            repoLocker.lockPurchaseTokens(msg.sender, offer.amount);
             offerIds[i] = offer.id;
         }
     }

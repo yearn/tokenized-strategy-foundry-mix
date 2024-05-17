@@ -10,6 +10,8 @@ interface ITermVaultEvents {
 
     event AuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
 
+    event MinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio);
+
     function emitTermControllerUpdated(address oldController, address newController) external;
 
     function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external;
@@ -17,4 +19,6 @@ interface ITermVaultEvents {
     function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external;
 
     function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external;
+
+    function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external;
 }

@@ -147,7 +147,9 @@ library RepoTokenList {
 
         uint256 len = results.auctionMetadata.length;
 
-        require(len > 0);
+        if (len == 0) {
+            revert InvalidRepoToken(address(repoToken));
+        }
 
         return results.auctionMetadata[len - 1].auctionClearingRate;
     }
