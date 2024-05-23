@@ -35,6 +35,28 @@ library TermAuctionList {
         return listData.nodes[current].next;
     }
 
+    function _count(TermAuctionListData storage listData) internal view returns (uint256 count) {
+        if (listData.head == NULL_NODE) return 0;
+        bytes32 current = listData.head;
+        while (current != NULL_NODE) {
+            count++;
+            current = _getNext(listData, current);
+        }
+    }
+
+    function pendingOffers(TermAuctionListData storage listData) internal view returns (bytes32[] memory offers) {
+        uint256 count = _count(listData);
+        if (count > 0) {
+            offers = new bytes32[](count);
+            uint256 i;
+            bytes32 current = listData.head;
+            while (current != NULL_NODE) {
+                offers[i++] = current;
+                current = _getNext(listData, current);
+            } 
+        }   
+    }
+
     function insertPending(TermAuctionListData storage listData, PendingOffer memory pendingOffer) internal {
         bytes32 current = listData.head;
         bytes32 id = pendingOffer.offerId;

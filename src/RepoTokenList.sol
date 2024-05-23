@@ -39,6 +39,28 @@ library RepoTokenList {
         return listData.nodes[current].next;
     }
 
+    function _count(RepoTokenListData storage listData) private view returns (uint256 count) {
+        if (listData.head == NULL_NODE) return 0;
+        address current = listData.head;
+        while (current != NULL_NODE) {
+            count++;
+            current = _getNext(listData, current);
+        }
+    }
+
+    function holdings(RepoTokenListData storage listData) internal view returns (address[] memory holdings) {
+        uint256 count = _count(listData);
+        if (count > 0) {
+            holdings = new address[](count);
+            uint256 i;
+            address current = listData.head;
+            while (current != NULL_NODE) {
+                holdings[i++] = current;
+                current = _getNext(listData, current);
+            } 
+        }   
+    }
+
     function simulateWeightedTimeToMaturity(
         RepoTokenListData storage listData, 
         address repoToken, 
@@ -235,6 +257,11 @@ library RepoTokenList {
         address prev;
         while (current != NULL_NODE) {
 
+            // already in list
+            if (current == repoToken) {
+                break;
+            }
+
             uint256 currentMaturity = _getRepoTokenMaturity(current);
             uint256 maturityToInsert = _getRepoTokenMaturity(repoToken);
 
@@ -248,8 +275,15 @@ library RepoTokenList {
                 break;
             }
 
+            address next = _getNext(listData, current);
+            
+            if (next == NULL_NODE) {
+                listData.nodes[current].next = repoToken;
+                break;
+            }
+
             prev = current;
-            current = _getNext(listData, current);
+            current = next;
         }
     }
 

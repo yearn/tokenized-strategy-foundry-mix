@@ -4,11 +4,13 @@ pragma solidity 0.8.18;
 import {ITermAuctionOfferLocker} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermAuction} from "../../interfaces/term/ITermAuction.sol";
 import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
+import {MockTermRepoToken} from "./MockTermRepoToken.sol";
 
 contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
     address public purchaseToken;
     address public termRepoServicer;
+    uint256 public auctionStartTime;
     MockTermRepoLocker internal repoLocker;
     ITermAuction internal auction;
     mapping(bytes32 => TermAuctionOffer) internal lockedOffers;
@@ -23,6 +25,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         purchaseToken = _purchaseToken;
         termRepoServicer = _repoServicer;
         repoLocker = MockTermRepoLocker(_repoLocker);
+        auctionStartTime = block.timestamp;
     }
 
     function termRepoId() external view returns (bytes32) {
@@ -31,10 +34,6 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
     function termAuctionId() external view returns (bytes32) {
         return auction.termRepoId();
-    }
-
-    function auctionStartTime() external view returns (uint256) {
-
     }
 
     function auctionEndTime() external view returns (uint256) {
@@ -82,13 +81,14 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         }
     }
 
-    function fillOffer(bytes32 offerId, address receiver, uint256 fillAmount) external {
+    function processOffer(MockTermRepoToken mockRepoToken, bytes32 offerId, uint256 fillAmount, uint256 repoTokenAmount) external {
         require(lockedOffers[offerId].amount >= fillAmount);
         uint256 remainingAmount = lockedOffers[offerId].amount - fillAmount;
 
         lockedOffers[offerId].amount = remainingAmount;
 
-        repoLocker.releasePurchaseTokens(receiver, remainingAmount);
+        mockRepoToken.mint(lockedOffers[offerId].offeror, repoTokenAmount);
+        repoLocker.releasePurchaseTokens(lockedOffers[offerId].offeror, remainingAmount);
     }
 
     function unlockOffers(bytes32[] calldata offerIds) external {

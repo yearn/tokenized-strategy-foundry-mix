@@ -26,15 +26,13 @@ library RepoTokenUtils {
         uint256 purchaseTokenPrecision, 
         uint256 redemptionTimestamp, 
         uint256 auctionRate
-    ) internal view returns (uint256) {
+    ) internal view returns (uint256 presentValue) {
         uint256 timeLeftToMaturityDayFraction = 
             ((redemptionTimestamp - block.timestamp) * purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
 
         // repoTokenAmountInBaseAssetPrecision / (1 + r * days / 360)
-        uint256 presentValue = 
+        presentValue = 
             (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) / 
             (purchaseTokenPrecision + (auctionRate * timeLeftToMaturityDayFraction / RATE_PRECISION));
-
-        return presentValue;
     }
 }

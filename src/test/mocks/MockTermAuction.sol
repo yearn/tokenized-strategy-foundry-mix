@@ -5,6 +5,7 @@ import {ITermAuction} from "../../interfaces/term/ITermAuction.sol";
 import {ITermRepoToken} from "../../interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "../../interfaces/term/ITermRepoServicer.sol";
 import {MockTermAuctionOfferLocker} from "./MockTermAuctionOfferLocker.sol";
+import {MockTermRepoToken} from "./MockTermRepoToken.sol";
 
 contract MockTermAuction is ITermAuction {
     
@@ -13,9 +14,11 @@ contract MockTermAuction is ITermAuction {
     uint256 public auctionEndTime;
     bool public auctionCompleted;
     bool public auctionCancelledForWithdrawal;
+    ITermRepoToken internal repoToken;
     
     constructor(ITermRepoToken _repoToken) {
         termRepoId = _repoToken.termRepoId();
+        repoToken = _repoToken;
         (
             uint256 redemptionTimestamp,
             address purchaseToken,
@@ -28,13 +31,21 @@ contract MockTermAuction is ITermAuction {
             termRepoServicer,
             purchaseToken
         ));
+        auctionEndTime = block.timestamp + 1 weeks;
     }
 
-    function startAuction(uint256 duration) external {
-        auctionEndTime = block.timestamp + duration;
-    }
+    function auctionSuccess(bytes32[] calldata offerIds, uint256[] calldata fillAmounts, uint256[] calldata repoTokenAmounts) external {
+        auctionCompleted = true;
+        auctionEndTime = block.timestamp;
 
-    function clearAuction() external {
-        
+        for (uint256 i; i < offerIds.length; i++) {
+            MockTermAuctionOfferLocker(termAuctionOfferLocker).processOffer(
+                MockTermRepoToken(address(repoToken)), offerIds[i], fillAmounts[i], repoTokenAmounts[i]
+            );
+        }
+    }
+    
+    function auctionCanceled() external {
+        auctionCancelledForWithdrawal = true;
     }
 }
