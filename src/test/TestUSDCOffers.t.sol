@@ -139,11 +139,26 @@ contract TestUSDCSubmitOffer is Setup {
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
 
-        // test: check value before calling complete auction
+        // test: asset value should equal to initial asset value (liquid + pending offers)
+        assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
+
+        address[] memory holdings = termStrategy.repoTokenHoldings();
+
+        // test: 0 holding because auctionClosed not yet called
+        assertEq(holdings.length, 0);
 
         termStrategy.auctionClosed();
 
-        bytes32[] memory offers = termStrategy.pendingOffers();       
+        // test: asset value should equal to initial asset value (liquid + repo tokens)
+        assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
+
+        holdings = termStrategy.repoTokenHoldings();
+
+        // test: check repo token holdings
+        assertEq(holdings.length, 1);
+        assertEq(holdings[0], address(repoToken1Week));
+
+        bytes32[] memory offers = termStrategy.pendingOffers();        
 
         assertEq(offers.length, 0);
     }
@@ -162,23 +177,24 @@ contract TestUSDCSubmitOffer is Setup {
             0.5e6, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
-        console.log("before", termStrategy.totalAssetValue());
-
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        // test: asset value should equal to initial asset value (liquid + pending offers)
+        assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
 
         address[] memory holdings = termStrategy.repoTokenHoldings();
 
+        // test: 0 holding because auctionClosed not yet called
         assertEq(holdings.length, 0);
 
-        // test: check value before calling complete auction
         termStrategy.auctionClosed();
 
-        console.log("after", termStrategy.totalAssetValue());
-
+        // test: asset value should equal to initial asset value (liquid + repo tokens)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
 
         holdings = termStrategy.repoTokenHoldings();
 
+        // test: check repo token holdings
         assertEq(holdings.length, 1);
         assertEq(holdings[0], address(repoToken1Week));
 
