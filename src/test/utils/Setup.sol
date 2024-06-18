@@ -13,6 +13,7 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC4626Mock} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
 
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
+import {MockFactory} from "@tokenized-strategy/test/mocks/MockFactory.sol";
 import {TermVaultEventEmitter} from "../../TermVaultEventEmitter.sol";
 import {MockTermAuction} from "../mocks/MockTermAuction.sol";
 import {MockTermAuctionOfferLocker} from "../mocks/MockTermAuctionOfferLocker.sol";
@@ -63,12 +64,14 @@ contract Setup is ExtendedTest, IEvents {
     // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
 
+    MockFactory internal mockFactory;
+
     // Term finance mocks
-    MockTermController termController;
-    TermVaultEventEmitter termVaultEventEmitterImpl;
-    TermVaultEventEmitter termVaultEventEmitter;
-    ERC4626Mock mockYearnVault;
-    TokenizedStrategy tokenizedStrategy;
+    MockTermController internal termController;
+    TermVaultEventEmitter internal termVaultEventEmitterImpl;
+    TermVaultEventEmitter internal termVaultEventEmitter;
+    ERC4626Mock internal mockYearnVault;
+    TokenizedStrategy internal tokenizedStrategy;
 
     function setUp() public virtual {
         _setTokenAddrs();
@@ -83,8 +86,10 @@ contract Setup is ExtendedTest, IEvents {
         // Set decimals
         decimals = asset.decimals();
 
+        mockFactory = new MockFactory(0, address(0));
+
         // Factory from mainnet, tokenized strategy needs to be hardcoded to 0xBB51273D6c746910C7C06fe718f30c936170feD0
-        tokenizedStrategy = new TokenizedStrategy(0x444045c5C13C246e117eD36437303cac8E250aB0);
+        tokenizedStrategy = new TokenizedStrategy(address(mockFactory));
         vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
@@ -113,6 +118,9 @@ contract Setup is ExtendedTest, IEvents {
         IStrategyInterface _strategy = IStrategyInterface(
             address(new Strategy(address(asset), "Tokenized Strategy", address(mockYearnVault), address(termVaultEventEmitter)))
         );
+
+        vm.prank(adminWallet);
+        termVaultEventEmitter.pairVaultContract(address(_strategy));
 
         // set keeper
         _strategy.setKeeper(keeper);

@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
-import {ITermController, TermAuctionResults} from "./interfaces/term/ITermController.sol";
+import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -138,21 +138,34 @@ library RepoTokenList {
         while (current != NULL_NODE) {
             address next;
             if (_getRepoTokenMaturity(current) < block.timestamp) {
-                next = _getNext(listData, current);
-
-                if (current == listData.head) {
-                    listData.head = next;
-                }
-                
-                listData.nodes[prev].next = next;
-                delete listData.nodes[current];
-                delete listData.auctionRates[current];
-
+                bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
                 if (repoTokenBalance > 0) {
                     (, , address termRepoServicer,) = ITermRepoToken(current).config();
-                    ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(address(this), repoTokenBalance);
+                    try ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(
+                        address(this), 
+                        repoTokenBalance
+                    ) {
+                        removeMaturedToken = true;
+                    } catch {
+                       // redemption failed, do not remove token from the list
+                    }
+                } else {
+                    // already redeemed
+                    removeMaturedToken = true;
+                }
+
+                next = _getNext(listData, current);
+
+                if (removeMaturedToken) {
+                    if (current == listData.head) {
+                        listData.head = next;
+                    }
+                    
+                    listData.nodes[prev].next = next;
+                    delete listData.nodes[current];
+                    delete listData.auctionRates[current];
                 }
             } else {
                 /// @dev early exit because list is sorted
@@ -165,15 +178,15 @@ library RepoTokenList {
     }
 
     function _auctionRate(ITermController termController, ITermRepoToken repoToken) private view returns (uint256) {
-        TermAuctionResults memory results = termController.getTermAuctionResults(repoToken.termRepoId());
+        (AuctionMetadata[] memory auctionMetadata, ) = termController.getTermAuctionResults(repoToken.termRepoId());
 
-        uint256 len = results.auctionMetadata.length;
+        uint256 len = auctionMetadata.length;
 
         if (len == 0) {
             revert InvalidRepoToken(address(repoToken));
         }
 
-        return results.auctionMetadata[len - 1].auctionClearingRate;
+        return auctionMetadata[len - 1].auctionClearingRate;
     }
 
     function validateRepoToken(

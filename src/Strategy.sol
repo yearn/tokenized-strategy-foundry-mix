@@ -128,12 +128,20 @@ contract Strategy is BaseStrategy {
         return _assetBalance() + underlyingBalance;
     }
 
-    function _sweepAssetAndRedeemRepoTokens() private {
-        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        if (underlyingBalance > 0) {
-            YEARN_VAULT.deposit(underlyingBalance, address(this));
-        }
+    function _sweepAssetAndRedeemRepoTokens(uint256 liquidAmountRequired) private {
+        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
         repoTokenListData.removeAndRedeemMaturedTokens();
+
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        if (underlyingBalance > liquidAmountRequired) {
+            unchecked {
+                YEARN_VAULT.deposit(underlyingBalance - liquidAmountRequired, address(this));
+            }
+        } else if (underlyingBalance < liquidAmountRequired) {
+            unchecked {
+                _withdrawAsset(liquidAmountRequired - underlyingBalance);
+            }
+        }
     }
 
     function _withdrawAsset(uint256 amount) private {
@@ -154,7 +162,7 @@ contract Strategy is BaseStrategy {
             address(asset)
         );
 
-        _sweepAssetAndRedeemRepoTokens();
+        _sweepAssetAndRedeemRepoTokens(0);
 
         uint256 liquidBalance = _totalLiquidBalance(address(this));
         require(liquidBalance > 0);
@@ -207,7 +215,7 @@ contract Strategy is BaseStrategy {
 
         termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
 
-        _sweepAssetAndRedeemRepoTokens();
+        _sweepAssetAndRedeemRepoTokens(0);
     }
 
     function submitAuctionOffer(
@@ -237,7 +245,7 @@ contract Strategy is BaseStrategy {
             "Auction not open"
         );
 
-        _sweepAssetAndRedeemRepoTokens();  //@dev sweep to ensure liquid balances up to date
+        _sweepAssetAndRedeemRepoTokens(0);  //@dev sweep to ensure liquid balances up to date
 
         uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
         uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
@@ -314,9 +322,7 @@ contract Strategy is BaseStrategy {
     }
 
     function auctionClosed() external {
-        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
-
-        _sweepAssetAndRedeemRepoTokens();
+        _sweepAssetAndRedeemRepoTokens(0);
     }
 
     function totalAssetValue() external view returns (uint256) {
@@ -361,7 +367,9 @@ contract Strategy is BaseStrategy {
      * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override { }
+    function _deployFunds(uint256 _amount) internal override { 
+        _sweepAssetAndRedeemRepoTokens(0);
+    }
 
     /**
      * @dev Should attempt to free the '_amount' of 'asset'.
@@ -384,7 +392,9 @@ contract Strategy is BaseStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-    function _freeFunds(uint256 _amount) internal override { }
+    function _freeFunds(uint256 _amount) internal override { 
+        _sweepAssetAndRedeemRepoTokens(_amount);
+    }
 
     /**
      * @dev Internal function to harvest all rewards, redeploy any idle
@@ -413,6 +423,7 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _totalAssets)
     {
+        _sweepAssetAndRedeemRepoTokens(0);
         return _totalAssetValue();
     }
 

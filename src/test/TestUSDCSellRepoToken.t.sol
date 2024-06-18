@@ -2,6 +2,8 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ITokenizedStrategy} from "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermController} from "./mocks/MockTermController.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -346,7 +348,43 @@ contract TestUSDCSellRepoToken is Setup {
         _sell1RepoToken(repoToken1Week, 4e18);
     }
 
-    function testRemoveMaturedRepoTokens() public {}
+    function testRedeemMaturedRepoTokensInternal() public {
+        // start with some initial funds
+        address testDepositor = vm.addr(0x111111);
+        uint256 depositAmount = 1000e6;
 
-    function testBelowLiquidityThresholdFailure() public {}
+        mockUSDC.mint(testDepositor, depositAmount);
+
+        vm.startPrank(testDepositor);
+        mockUSDC.approve(address(termStrategy), type(uint256).max);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
+
+        _sell1RepoToken(repoToken2Week, 2e18);
+
+        address[] memory holdings = termStrategy.repoTokenHoldings();
+
+        assertEq(holdings.length, 1);
+
+        vm.warp(block.timestamp + 3 weeks);
+
+        vm.prank(keeper);
+        ITokenizedStrategy(address(termStrategy)).report();
+
+        holdings = termStrategy.repoTokenHoldings();
+
+        assertEq(holdings.length, 0);
+
+        vm.startPrank(testDepositor);
+        IERC4626(address(termStrategy)).withdraw(
+            IERC4626(address(termStrategy)).balanceOf(testDepositor),
+            testDepositor,
+            testDepositor
+        );
+        vm.stopPrank();
+    }
+
+    function testRedeemMaturedRepoTokensExternal() public {
+
+    }
 }

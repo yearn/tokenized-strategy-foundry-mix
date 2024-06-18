@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity 0.8.18;
 
-import {ITermController, AuctionMetadata, TermAuctionResults} from "../../interfaces/term/ITermController.sol";
+import {ITermController, AuctionMetadata} from "../../interfaces/term/ITermController.sol";
+
+struct TermAuctionResults {
+    AuctionMetadata[] auctionMetadata;
+    uint8 numOfAuctions;
+}
 
 contract MockTermController is ITermController {
     mapping(bytes32 => TermAuctionResults) internal auctionResults;
@@ -20,7 +25,7 @@ contract MockTermController is ITermController {
         auctionResults[termRepoId].numOfAuctions = 1;
     }
 
-    function getTermAuctionResults(bytes32 termRepoId) external view returns (TermAuctionResults memory) {
-        return auctionResults[termRepoId];
+    function getTermAuctionResults(bytes32 termRepoId) external view returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions) {
+        return (auctionResults[termRepoId].auctionMetadata, auctionResults[termRepoId].numOfAuctions);
     }
 }

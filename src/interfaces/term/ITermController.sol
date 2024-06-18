@@ -7,13 +7,8 @@ struct AuctionMetadata {
     uint256 auctionClearingBlockTimestamp;
 }
 
-struct TermAuctionResults {
-    AuctionMetadata[] auctionMetadata;
-    uint8 numOfAuctions;
-}
-
 interface ITermController {
     function isTermDeployed(address contractAddress) external view returns (bool);
 
-    function getTermAuctionResults(bytes32 termRepoId) external view returns (TermAuctionResults memory);
+    function getTermAuctionResults(bytes32 termRepoId) external view returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions);
 }
