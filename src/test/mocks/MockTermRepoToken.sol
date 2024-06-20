@@ -18,8 +18,6 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
 
     bytes32 public termRepoId;
     RepoTokenContext internal repoTokenContext;
-    address internal repoServicer;
-    address internal collateralManager;
 
     constructor(
         bytes32 _termRepoId,
@@ -47,6 +45,10 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
 
     function burn(address account, uint256 amount) external {
         _burn(account, amount);
+    }
+
+    function mockServicer() external returns (MockTermRepoServicer) {
+        return MockTermRepoServicer(address(repoTokenContext.termRepoServicer));
     }
     
     function config()

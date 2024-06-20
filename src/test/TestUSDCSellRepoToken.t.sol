@@ -139,7 +139,16 @@ contract TestUSDCSellRepoToken is Setup {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount1;
 
-        _sellRepoTokens(tokens, amounts, false, "");
+        _sellRepoTokens(tokens, amounts, false, true, "");
+    }
+
+    function _sell1RepoTokenNoMint(MockTermRepoToken rt1, uint256 amount1) private {
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rt1);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount1;
+
+        _sellRepoTokens(tokens, amounts, false, false, "");
     }
 
     function _sell1RepoTokenExpectRevert(MockTermRepoToken rt1, uint256 amount1, bytes memory err) private {
@@ -148,7 +157,7 @@ contract TestUSDCSellRepoToken is Setup {
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = amount1;
 
-        _sellRepoTokens(tokens, amounts, true, err);
+        _sellRepoTokens(tokens, amounts, true, true, err);
     }
 
     function _sell3RepoTokens(
@@ -168,7 +177,7 @@ contract TestUSDCSellRepoToken is Setup {
         amounts[1] = amount2;
         amounts[2] = amount3;
 
-        _sellRepoTokens(tokens, amounts, false, "");
+        _sellRepoTokens(tokens, amounts, false, true, "");
     }
 
     function _sell3RepoTokensCheckHoldings() private {
@@ -183,7 +192,7 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(holdings[2], address(repoToken4Week));
     }
 
-    function _sellRepoTokens(address[] memory tokens, uint256[] memory amounts, bool expectRevert, bytes memory err) private {
+    function _sellRepoTokens(address[] memory tokens, uint256[] memory amounts, bool expectRevert, bool mintUnderlying, bytes memory err) private {
         address testUser = vm.addr(0x11111);
 
         for (uint256 i; i < tokens.length; i++) {
@@ -193,10 +202,12 @@ contract TestUSDCSellRepoToken is Setup {
             termController.setOracleRate(MockTermRepoToken(token).termRepoId(), 0.05e18);
 
             MockTermRepoToken(token).mint(testUser, amount);
-            mockUSDC.mint(
-                address(strategy), 
-                termStrategy.calculateRepoTokenPresentValue(token, 0.05e18, amount)
-            );
+            if (mintUnderlying) {
+                mockUSDC.mint(
+                    address(strategy), 
+                    termStrategy.calculateRepoTokenPresentValue(token, 0.05e18, amount)
+                );
+            }
 
             vm.startPrank(testUser);
             MockTermRepoToken(token).approve(address(strategy), type(uint256).max);
@@ -360,7 +371,7 @@ contract TestUSDCSellRepoToken is Setup {
         IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
         vm.stopPrank();
 
-        _sell1RepoToken(repoToken2Week, 2e18);
+        _sell1RepoTokenNoMint(repoToken2Week, 2e18);
 
         address[] memory holdings = termStrategy.repoTokenHoldings();
 
@@ -385,6 +396,82 @@ contract TestUSDCSellRepoToken is Setup {
     }
 
     function testRedeemMaturedRepoTokensExternal() public {
+        // start with some initial funds
+        address testDepositor = vm.addr(0x111111);
+        uint256 depositAmount = 1000e6;
 
+        mockUSDC.mint(testDepositor, depositAmount);
+
+        vm.startPrank(testDepositor);
+        mockUSDC.approve(address(termStrategy), type(uint256).max);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
+
+        console.log("totalLiquidBalance", termStrategy.totalLiquidBalance());
+
+        _sell1RepoTokenNoMint(repoToken2Week, 2e18);
+
+        address[] memory holdings = termStrategy.repoTokenHoldings();
+
+        assertEq(holdings.length, 1);
+
+        vm.warp(block.timestamp + 3 weeks);
+
+        console.log("totalLiquidBalance", termStrategy.totalLiquidBalance());
+        console.log("totalAssetValue", termStrategy.totalAssetValue());
+
+        // external redemption
+        repoToken2Week.mockServicer().redeemTermRepoTokens(address(termStrategy), repoToken2Week.balanceOf(address(termStrategy)));
+
+        console.log("totalLiquidBalance", termStrategy.totalLiquidBalance());
+        console.log("totalAssetValue", termStrategy.totalAssetValue());
+
+        vm.prank(keeper);
+        ITokenizedStrategy(address(termStrategy)).report();
+
+        holdings = termStrategy.repoTokenHoldings();
+
+        assertEq(holdings.length, 0);
+
+        vm.startPrank(testDepositor);
+        IERC4626(address(termStrategy)).withdraw(
+            IERC4626(address(termStrategy)).balanceOf(testDepositor),
+            testDepositor,
+            testDepositor
+        );
+        vm.stopPrank();
+    }
+
+    function testRedeemMaturedRepoTokensFailure() public {
+        // start with some initial funds
+        address testDepositor = vm.addr(0x111111);
+        uint256 depositAmount = 1000e6;
+
+        mockUSDC.mint(testDepositor, depositAmount);
+
+        vm.startPrank(testDepositor);
+        mockUSDC.approve(address(termStrategy), type(uint256).max);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
+
+        _sell1RepoTokenNoMint(repoToken2Week, 2e18);
+
+        address[] memory holdings = termStrategy.repoTokenHoldings();
+
+        assertEq(holdings.length, 1);
+
+        vm.warp(block.timestamp + 3 weeks);
+
+        repoToken2Week.mockServicer().setRedemptionFailure(true);
+
+        vm.prank(keeper);
+        ITokenizedStrategy(address(termStrategy)).report();
+
+        holdings = termStrategy.repoTokenHoldings();
+
+        // TEST: still has 1 repo token because redemption failure
+        assertEq(holdings.length, 1);
+
+        console.log("totalAssetValue", termStrategy.totalAssetValue());
     }
 }

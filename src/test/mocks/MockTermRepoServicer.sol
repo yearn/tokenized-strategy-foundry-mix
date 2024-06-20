@@ -7,6 +7,7 @@ import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
 
 interface IMockERC20 {
     function mint(address account, uint256 amount) external;
+    function burn(address account, uint256 amount) external;
     function decimals() external view returns (uint256);
 }
 
@@ -14,6 +15,7 @@ contract MockTermRepoServicer is ITermRepoServicer {
     ITermRepoToken internal repoToken;
     MockTermRepoLocker internal repoLocker;
     address public purchaseToken;
+    bool public redemptionFailure;
 
     constructor(ITermRepoToken _repoToken, address _purchaseToken) {
         repoToken = _repoToken;
@@ -21,14 +23,20 @@ contract MockTermRepoServicer is ITermRepoServicer {
         purchaseToken = _purchaseToken;
     }
 
+    function setRedemptionFailure(bool hasFailure) external {
+        redemptionFailure = hasFailure;
+    }
+
     function redeemTermRepoTokens(
         address redeemer,
         uint256 amountToRedeem
     ) external {
+        if (redemptionFailure) revert("redemption failured");
         uint256 amountToRedeemInAssetPrecision = 
             amountToRedeem * (10**IMockERC20(purchaseToken).decimals()) / 
             (10**IMockERC20(address(repoToken)).decimals());
         IMockERC20(purchaseToken).mint(redeemer, amountToRedeemInAssetPrecision);
+        IMockERC20(address(repoToken)).burn(redeemer, amountToRedeem);
     }
     
     function termRepoToken() external view returns (address) {
