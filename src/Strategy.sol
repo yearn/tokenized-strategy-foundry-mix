@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -348,6 +347,20 @@ contract Strategy is BaseStrategy {
             _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
         } else {
             // no change in offer amount, do nothing
+        }
+
+        {
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
+            uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
+                repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
+            );
+            uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+                repoToken, offerAmount, liquidBalance - actualPurchaseTokenAmount
+            );
+
+            if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+                revert TimeToMaturityAboveThreshold();
+            }
         }
 
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
