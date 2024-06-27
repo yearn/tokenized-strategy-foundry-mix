@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -218,6 +217,16 @@ contract Strategy is BaseStrategy {
         _sweepAssetAndRedeemRepoTokens(0);
     }
 
+    function _generateOfferId(
+        bytes32 id,
+        address user,
+        address offerLocker
+    ) internal view returns (bytes32) {
+        return keccak256(
+            abi.encodePacked(id, user, offerLocker)
+        );
+    }
+
     function submitAuctionOffer(
         address termAuction,
         address repoToken,
@@ -247,26 +256,36 @@ contract Strategy is BaseStrategy {
 
         _sweepAssetAndRedeemRepoTokens(0);  //@dev sweep to ensure liquid balances up to date
 
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-        uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
-            repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
-        );
         uint256 liquidBalance = _totalLiquidBalance(address(this));
-
-        if (liquidBalance < purchaseTokenAmount) {
-            revert InsufficientLiquidBalance(liquidBalance, purchaseTokenAmount);
+        uint256 actualPurchaseTokenAmount = purchaseTokenAmount;
+        bytes32 offerId = _generateOfferId(idHash, address(this), address(offerLocker));
+        uint256 currentOfferAmount = termAuctionListData.offers[offerId].offerAmount;
+        if (actualPurchaseTokenAmount > currentOfferAmount) {
+            unchecked {
+                actualPurchaseTokenAmount -= currentOfferAmount;
+            }
         }
 
-        uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
-            repoToken, offerAmount, liquidBalance - purchaseTokenAmount
-        );
-
-        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
-            revert TimeToMaturityAboveThreshold();
+        if (liquidBalance < actualPurchaseTokenAmount) {
+            revert InsufficientLiquidBalance(liquidBalance, actualPurchaseTokenAmount);
         }
 
-        if ((liquidBalance - purchaseTokenAmount) < liquidityThreshold) {
+        if ((liquidBalance - actualPurchaseTokenAmount) < liquidityThreshold) {
             revert BalanceBelowLiquidityThreshold();
+        }
+
+        {
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
+            uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
+                repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
+            );
+            uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+                repoToken, offerAmount, liquidBalance - actualPurchaseTokenAmount
+            );
+
+            if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+                revert TimeToMaturityAboveThreshold();
+            }
         }
 
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
@@ -277,14 +296,23 @@ contract Strategy is BaseStrategy {
         offer.amount = purchaseTokenAmount;
         offer.purchaseToken = address(asset);
 
-        offerIds = _submitOffer(auction, offerLocker, offer, repoToken);
+        offerIds = _submitOffer(
+            auction, 
+            offerLocker, 
+            offer,
+            repoToken, 
+            actualPurchaseTokenAmount,
+            currentOfferAmount == 0
+        );
     }
 
     function _submitOffer(
         ITermAuction auction,
         ITermAuctionOfferLocker offerLocker,
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer,
-        address repoToken
+        address repoToken,
+        uint256 actualPurchaseTokenAmount,
+        bool newOffer
     ) private returns (bytes32[] memory offerIds) {
         ITermRepoServicer repoServicer = ITermRepoServicer(offerLocker.termRepoServicer());
 
@@ -292,15 +320,15 @@ contract Strategy is BaseStrategy {
             new ITermAuctionOfferLocker.TermAuctionOfferSubmission[](1);
         offerSubmissions[0] = offer;
 
-        _withdrawAsset(offer.amount);
+        _withdrawAsset(actualPurchaseTokenAmount);
 
-        ERC20(asset).approve(address(repoServicer.termRepoLocker()), offer.amount);
+        IERC20(asset).safeApprove(address(repoServicer.termRepoLocker()), actualPurchaseTokenAmount);
 
         offerIds = offerLocker.lockOffers(offerSubmissions);
 
         require(offerIds.length > 0);
 
-        if (termAuctionListData.offers[offerIds[0]].offerId == bytes32(0)) {
+        if (newOffer) {
             // new offer
             termAuctionListData.insertPending(PendingOffer({
                 offerId: offerIds[0],
