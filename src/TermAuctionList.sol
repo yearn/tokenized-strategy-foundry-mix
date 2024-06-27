@@ -75,6 +75,13 @@ library TermAuctionList {
         ITermController termController,
         address asset
     ) internal {
+        /*
+            offer submitted; auction still open => include offerAmount in totalValue (otherwise locked purchaseToken will be missing from TV)
+            offer submitted; auction completed; !auctionClosed() => include offer.offerAmount in totalValue (because the offerLocker will have already deleted offer on completeAuction)
+                                                            + even though repoToken has been transferred it hasn't been added to the repoTokenList
+                                                            BUT only if it is new not a reopening
+            offer submitted; auction completed; auctionClosed() => repoToken has been added to the repoTokenList
+        */
         if (listData.head == NULL_NODE) return;
 
         bytes32 current = listData.head;
@@ -150,12 +157,36 @@ library TermAuctionList {
             current = _getNext(listData, current);        
         }        
     }
-}
 
-/*
-offer submitted; auction still open => include offerAmount in totalValue (otherwise locked purchaseToken will be missing from TV)
-offer submitted; auction completed; !auctionClosed() => include offer.offerAmount in totalValue (because the offerLocker will have already deleted offer on completeAuction)
-                                                       + even though repoToken has been transferred it hasn't been added to the repoTokenList
-                                                       BUT only if it is new not a reopening
-offer submitted; auction completed; auctionClosed() => repoToken has been added to the repoTokenList
-*/
+    function getCumulativeOfferData(
+        TermAuctionListData storage listData,
+        RepoTokenListData storage repoTokenListData
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
+        if (listData.head == NULL_NODE) return (0, 0);
+
+        bytes32 current = listData.head;
+        while (current != NULL_NODE) {
+            PendingOffer memory offer = listData.offers[current];
+
+            uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+
+            /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
+            /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
+            if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
+                // set offerAmount to pending offer amount
+                offerAmount = offer.offerAmount;
+            } 
+
+            if (offerAmount > 0) {
+                uint256 weightedTimeToMaturity = RepoTokenList.getRepoTokenWeightedTimeToMaturity(
+                    offer.repoToken, offerAmount
+                );            
+
+                cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
+                cumulativeOfferAmount += offerAmount;
+            }
+
+            current = _getNext(listData, current);
+        }
+    }
+}

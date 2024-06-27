@@ -84,14 +84,44 @@ contract Strategy is BaseStrategy {
         return termAuctionListData.pendingOffers();
     }
 
-    function _removeRedeemAndCalculateWeightedMaturity(
+    function _calculateWeightedMaturity(
         address repoToken, 
         uint256 amount, 
         uint256 liquidBalance
-    ) private returns (uint256) {
-        return repoTokenListData.simulateWeightedTimeToMaturity(
+    ) private view returns (uint256) {
+        if (
+            termAuctionListData.head == TermAuctionList.NULL_NODE && 
+            repoTokenListData.head == RepoTokenList.NULL_NODE
+        ) return 0;
+
+        uint256 cumulativeWeightedTimeToMaturity;  // in seconds
+        uint256 cumulativeAmount;  // in purchase token precision
+
+        (
+            uint256 cumulativeRepoTokenWeightedTimeToMaturity,
+            uint256 cumulativeRepoTokenAmount
+        ) = repoTokenListData.getCumulativeRepoTokenData(
             repoToken, amount, PURCHASE_TOKEN_PRECISION, liquidBalance
         );
+
+        cumulativeWeightedTimeToMaturity += cumulativeRepoTokenWeightedTimeToMaturity;
+        cumulativeAmount += cumulativeRepoTokenAmount;
+
+        (
+            uint256 cumulativeOfferWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount
+        ) = termAuctionListData.getCumulativeOfferData(repoTokenListData);      
+
+        cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
+        cumulativeAmount += cumulativeOfferAmount;
+
+        /// @dev avoid div by 0
+        if (cumulativeAmount == 0 && liquidBalance == 0) {
+            return 0;
+        }
+
+        // time * purchaseTokenPrecision / purchaseTokenPrecision
+        return cumulativeWeightedTimeToMaturity / (cumulativeAmount + liquidBalance);
     }
 
     function simulateWeightedTimeToMaturity(address repoToken, uint256 amount) external view returns (uint256) {
@@ -99,9 +129,7 @@ contract Strategy is BaseStrategy {
         if (repoToken != address(0)) {
             repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
         }
-        return repoTokenListData.simulateWeightedTimeToMaturity(
-            repoToken, amount, PURCHASE_TOKEN_PRECISION, _totalLiquidBalance(address(this))
-        );
+        return _calculateWeightedMaturity(repoToken, amount, _totalLiquidBalance(address(this)));
     }
 
     function calculateRepoTokenPresentValue(
@@ -181,7 +209,7 @@ contract Strategy is BaseStrategy {
             revert InsufficientLiquidBalance(liquidBalance, proceeds);
         }
 
-        uint256 resultingTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+        uint256 resultingTimeToMaturity = _calculateWeightedMaturity(
             repoToken, repoTokenAmount, liquidBalance - proceeds
         );
 
@@ -235,7 +263,7 @@ contract Strategy is BaseStrategy {
         uint256 offerAmountInRepoPrecision = RepoTokenUtils.purchaseToRepoPrecision(
             repoTokenPrecision, PURCHASE_TOKEN_PRECISION, newOfferAmount
         );
-        uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+        uint256 resultingWeightedTimeToMaturity = _calculateWeightedMaturity(
             repoToken, offerAmountInRepoPrecision, newLiquidBalance
         );
 
@@ -278,6 +306,7 @@ contract Strategy is BaseStrategy {
         bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
         uint256 currentOfferAmount = termAuctionListData.offers[offerId].offerAmount;
         if (newOfferAmount > currentOfferAmount) {
+            // increasing offer amount
             uint256 offerDebit;
             unchecked {
                 // checked above
@@ -291,7 +320,8 @@ contract Strategy is BaseStrategy {
                 revert BalanceBelowLiquidityThreshold();
             }
             _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
-        } else {
+        } else if (currentOfferAmount > newOfferAmount) {
+            // decreasing offer amount
             uint256 offerCredit;
             unchecked {
                 offerCredit = currentOfferAmount - newOfferAmount;
@@ -301,6 +331,8 @@ contract Strategy is BaseStrategy {
                 revert BalanceBelowLiquidityThreshold();
             }
             _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
+        } else {
+            // no change in offer amount, do nothing
         }
 
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;

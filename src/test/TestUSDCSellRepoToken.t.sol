@@ -6,6 +6,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {ITokenizedStrategy} from "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermController} from "./mocks/MockTermController.sol";
+import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {ITermRepoToken} from "../interfaces/term/ITermRepoToken.sol";
@@ -180,6 +181,22 @@ contract TestUSDCSellRepoToken is Setup {
         _sellRepoTokens(tokens, amounts, false, true, "");
     }
 
+    function _sell2RepoTokens(
+        MockTermRepoToken rt1, 
+        uint256 amount1, 
+        MockTermRepoToken rt2, 
+        uint256 amount2
+    ) private {
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(rt1);
+        tokens[1] = address(rt2);
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = amount1;
+        amounts[1] = amount2;
+
+        _sellRepoTokens(tokens, amounts, false, true, "");
+    }
+
     function _sell3RepoTokensCheckHoldings() private {
         address[] memory holdings = termStrategy.repoTokenHoldings();
 
@@ -261,6 +278,24 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_7_14_28_8_1_3() public {
         _sell3RepoTokens(repoToken1Week, 8e18, repoToken2Week, 1e18, repoToken4Week, 3e18);
         _sell3RepoTokensCheckHoldings();
+        assertEq(termStrategy.simulateWeightedTimeToMaturity(address(0), 0), 1108800);
+    }
+
+    // test: weighted maturity with both repo tokens and pending offers
+    function testSellMultipleRepoTokens_7_14_8_1_Offer_28_3() public {
+        _sell2RepoTokens(repoToken1Week, 8e18, repoToken2Week, 1e18);
+
+        bytes32 idHash = bytes32("offer id hash 1");
+
+        MockTermAuction repoToken4WeekAuction = new MockTermAuction(repoToken4Week);
+
+        mockUSDC.mint(address(termStrategy), 3e6);
+
+        vm.prank(management);
+        termStrategy.submitAuctionOffer(
+            address(repoToken4WeekAuction), address(repoToken4Week), idHash, bytes32("test price"), 3e6
+        );
+
         assertEq(termStrategy.simulateWeightedTimeToMaturity(address(0), 0), 1108800);
     }
 

@@ -61,43 +61,50 @@ library RepoTokenList {
         }   
     }
 
-    function simulateWeightedTimeToMaturity(
-        RepoTokenListData storage listData, 
+    function getRepoTokenWeightedTimeToMaturity(
+        address repoToken, uint256 repoTokenBalanceInBaseAssetPrecision
+    ) internal view returns (uint256 weightedTimeToMaturity) {
+        uint256 currentMaturity = _getRepoTokenMaturity(repoToken);
+
+        if (currentMaturity > block.timestamp) {
+            uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, repoToken);
+            // Not matured yet
+            weightedTimeToMaturity = timeToMaturity * repoTokenBalanceInBaseAssetPrecision;
+        }
+    }
+
+    function getCumulativeRepoTokenData(
+        RepoTokenListData storage listData,
         address repoToken, 
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision,
         uint256 liquidBalance
-    ) internal view returns (uint256) {
-        if (listData.head == NULL_NODE) return 0;
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeRepoTokenAmount) {
+        if (listData.head == NULL_NODE) return (0, 0);
 
-        uint256 cumulativeWeightedTimeToMaturity;  // in seconds
-        uint256 cumulativeRepoTokenAmount;  // in purchase token precision
         address current = listData.head;
         bool found;
         while (current != NULL_NODE) {
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
             if (repoTokenBalance > 0) {
-                uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
-                uint256 repoTokenPrecision = 10**ERC20(current).decimals();
-
                 if (repoToken == current) {
                     repoTokenBalance += repoTokenAmount;
                     found = true;
                 }
 
+                uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
+                uint256 repoTokenPrecision = 10**ERC20(current).decimals();
+
                 uint256 repoTokenBalanceInBaseAssetPrecision = 
                     (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
                     (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
 
-                uint256 currentMaturity = _getRepoTokenMaturity(current);
+                uint256 weightedTimeToMaturity = getRepoTokenWeightedTimeToMaturity(
+                    current, repoTokenBalanceInBaseAssetPrecision
+                );
 
-                if (currentMaturity > block.timestamp) {
-                    uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, current);
-                    // Not matured yet
-                    cumulativeWeightedTimeToMaturity += 
-                        timeToMaturity * repoTokenBalanceInBaseAssetPrecision;
-                }
+                cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeRepoTokenAmount += repoTokenBalanceInBaseAssetPrecision;
             }
 
@@ -120,14 +127,6 @@ library RepoTokenList {
                     timeToMaturity * repoTokenAmountInBaseAssetPrecision;
             }
         }
-
-        /// @dev avoid div by 0
-        if (cumulativeRepoTokenAmount == 0 && liquidBalance == 0) {
-            return 0;
-        }
-
-        // time * purchaseTokenPrecision / purchaseTokenPrecision
-        return cumulativeWeightedTimeToMaturity / (cumulativeRepoTokenAmount + liquidBalance);
     }
 
     function removeAndRedeemMaturedTokens(RepoTokenListData storage listData) internal {
