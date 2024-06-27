@@ -160,15 +160,21 @@ library TermAuctionList {
 
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
-        RepoTokenListData storage repoTokenListData
-    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
-        if (listData.head == NULL_NODE) return (0, 0);
+        RepoTokenListData storage repoTokenListData,
+        address repoToken, 
+        uint256 newOfferAmount
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
+        if (listData.head == NULL_NODE) return (0, 0, false);
 
         bytes32 current = listData.head;
         while (current != NULL_NODE) {
             PendingOffer memory offer = listData.offers[current];
 
-            uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+            if (offer.repoToken == repoToken) {
+                found = true;
+            }
+
+            uint256 offerAmount = offer.repoToken == repoToken ? newOfferAmount : offer.offerLocker.lockedOffer(offer.offerId).amount;
 
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings

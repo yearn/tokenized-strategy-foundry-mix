@@ -79,11 +79,10 @@ library RepoTokenList {
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision,
         uint256 liquidBalance
-    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeRepoTokenAmount) {
-        if (listData.head == NULL_NODE) return (0, 0);
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeRepoTokenAmount, bool found) {
+        if (listData.head == NULL_NODE) return (0, 0, false);
 
         address current = listData.head;
-        bool found;
         while (current != NULL_NODE) {
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
@@ -109,23 +108,6 @@ library RepoTokenList {
             }
 
             current = _getNext(listData, current);
-        }
-
-        /// @dev token is not found in the list (i.e. called from view function)
-        if (!found && repoToken != address(0)) {
-            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
-            uint256 repoTokenAmountInBaseAssetPrecision =
-                (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-
-            cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
-            uint256 maturity = _getRepoTokenMaturity(repoToken);
-            if (maturity > block.timestamp) {
-                uint256 timeToMaturity = _getRepoTokenTimeToMaturity(maturity, repoToken);
-                cumulativeWeightedTimeToMaturity += 
-                    timeToMaturity * repoTokenAmountInBaseAssetPrecision;
-            }
         }
     }
 

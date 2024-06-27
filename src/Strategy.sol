@@ -86,7 +86,7 @@ contract Strategy is BaseStrategy {
 
     function _calculateWeightedMaturity(
         address repoToken, 
-        uint256 amount, 
+        uint256 repoTokenAmount, 
         uint256 liquidBalance
     ) private view returns (uint256) {
         if (
@@ -99,9 +99,10 @@ contract Strategy is BaseStrategy {
 
         (
             uint256 cumulativeRepoTokenWeightedTimeToMaturity,
-            uint256 cumulativeRepoTokenAmount
+            uint256 cumulativeRepoTokenAmount,
+            bool foundInRepoTokenList
         ) = repoTokenListData.getCumulativeRepoTokenData(
-            repoToken, amount, PURCHASE_TOKEN_PRECISION, liquidBalance
+            repoToken, repoTokenAmount, PURCHASE_TOKEN_PRECISION, liquidBalance
         );
 
         cumulativeWeightedTimeToMaturity += cumulativeRepoTokenWeightedTimeToMaturity;
@@ -109,11 +110,26 @@ contract Strategy is BaseStrategy {
 
         (
             uint256 cumulativeOfferWeightedTimeToMaturity,
-            uint256 cumulativeOfferAmount
-        ) = termAuctionListData.getCumulativeOfferData(repoTokenListData);      
+            uint256 cumulativeOfferAmount,
+            bool foundInOfferList
+        ) = termAuctionListData.getCumulativeOfferData(repoTokenListData, repoToken, repoTokenAmount);      
 
         cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
         cumulativeAmount += cumulativeOfferAmount;
+
+        if (!foundInRepoTokenList && !foundInOfferList && repoToken != address(0)) {
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
+            uint256 repoTokenAmountInBaseAssetPrecision =
+                (redemptionValue * repoTokenAmount * PURCHASE_TOKEN_PRECISION) / 
+                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+
+            cumulativeAmount += repoTokenAmountInBaseAssetPrecision;
+            cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(
+                repoToken, 
+                repoTokenAmountInBaseAssetPrecision
+            );
+        }
 
         /// @dev avoid div by 0
         if (cumulativeAmount == 0 && liquidBalance == 0) {
