@@ -219,12 +219,29 @@ contract Strategy is BaseStrategy {
 
     function _generateOfferId(
         bytes32 id,
-        address user,
         address offerLocker
     ) internal view returns (bytes32) {
         return keccak256(
-            abi.encodePacked(id, user, offerLocker)
+            abi.encodePacked(id, address(this), offerLocker)
         );
+    }
+
+    function _validateWeightedMaturity(
+        address repoToken, 
+        uint256 newOfferAmount,
+        uint256 newLiquidBalance
+    ) private {
+        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
+        uint256 offerAmountInRepoPrecision = RepoTokenUtils.purchaseToRepoPrecision(
+            repoTokenPrecision, PURCHASE_TOKEN_PRECISION, newOfferAmount
+        );
+        uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
+            repoToken, offerAmountInRepoPrecision, newLiquidBalance
+        );
+
+        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
     }
 
     function submitAuctionOffer(
@@ -257,35 +274,33 @@ contract Strategy is BaseStrategy {
         _sweepAssetAndRedeemRepoTokens(0);  //@dev sweep to ensure liquid balances up to date
 
         uint256 liquidBalance = _totalLiquidBalance(address(this));
-        uint256 actualPurchaseTokenAmount = purchaseTokenAmount;
-        bytes32 offerId = _generateOfferId(idHash, address(this), address(offerLocker));
+        uint256 newOfferAmount = purchaseTokenAmount;
+        bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
         uint256 currentOfferAmount = termAuctionListData.offers[offerId].offerAmount;
-        if (actualPurchaseTokenAmount > currentOfferAmount) {
+        if (newOfferAmount > currentOfferAmount) {
+            uint256 offerDebit;
             unchecked {
-                actualPurchaseTokenAmount -= currentOfferAmount;
+                // checked above
+                offerDebit = newOfferAmount - currentOfferAmount;
             }
-        }
-
-        if (liquidBalance < actualPurchaseTokenAmount) {
-            revert InsufficientLiquidBalance(liquidBalance, actualPurchaseTokenAmount);
-        }
-
-        if ((liquidBalance - actualPurchaseTokenAmount) < liquidityThreshold) {
-            revert BalanceBelowLiquidityThreshold();
-        }
-
-        {
-            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
-            uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
-                repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
-            );
-            uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
-                repoToken, offerAmount, liquidBalance - actualPurchaseTokenAmount
-            );
-
-            if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
-                revert TimeToMaturityAboveThreshold();
+            if (liquidBalance < offerDebit) {
+                revert InsufficientLiquidBalance(liquidBalance, offerDebit);
             }
+            uint256 newLiquidBalance = liquidBalance - offerDebit;
+            if (newLiquidBalance < liquidityThreshold) {
+                revert BalanceBelowLiquidityThreshold();
+            }
+            _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
+        } else {
+            uint256 offerCredit;
+            unchecked {
+                offerCredit = currentOfferAmount - newOfferAmount;
+            }
+            uint256 newLiquidBalance = liquidBalance + offerCredit;
+            if (newLiquidBalance < liquidityThreshold) {
+                revert BalanceBelowLiquidityThreshold();
+            }
+            _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
         }
 
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
@@ -301,8 +316,8 @@ contract Strategy is BaseStrategy {
             offerLocker, 
             offer,
             repoToken, 
-            actualPurchaseTokenAmount,
-            currentOfferAmount == 0
+            newOfferAmount,
+            currentOfferAmount
         );
     }
 
@@ -311,8 +326,8 @@ contract Strategy is BaseStrategy {
         ITermAuctionOfferLocker offerLocker,
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer,
         address repoToken,
-        uint256 actualPurchaseTokenAmount,
-        bool newOffer
+        uint256 newOfferAmount,
+        uint256 currentOfferAmount
     ) private returns (bytes32[] memory offerIds) {
         ITermRepoServicer repoServicer = ITermRepoServicer(offerLocker.termRepoServicer());
 
@@ -320,15 +335,21 @@ contract Strategy is BaseStrategy {
             new ITermAuctionOfferLocker.TermAuctionOfferSubmission[](1);
         offerSubmissions[0] = offer;
 
-        _withdrawAsset(actualPurchaseTokenAmount);
-
-        IERC20(asset).safeApprove(address(repoServicer.termRepoLocker()), actualPurchaseTokenAmount);
+        if (newOfferAmount > currentOfferAmount) {
+            uint256 offerDebit;
+            unchecked {
+                // checked above
+                offerDebit = newOfferAmount - currentOfferAmount;
+            }
+            _withdrawAsset(offerDebit);
+            IERC20(asset).safeApprove(address(repoServicer.termRepoLocker()), offerDebit);            
+        }
 
         offerIds = offerLocker.lockOffers(offerSubmissions);
 
         require(offerIds.length > 0);
 
-        if (newOffer) {
+        if (currentOfferAmount == 0) {
             // new offer
             termAuctionListData.insertPending(PendingOffer({
                 offerId: offerIds[0],

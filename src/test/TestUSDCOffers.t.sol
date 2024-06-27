@@ -243,4 +243,15 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), 0);        
     }
+
+    function testEditOfferTotalLessThanCurrentLiquidity() public {
+        bytes32 idHash1 = bytes32("offer id hash 1");
+        bytes32 offerId1 = _submitOffer(idHash1, 100e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 0);
+
+        _submitOffer(idHash1, 50e6);
+
+        assertEq(termStrategy.totalLiquidBalance(), 50e6); 
+    }
 }
