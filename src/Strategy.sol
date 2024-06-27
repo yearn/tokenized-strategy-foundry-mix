@@ -89,11 +89,6 @@ contract Strategy is BaseStrategy {
         uint256 repoTokenAmount, 
         uint256 liquidBalance
     ) private view returns (uint256) {
-        if (
-            termAuctionListData.head == TermAuctionList.NULL_NODE && 
-            repoTokenListData.head == RepoTokenList.NULL_NODE
-        ) return 0;
-
         uint256 cumulativeWeightedTimeToMaturity;  // in seconds
         uint256 cumulativeAmount;  // in purchase token precision
 
@@ -353,7 +348,7 @@ contract Strategy is BaseStrategy {
 
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
 
-        offer.id = idHash;
+        offer.id = currentOfferAmount > 0 ? offerId : idHash;
         offer.offeror = address(this);
         offer.offerPriceHash = offerPriceHash;
         offer.amount = purchaseTokenAmount;

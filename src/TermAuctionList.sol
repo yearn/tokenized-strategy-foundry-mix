@@ -170,18 +170,20 @@ library TermAuctionList {
         while (current != NULL_NODE) {
             PendingOffer memory offer = listData.offers[current];
 
+            uint256 offerAmount;
             if (offer.repoToken == repoToken) {
+                offerAmount = newOfferAmount;
                 found = true;
+            } else {
+                offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+
+                /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
+                /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
+                if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
+                    // set offerAmount to pending offer amount
+                    offerAmount = offer.offerAmount;
+                } 
             }
-
-            uint256 offerAmount = offer.repoToken == repoToken ? newOfferAmount : offer.offerLocker.lockedOffer(offer.offerId).amount;
-
-            /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
-            /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
-                // set offerAmount to pending offer amount
-                offerAmount = offer.offerAmount;
-            } 
 
             if (offerAmount > 0) {
                 uint256 weightedTimeToMaturity = RepoTokenList.getRepoTokenWeightedTimeToMaturity(
