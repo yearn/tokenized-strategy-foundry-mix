@@ -195,17 +195,11 @@ library TermAuctionList {
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
                 if (offer.termAuction.auctionCompleted() && repoTokenListData.auctionRates[offer.repoToken] == 0) {
-                    // set offerAmount to pending offer amount
-                    uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                    // use normalized repo token amount if repo token is not in the list
+                    offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken, 
                         ITermRepoToken(offer.repoToken).balanceOf(address(this)),
                         purchaseTokenPrecision
-                    );
-                    offerAmount = RepoTokenUtils.calculatePresentValue(
-                        repoTokenAmountInBaseAssetPrecision, 
-                        purchaseTokenPrecision, 
-                        RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
-                        RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
                     );
                 } 
             }
