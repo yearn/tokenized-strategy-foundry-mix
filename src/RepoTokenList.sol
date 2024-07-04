@@ -27,7 +27,7 @@ library RepoTokenList {
 
     error InvalidRepoToken(address token);
 
-    function _getRepoTokenMaturity(address repoToken) private view returns (uint256 redemptionTimestamp) {
+    function getRepoTokenMaturity(address repoToken) internal view returns (uint256 redemptionTimestamp) {
         (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
     }
 
@@ -64,7 +64,7 @@ library RepoTokenList {
     function getRepoTokenWeightedTimeToMaturity(
         address repoToken, uint256 repoTokenBalanceInBaseAssetPrecision
     ) internal view returns (uint256 weightedTimeToMaturity) {
-        uint256 currentMaturity = _getRepoTokenMaturity(repoToken);
+        uint256 currentMaturity = getRepoTokenMaturity(repoToken);
 
         if (currentMaturity > block.timestamp) {
             uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, repoToken);
@@ -118,7 +118,7 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
-            if (_getRepoTokenMaturity(current) < block.timestamp) {
+            if (getRepoTokenMaturity(current) < block.timestamp) {
                 bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
@@ -158,7 +158,7 @@ library RepoTokenList {
         }        
     }
 
-    function _auctionRate(ITermController termController, ITermRepoToken repoToken) private view returns (uint256) {
+    function getAuctionRate(ITermController termController, ITermRepoToken repoToken) internal view returns (uint256) {
         (AuctionMetadata[] memory auctionMetadata, ) = termController.getTermAuctionResults(repoToken.termRepoId());
 
         uint256 len = auctionMetadata.length;
@@ -224,14 +224,14 @@ library RepoTokenList {
                 revert InvalidRepoToken(address(repoToken));
             }
 
-            uint256 oracleRate = _auctionRate(termController, repoToken);
+            uint256 oracleRate = getAuctionRate(termController, repoToken);
             if (oracleRate != INVALID_AUCTION_RATE) {
                 if (auctionRate != oracleRate) {
                     listData.auctionRates[address(repoToken)] = oracleRate;
                 }
             }
         } else {
-            auctionRate = _auctionRate(termController, repoToken);
+            auctionRate = getAuctionRate(termController, repoToken);
 
             redemptionTimestamp = validateRepoToken(listData, repoToken, termController, asset);
 
@@ -256,8 +256,8 @@ library RepoTokenList {
                 break;
             }
 
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
-            uint256 maturityToInsert = _getRepoTokenMaturity(repoToken);
+            uint256 currentMaturity = getRepoTokenMaturity(current);
+            uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
 
             if (maturityToInsert <= currentMaturity) {
                 if (prev == NULL_NODE) {
@@ -289,7 +289,7 @@ library RepoTokenList {
         
         address current = listData.head;
         while (current != NULL_NODE) {
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
+            uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
             uint256 repoTokenPrecision = 10**ERC20(current).decimals();
             uint256 auctionRate = listData.auctionRates[current];

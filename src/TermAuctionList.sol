@@ -7,6 +7,7 @@ import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
+import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 struct PendingOffer {
     bytes32 offerId;
@@ -136,7 +137,9 @@ library TermAuctionList {
 
     function getPresentValue(
         TermAuctionListData storage listData, 
-        RepoTokenListData storage repoTokenListData
+        RepoTokenListData storage repoTokenListData,
+        ITermController termController,
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalValue) {
         if (listData.head == NULL_NODE) return 0;
         
@@ -148,8 +151,18 @@ library TermAuctionList {
 
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
-                totalValue += offer.offerAmount;
+            if (offer.termAuction.auctionCompleted() && repoTokenListData.auctionRates[offer.repoToken] == 0) {
+                uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                    offer.repoToken, 
+                    ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                    purchaseTokenPrecision
+                );
+                totalValue += RepoTokenUtils.calculatePresentValue(
+                    repoTokenAmountInBaseAssetPrecision, 
+                    purchaseTokenPrecision, 
+                    RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
+                    RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
+                );
             } else {
                 totalValue += offerAmount;
             }
@@ -161,8 +174,10 @@ library TermAuctionList {
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
+        ITermController termController,
         address repoToken, 
-        uint256 newOfferAmount
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
         if (listData.head == NULL_NODE) return (0, 0, false);
 
@@ -179,9 +194,19 @@ library TermAuctionList {
 
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
-                if (offer.termAuction.auctionCompleted() && offerAmount == 0 && repoTokenListData.auctionRates[offer.repoToken] == 0) {
+                if (offer.termAuction.auctionCompleted() && repoTokenListData.auctionRates[offer.repoToken] == 0) {
                     // set offerAmount to pending offer amount
-                    offerAmount = offer.offerAmount;
+                    uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                        offer.repoToken, 
+                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                        purchaseTokenPrecision
+                    );
+                    offerAmount = RepoTokenUtils.calculatePresentValue(
+                        repoTokenAmountInBaseAssetPrecision, 
+                        purchaseTokenPrecision, 
+                        RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
+                        RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
+                    );
                 } 
             }
 

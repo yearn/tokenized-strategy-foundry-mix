@@ -129,17 +129,20 @@ contract TestUSDCSubmitOffer is Setup {
 
     function testCompleteAuctionSuccessFull() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+        uint256 fillAmount = 1e6;
 
         bytes32[] memory offerIds = new bytes32[](1);
         offerIds[0] = offerId1;
         uint256[] memory fillAmounts = new uint256[](1);
-        fillAmounts[0] = 1e6;
+        fillAmounts[0] = fillAmount;
         uint256[] memory repoTokenAmounts = new uint256[](1);
         repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
-            1e6, repoToken1Week, TEST_REPO_TOKEN_RATE
+            fillAmount, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        //console2.log("repoTokenAmounts[0]", repoTokenAmounts[0]);
 
         // test: asset value should equal to initial asset value (liquid + pending offers)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -167,16 +170,17 @@ contract TestUSDCSubmitOffer is Setup {
 
     function testCompleteAuctionSuccessPartial() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id 1"), 1e6);
+        uint256 fillAmount = 0.5e6;
 
         bytes32[] memory offerIds = new bytes32[](1);
         offerIds[0] = offerId1;
         uint256[] memory fillAmounts = new uint256[](1);
 
         // test: 50% filled
-        fillAmounts[0] = 0.5e6;
+        fillAmounts[0] = fillAmount;
         uint256[] memory repoTokenAmounts = new uint256[](1);
         repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
-            0.5e6, repoToken1Week, TEST_REPO_TOKEN_RATE
+            fillAmount, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);

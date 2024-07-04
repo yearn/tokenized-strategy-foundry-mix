@@ -107,17 +107,19 @@ contract Strategy is BaseStrategy {
             uint256 cumulativeOfferWeightedTimeToMaturity,
             uint256 cumulativeOfferAmount,
             bool foundInOfferList
-        ) = termAuctionListData.getCumulativeOfferData(repoTokenListData, repoToken, repoTokenAmount);      
+        ) = termAuctionListData.getCumulativeOfferData(
+            repoTokenListData, termController, repoToken, repoTokenAmount, PURCHASE_TOKEN_PRECISION
+        );      
 
         cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
         cumulativeAmount += cumulativeOfferAmount;
 
         if (!foundInRepoTokenList && !foundInOfferList && repoToken != address(0)) {
-            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
-            uint256 repoTokenAmountInBaseAssetPrecision =
-                (redemptionValue * repoTokenAmount * PURCHASE_TOKEN_PRECISION) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                repoToken, 
+                repoTokenAmount,
+                PURCHASE_TOKEN_PRECISION
+            );
 
             cumulativeAmount += repoTokenAmountInBaseAssetPrecision;
             cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(
@@ -428,7 +430,7 @@ contract Strategy is BaseStrategy {
     function _totalAssetValue() internal view returns (uint256 totalValue) {
         return _totalLiquidBalance(address(this)) + 
             repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION) + 
-            termAuctionListData.getPresentValue(repoTokenListData);
+            termAuctionListData.getPresentValue(repoTokenListData, termController, PURCHASE_TOKEN_PRECISION);
     }
 
     constructor(
