@@ -237,6 +237,32 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(offers[1], offerId1);
     }
 
+    function testMultipleOffersFillAndNoFill() public {
+        uint256 offer1Amount = 1e6;
+        uint256 offer2Amount = 5e6;
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), offer1Amount);
+        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), offer2Amount);
+
+        bytes32[] memory offerIds = new bytes32[](2);
+        offerIds[0] = offerId1;
+        offerIds[1] = offerId2;
+        uint256[] memory fillAmounts = new uint256[](2);
+
+        // test: offer 1 filled, offer 2 not filled
+        fillAmounts[0] = offer1Amount;
+        fillAmounts[1] = 0;
+        uint256[] memory repoTokenAmounts = new uint256[](2);
+        repoTokenAmounts[0] = _getRepoTokenAmountGivenPurchaseTokenAmount(
+            offer1Amount, repoToken1Week, TEST_REPO_TOKEN_RATE
+        );
+        repoTokenAmounts[1] = 0;
+
+        repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        // test: asset value should equal to initial asset value (liquid + pending offers)
+        assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);        
+    }
+
     function testEditOfferTotalGreaterThanCurrentLiquidity() public {
         bytes32 idHash1 = bytes32("offer id hash 1");
         bytes32 offerId1 = _submitOffer(idHash1, 50e6);

@@ -396,8 +396,7 @@ contract Strategy is BaseStrategy {
 
         if (currentOfferAmount == 0) {
             // new offer
-            termAuctionListData.insertPending(PendingOffer({
-                offerId: offerIds[0],
+            termAuctionListData.insertPending(offerIds[0], PendingOffer({
                 repoToken: repoToken,
                 offerAmount: offer.amount,
                 termAuction: auction,
@@ -406,7 +405,6 @@ contract Strategy is BaseStrategy {
         } else {
             // edit offer, overwrite existing
             termAuctionListData.offers[offerIds[0]] = PendingOffer({
-                offerId: offerIds[0],
                 repoToken: repoToken,
                 offerAmount: offer.amount,
                 termAuction: auction,

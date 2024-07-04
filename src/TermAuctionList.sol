@@ -10,11 +10,19 @@ import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 struct PendingOffer {
+    address repoToken;
+    uint256 offerAmount;
+    ITermAuction termAuction;
+    ITermAuctionOfferLocker offerLocker;   
+}
+
+struct PendingOfferMemory {
     bytes32 offerId;
     address repoToken;
     uint256 offerAmount;
     ITermAuction termAuction;
     ITermAuctionOfferLocker offerLocker;   
+    bool isRepoTokenSeen;
 }
 
 struct TermAuctionListNode {
@@ -58,16 +66,15 @@ library TermAuctionList {
         }   
     }
 
-    function insertPending(TermAuctionListData storage listData, PendingOffer memory pendingOffer) internal {
+    function insertPending(TermAuctionListData storage listData, bytes32 offerId, PendingOffer memory pendingOffer) internal {
         bytes32 current = listData.head;
-        bytes32 id = pendingOffer.offerId;
 
         if (current != NULL_NODE) {
-            listData.nodes[id].next = current;
+            listData.nodes[offerId].next = current;
         }
 
-        listData.head = id;
-        listData.offers[id] = pendingOffer;
+        listData.head = offerId;
+        listData.offers[offerId] = pendingOffer;
     }
 
     function removeCompleted(
@@ -91,7 +98,7 @@ library TermAuctionList {
             PendingOffer memory offer = listData.offers[current];
             bytes32 next = _getNext(listData, current);
 
-            uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
+            uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
             bool removeNode;
             bool insertRepoToken;
 
@@ -111,7 +118,7 @@ library TermAuctionList {
 
                     // withdraw manually
                     bytes32[] memory offerIds = new bytes32[](1);
-                    offerIds[0] = offer.offerId;
+                    offerIds[0] = current;
                     offer.offerLocker.unlockOffers(offerIds);
                 }
             }
@@ -135,6 +142,35 @@ library TermAuctionList {
         }
     }
 
+    function _loadOffers(TermAuctionListData storage listData) private view returns (PendingOfferMemory[] memory offers) {
+        uint256 len = _count(listData);
+        offers = new PendingOfferMemory[](len);
+
+        uint256 i;
+        bytes32 current = listData.head;
+        while (current != NULL_NODE) {
+            PendingOffer memory currentOffer = listData.offers[current];
+            PendingOfferMemory memory newOffer = offers[i];
+
+            newOffer.offerId = current;
+            newOffer.repoToken = currentOffer.repoToken;
+            newOffer.offerAmount = currentOffer.offerAmount;
+            newOffer.termAuction = currentOffer.termAuction;
+            newOffer.offerLocker = currentOffer.offerLocker;
+
+            i++;
+            current = _getNext(listData, current);
+        }
+    }
+
+    function _markRepoTokenAsSeen(PendingOfferMemory[] memory offers, address repoToken) private view {
+        for (uint256 i; i < offers.length; i++) {
+            if (repoToken == offers[i].repoToken) {
+                offers[i].isRepoTokenSeen = true;
+            }
+        }
+    }
+
     function getPresentValue(
         TermAuctionListData storage listData, 
         RepoTokenListData storage repoTokenListData,
@@ -142,32 +178,37 @@ library TermAuctionList {
         uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalValue) {
         if (listData.head == NULL_NODE) return 0;
+
+        PendingOfferMemory[] memory offers = _loadOffers(listData);
         
-        bytes32 current = listData.head;
-        while (current != NULL_NODE) {
-            PendingOffer memory offer = listData.offers[current];
+        for (uint256 i; i < offers.length; i++) {
+            PendingOfferMemory memory offer = offers[i];
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
 
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
             if (offer.termAuction.auctionCompleted() && repoTokenListData.auctionRates[offer.repoToken] == 0) {
-                uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                    offer.repoToken, 
-                    ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                    purchaseTokenPrecision
-                );
-                totalValue += RepoTokenUtils.calculatePresentValue(
-                    repoTokenAmountInBaseAssetPrecision, 
-                    purchaseTokenPrecision, 
-                    RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
-                    RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
-                );
+                if (!offer.isRepoTokenSeen) {
+                    uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                        offer.repoToken, 
+                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                        purchaseTokenPrecision
+                    );
+                    totalValue += RepoTokenUtils.calculatePresentValue(
+                        repoTokenAmountInBaseAssetPrecision, 
+                        purchaseTokenPrecision, 
+                        RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
+                        RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
+                    );
+
+                    // since multiple offers can be tied to the same repo token, we need to mark
+                    // the repo tokens we've seen to avoid double counting
+                    _markRepoTokenAsSeen(offers, offer.repoToken);
+                }
             } else {
                 totalValue += offerAmount;
             }
-
-            current = _getNext(listData, current);        
         }        
     }
 
@@ -181,9 +222,10 @@ library TermAuctionList {
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
         if (listData.head == NULL_NODE) return (0, 0, false);
 
-        bytes32 current = listData.head;
-        while (current != NULL_NODE) {
-            PendingOffer memory offer = listData.offers[current];
+        PendingOfferMemory[] memory offers = _loadOffers(listData);
+
+        for (uint256 i; i < offers.length; i++) {
+            PendingOfferMemory memory offer = offers[i];
 
             uint256 offerAmount;
             if (offer.repoToken == repoToken) {
@@ -196,12 +238,16 @@ library TermAuctionList {
                 /// checking repoTokenAuctionRates to make sure we are not double counting on re-openings
                 if (offer.termAuction.auctionCompleted() && repoTokenListData.auctionRates[offer.repoToken] == 0) {
                     // use normalized repo token amount if repo token is not in the list
-                    offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                        offer.repoToken, 
-                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                        purchaseTokenPrecision
-                    );
-                } 
+                    if (!offer.isRepoTokenSeen) {                    
+                        offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                            offer.repoToken, 
+                            ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                            purchaseTokenPrecision
+                        );
+
+                        _markRepoTokenAsSeen(offers, offer.repoToken);
+                    }
+                }
             }
 
             if (offerAmount > 0) {
@@ -212,8 +258,6 @@ library TermAuctionList {
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeOfferAmount += offerAmount;
             }
-
-            current = _getNext(listData, current);
         }
     }
 }
