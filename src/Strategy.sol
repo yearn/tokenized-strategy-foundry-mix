@@ -264,12 +264,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             revert TimeToMaturityAboveThreshold();
         }
 
-        liquidBalance -= proceeds;
-
-        if (liquidBalance < liquidityThreshold) {
-            revert BalanceBelowLiquidityThreshold();
-        }
-
         if ((liquidBalance - proceeds) < liquidityThreshold) {
             revert BalanceBelowLiquidityThreshold();
         }
