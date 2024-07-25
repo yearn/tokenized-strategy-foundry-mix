@@ -5,6 +5,7 @@ import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
@@ -81,6 +82,7 @@ library TermAuctionList {
         TermAuctionListData storage listData, 
         RepoTokenListData storage repoTokenListData,
         ITermController termController,
+        ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal {
         /*
@@ -134,7 +136,9 @@ library TermAuctionList {
             }
 
             if (insertRepoToken) {
-                repoTokenListData.validateAndInsertRepoToken(ITermRepoToken(offer.repoToken), termController, asset);
+                repoTokenListData.validateAndInsertRepoToken(
+                    ITermRepoToken(offer.repoToken), termController, discountRateAdapter, asset
+                );
             }
 
             prev = current;
@@ -174,7 +178,7 @@ library TermAuctionList {
     function getPresentValue(
         TermAuctionListData storage listData, 
         RepoTokenListData storage repoTokenListData,
-        ITermController termController,
+        ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision,
         address repoTokenToMatch
     ) internal view returns (uint256 totalValue) {
@@ -205,7 +209,7 @@ library TermAuctionList {
                         repoTokenAmountInBaseAssetPrecision, 
                         purchaseTokenPrecision, 
                         RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
-                        RepoTokenList.getAuctionRate(termController, ITermRepoToken(offer.repoToken))
+                        discountRateAdapter.getDiscountRate(offer.repoToken)
                     );
 
                     // since multiple offers can be tied to the same repo token, we need to mark

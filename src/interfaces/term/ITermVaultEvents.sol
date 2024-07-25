@@ -18,6 +18,11 @@ interface ITermVaultEvents {
 
     event Unpaused();
 
+    event DiscountRateAdapterUpdated(
+        address indexed oldAdapter, 
+        address indexed newAdapter
+    );
+
     function emitTermControllerUpdated(address oldController, address newController) external;
 
     function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external;
@@ -33,4 +38,9 @@ interface ITermVaultEvents {
     function emitPaused() external;
 
     function emitUnpaused() external;
+
+    function emitDiscountRateAdapterUpdated(
+        address oldAdapter,
+        address newAdapter
+    ) external;
 }

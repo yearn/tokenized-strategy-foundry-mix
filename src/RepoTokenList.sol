@@ -5,6 +5,7 @@ import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
@@ -158,18 +159,6 @@ library RepoTokenList {
         }        
     }
 
-    function getAuctionRate(ITermController termController, ITermRepoToken repoToken) internal view returns (uint256) {
-        (AuctionMetadata[] memory auctionMetadata, ) = termController.getTermAuctionResults(repoToken.termRepoId());
-
-        uint256 len = auctionMetadata.length;
-
-        if (len == 0) {
-            revert InvalidRepoToken(address(repoToken));
-        }
-
-        return auctionMetadata[len - 1].auctionClearingRate;
-    }
-
     function validateRepoToken(
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
@@ -212,6 +201,7 @@ library RepoTokenList {
         RepoTokenListData storage listData, 
         ITermRepoToken repoToken,
         ITermController termController,
+        ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal returns (uint256 auctionRate, uint256 redemptionTimestamp) {
         auctionRate = listData.auctionRates[address(repoToken)];
@@ -223,14 +213,14 @@ library RepoTokenList {
                 revert InvalidRepoToken(address(repoToken));
             }
 
-            uint256 oracleRate = getAuctionRate(termController, repoToken);
+            uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
             if (oracleRate != INVALID_AUCTION_RATE) {
                 if (auctionRate != oracleRate) {
                     listData.auctionRates[address(repoToken)] = oracleRate;
                 }
             }
         } else {
-            auctionRate = getAuctionRate(termController, repoToken);
+            auctionRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
             redemptionTimestamp = validateRepoToken(listData, repoToken, termController, asset);
 

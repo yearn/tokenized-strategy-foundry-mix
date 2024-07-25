@@ -67,6 +67,13 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit Unpaused();
     }
 
+    function emitDiscountRateAdapterUpdated(
+        address oldAdapter,
+        address newAdapter
+    ) external onlyRole(VAULT_CONTRACT) {
+        emit DiscountRateAdapterUpdated(oldAdapter, newAdapter);
+    }
+
     // ========================================================================
     // = Admin  ===============================================================
     // ========================================================================

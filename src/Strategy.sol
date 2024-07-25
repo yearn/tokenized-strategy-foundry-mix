@@ -12,6 +12,7 @@ import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
+import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {TermAuctionList, TermAuctionListData, PendingOffer} from "./TermAuctionList.sol";
@@ -46,6 +47,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     IERC4626 public immutable YEARN_VAULT;
 
     ITermController public termController;
+    ITermDiscountRateAdapter public discountRateAdapter;
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
@@ -101,6 +103,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             repoTokenConcentrationLimit, newRepoTokenConcentrationLimit
         );
         repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
+    }
+
+    function setDiscountRateAdapter(address newAdapter) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(address(discountRateAdapter), newAdapter);
+        discountRateAdapter = ITermDiscountRateAdapter(newAdapter);
     }
 
     function repoTokenHoldings() external view returns (address[] memory) {
@@ -203,7 +210,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     function _sweepAssetAndRedeemRepoTokens(uint256 liquidAmountRequired) private {
-        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
+        termAuctionListData.removeCompleted(repoTokenListData, termController, discountRateAdapter, address(asset));
         repoTokenListData.removeAndRedeemMaturedTokens();
 
         uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
@@ -233,6 +240,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         (uint256 auctionRate, uint256 redemptionTimestamp) = repoTokenListData.validateAndInsertRepoToken(
             ITermRepoToken(repoToken),
             termController,
+            discountRateAdapter,
             address(asset)
         );
 
@@ -307,7 +315,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         offerLocker.unlockOffers(offerIds);
 
-        termAuctionListData.removeCompleted(repoTokenListData, termController, address(asset));
+        termAuctionListData.removeCompleted(repoTokenListData, termController, discountRateAdapter, address(asset));
 
         _sweepAssetAndRedeemRepoTokens(0);
     }
@@ -498,7 +506,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenValue(address repoToken) public view returns (uint256) {
         return repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, repoToken) + 
             termAuctionListData.getPresentValue(
-                repoTokenListData, termController, PURCHASE_TOKEN_PRECISION, repoToken
+                repoTokenListData, discountRateAdapter, PURCHASE_TOKEN_PRECISION, repoToken
             );
     }
 
@@ -506,7 +514,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return _totalLiquidBalance(address(this)) + 
             repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, address(0)) + 
             termAuctionListData.getPresentValue(
-                repoTokenListData, termController, PURCHASE_TOKEN_PRECISION, address(0)
+                repoTokenListData, discountRateAdapter, PURCHASE_TOKEN_PRECISION, address(0)
             );
     }
 
@@ -514,11 +522,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         address _asset,
         string memory _name,
         address _yearnVault,
+        address _discountRateAdapter,
         address _eventEmitter
     ) BaseStrategy(_asset, _name) {
         YEARN_VAULT = IERC4626(_yearnVault);
         TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
         PURCHASE_TOKEN_PRECISION = 10**ERC20(asset).decimals();
+
+        discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
 
         IERC20(_asset).safeApprove(_yearnVault, type(uint256).max);
     }
