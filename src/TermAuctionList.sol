@@ -175,7 +175,8 @@ library TermAuctionList {
         TermAuctionListData storage listData, 
         RepoTokenListData storage repoTokenListData,
         ITermController termController,
-        uint256 purchaseTokenPrecision
+        uint256 purchaseTokenPrecision,
+        address repoTokenToMatch
     ) internal view returns (uint256 totalValue) {
         if (listData.head == NULL_NODE) return 0;
 
@@ -183,6 +184,11 @@ library TermAuctionList {
         
         for (uint256 i; i < offers.length; i++) {
             PendingOfferMemory memory offer = offers[i];
+
+            // filter by repoTokenToMatch if necessary
+            if (repoTokenToMatch != address(0) && offer.repoToken != repoTokenToMatch) {
+                continue;
+            }
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(offer.offerId).amount;
 

@@ -55,6 +55,18 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit MinCollateralRatioUpdated(collateral, minCollateralRatio);
     }
 
+    function emitRepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit) external onlyRole(VAULT_CONTRACT) {
+        emit RepoTokenConcentrationLimitUpdated(oldLimit, newLimit);
+    }
+
+    function emitPaused() external onlyRole(VAULT_CONTRACT) {
+        emit Paused();
+    }
+
+    function emitUnpaused() external onlyRole(VAULT_CONTRACT) {
+        emit Unpaused();
+    }
+
     // ========================================================================
     // = Admin  ===============================================================
     // ========================================================================

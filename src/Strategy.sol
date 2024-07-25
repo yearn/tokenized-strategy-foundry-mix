@@ -4,6 +4,8 @@ pragma solidity ^0.8.18;
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
@@ -28,7 +30,7 @@ import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 // NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
 
-contract Strategy is BaseStrategy {
+contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
@@ -37,6 +39,7 @@ contract Strategy is BaseStrategy {
     error TimeToMaturityAboveThreshold();
     error BalanceBelowLiquidityThreshold();
     error InsufficientLiquidBalance(uint256 have, uint256 want);
+    error RepoTokenConcentrationTooHigh(address repoToken);
     
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
@@ -48,6 +51,23 @@ contract Strategy is BaseStrategy {
     uint256 public timeToMaturityThreshold; // seconds
     uint256 public liquidityThreshold;      // purchase token precision (underlying)
     uint256 public auctionRateMarkup;       // 1e18 (TODO: check this)
+    uint256 public repoTokenConcentrationLimit;
+
+    function rescueToken(address token, uint256 amount) external onlyManagement {
+        if (amount > 0) {
+            IERC20(token).safeTransfer(msg.sender, amount);
+        }
+    }
+
+    function pause() external onlyManagement {
+        _pause();
+        TERM_VAULT_EVENT_EMITTER.emitPaused();
+    }
+
+    function unpause() external onlyManagement {
+        _unpause();
+        TERM_VAULT_EVENT_EMITTER.emitUnpaused();
+    }
 
     // These governance functions should have a different role
     function setTermController(address newTermController) external onlyManagement {
@@ -74,6 +94,13 @@ contract Strategy is BaseStrategy {
     function setCollateralTokenParams(address tokenAddr, uint256 minCollateralRatio) external onlyManagement {
         TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(tokenAddr, minCollateralRatio);
         repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
+    }
+
+    function setRepoTokenConcentrationLimit(uint256 newRepoTokenConcentrationLimit) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
+            repoTokenConcentrationLimit, newRepoTokenConcentrationLimit
+        );
+        repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
     }
 
     function repoTokenHoldings() external view returns (address[] memory) {
@@ -141,7 +168,14 @@ contract Strategy is BaseStrategy {
         // do not validate if we are simulating with existing repo tokens
         if (repoToken != address(0)) {
             repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+
+            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+            uint256 repoTokenAmountInBaseAssetPrecision = 
+                (ITermRepoToken(repoToken).redemptionValue() * amount * PURCHASE_TOKEN_PRECISION) / 
+                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            _validateRepoTokenConcentration(repoToken, repoTokenAmountInBaseAssetPrecision, 0);
         }
+
         return _calculateWeightedMaturity(repoToken, amount, _totalLiquidBalance(address(this)));
     }
 
@@ -192,8 +226,7 @@ contract Strategy is BaseStrategy {
         return YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
     }
 
-    // TODO: reentrancy check
-    function sellRepoToken(address repoToken, uint256 repoTokenAmount) external {
+    function sellRepoToken(address repoToken, uint256 repoTokenAmount) external whenNotPaused nonReentrant {
         require(repoTokenAmount > 0);
         require(_totalLiquidBalance(address(this)) > 0);
 
@@ -237,11 +270,37 @@ contract Strategy is BaseStrategy {
             revert BalanceBelowLiquidityThreshold();
         }
 
+        if ((liquidBalance - proceeds) < liquidityThreshold) {
+            revert BalanceBelowLiquidityThreshold();
+        }
+
+        _validateRepoTokenConcentration(repoToken, repoTokenAmountInBaseAssetPrecision, proceeds);
+
         // withdraw from underlying vault
         _withdrawAsset(proceeds);
         
         IERC20(repoToken).safeTransferFrom(msg.sender, address(this), repoTokenAmount);
         IERC20(asset).safeTransfer(msg.sender, proceeds);
+    }
+
+    function _validateRepoTokenConcentration(
+        address repoToken, 
+        uint256 repoTokenAmountInBaseAssetPrecision,
+        uint256 liquidBalanceToRemove
+    ) private view {
+        // _repoTokenValue returns asset precision
+        uint256 repoTokenValue = getRepoTokenValue(repoToken) + repoTokenAmountInBaseAssetPrecision;
+        uint256 totalAsseValue = _totalAssetValue() + repoTokenAmountInBaseAssetPrecision - liquidBalanceToRemove;
+
+        // repoTokenConcentrationLimit is in 1e18 precision
+        repoTokenValue = repoTokenValue * 1e18 / PURCHASE_TOKEN_PRECISION;
+        totalAsseValue = totalAsseValue * 1e18 / PURCHASE_TOKEN_PRECISION;
+
+        uint256 repoTokenConcentration = totalAsseValue == 0 ? 0 : repoTokenValue * 1e18 / totalAsseValue;
+
+        if (repoTokenConcentration > repoTokenConcentrationLimit) {
+            revert RepoTokenConcentrationTooHigh(repoToken);
+        }
     }
     
     function deleteAuctionOffers(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
@@ -292,7 +351,7 @@ contract Strategy is BaseStrategy {
         bytes32 idHash,
         bytes32 offerPriceHash,
         uint256 purchaseTokenAmount
-    ) external onlyManagement returns (bytes32[] memory offerIds) {
+    ) external whenNotPaused nonReentrant onlyManagement returns (bytes32[] memory offerIds) {
         require(purchaseTokenAmount > 0);
 
         if (!termController.isTermDeployed(termAuction)) {
@@ -305,6 +364,8 @@ contract Strategy is BaseStrategy {
 
         // validate purchase token and min collateral ratio
         repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+
+        _validateRepoTokenConcentration(repoToken, purchaseTokenAmount, 0);
 
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(auction.termAuctionOfferLocker());
         require(
@@ -439,11 +500,20 @@ contract Strategy is BaseStrategy {
     function totalLiquidBalance() external view returns (uint256) {
         return _totalLiquidBalance(address(this));
     }
+    
+    function getRepoTokenValue(address repoToken) public view returns (uint256) {
+        return repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, repoToken) + 
+            termAuctionListData.getPresentValue(
+                repoTokenListData, termController, PURCHASE_TOKEN_PRECISION, repoToken
+            );
+    }
 
     function _totalAssetValue() internal view returns (uint256 totalValue) {
         return _totalLiquidBalance(address(this)) + 
-            repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION) + 
-            termAuctionListData.getPresentValue(repoTokenListData, termController, PURCHASE_TOKEN_PRECISION);
+            repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, address(0)) + 
+            termAuctionListData.getPresentValue(
+                repoTokenListData, termController, PURCHASE_TOKEN_PRECISION, address(0)
+            );
     }
 
     constructor(
@@ -474,7 +544,7 @@ contract Strategy is BaseStrategy {
      * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override { 
+    function _deployFunds(uint256 _amount) internal override whenNotPaused { 
         _sweepAssetAndRedeemRepoTokens(0);
     }
 
@@ -499,7 +569,7 @@ contract Strategy is BaseStrategy {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-    function _freeFunds(uint256 _amount) internal override { 
+    function _freeFunds(uint256 _amount) internal override whenNotPaused { 
         _sweepAssetAndRedeemRepoTokens(_amount);
     }
 
@@ -528,7 +598,7 @@ contract Strategy is BaseStrategy {
     function _harvestAndReport()
         internal
         override
-        returns (uint256 _totalAssets)
+        whenNotPaused returns (uint256 _totalAssets)
     {
         _sweepAssetAndRedeemRepoTokens(0);
         return _totalAssetValue();

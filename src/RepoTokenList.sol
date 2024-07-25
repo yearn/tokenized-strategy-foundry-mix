@@ -213,8 +213,7 @@ library RepoTokenList {
         ITermRepoToken repoToken,
         ITermController termController,
         address asset
-    ) internal returns (uint256 auctionRate, uint256 redemptionTimestamp) 
-    {
+    ) internal returns (uint256 auctionRate, uint256 redemptionTimestamp) {
         auctionRate = listData.auctionRates[address(repoToken)];
         if (auctionRate != INVALID_AUCTION_RATE) {
             (redemptionTimestamp, , ,) = repoToken.config();
@@ -283,7 +282,8 @@ library RepoTokenList {
 
     function getPresentValue(
         RepoTokenListData storage listData, 
-        uint256 purchaseTokenPrecision
+        uint256 purchaseTokenPrecision,
+        address repoTokenToMatch
     ) internal view returns (uint256 totalPresentValue) {
         if (listData.head == NULL_NODE) return 0;
         
@@ -305,6 +305,12 @@ library RepoTokenList {
                 );
             } else {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
+            }
+
+            if (repoTokenToMatch != address(0) && current == repoTokenToMatch) {
+                // matching a specific repo token and terminate early because the list is sorted
+                // with no duplicates
+                break;
             }
 
             current = _getNext(listData, current);                    

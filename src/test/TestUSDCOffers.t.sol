@@ -36,6 +36,7 @@ contract TestUSDCSubmitOffer is Setup {
         vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
+        termStrategy.setRepoTokenConcentrationLimit(1e18);
         vm.stopPrank();
 
         // start with some initial funds
