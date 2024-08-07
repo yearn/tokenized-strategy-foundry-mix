@@ -8,7 +8,7 @@ interface ITermVaultEvents {
 
     event LiquidityReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold);
 
-    event AuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
+    event DiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup);
 
     event MinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio);
 
