@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.18;
+pragma solidity ^0.8.18;
 
 import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";

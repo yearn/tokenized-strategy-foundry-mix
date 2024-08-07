@@ -90,7 +90,7 @@ contract Setup is ExtendedTest, IEvents {
 
         // Factory from mainnet, tokenized strategy needs to be hardcoded to 0xBB51273D6c746910C7C06fe718f30c936170feD0
         tokenizedStrategy = new TokenizedStrategy(address(mockFactory));
-        vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
+        vm.etch(0x2e234DAe75C793f67A35089C9d99245E1C58470b, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
         termVaultEventEmitterImpl = new TermVaultEventEmitter();

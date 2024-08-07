@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.18;
+pragma solidity ^0.8.18;
 
 import {ITermRepoCollateralManager} from "../../interfaces/term/ITermRepoCollateralManager.sol";
 import {ITermRepoToken} from "../../interfaces/term/ITermRepoToken.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity 0.8.18;
+pragma solidity ^0.8.18;
 
 interface ITermAuctionOfferLocker {
     /// @dev TermAuctionOfferSubmission represents an offer submission to offeror an amount of money for a specific interest rate
