@@ -138,11 +138,6 @@ library RepoTokenList {
                     removeMaturedToken = true;
                 }
 
-                (
-                    ,
-                    address purchaseToken,,
-                ) = ITermRepoToken(current).config();
-
                 next = _getNext(listData, current);
 
                 if (removeMaturedToken) {
