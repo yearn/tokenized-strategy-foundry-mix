@@ -331,25 +331,25 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(termStrategy.timeToMaturityThreshold(), 12345);
 
         vm.expectRevert("!management");
-        termStrategy.setLiquidityThreshold(12345);
+        termStrategy.setLiquidityReserveRatio(12345);
 
         vm.prank(management);
-        termStrategy.setLiquidityThreshold(12345);
-        assertEq(termStrategy.liquidityThreshold(), 12345);
+        termStrategy.setLiquidityReserveRatio(12345);
+        assertEq(termStrategy.liquidityReserveRatio(), 12345);
 
         vm.expectRevert("!management");
-        termStrategy.setAuctionRateMarkup(12345);
+        termStrategy.setdiscountRateMarkup(12345);
 
         vm.prank(management);
-        termStrategy.setAuctionRateMarkup(12345);
-        assertEq(termStrategy.auctionRateMarkup(), 12345);
+        termStrategy.setdiscountRateMarkup(12345);
+        assertEq(termStrategy.discountRateMarkup(), 12345);
 
         vm.expectRevert("!management");
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
 
         vm.prank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        assertEq(termStrategy.auctionRateMarkup(), 12345);
+        assertEq(termStrategy.discountRateMarkup(), 12345);
     }
 
     function testRepoTokenValidationFailures() public {

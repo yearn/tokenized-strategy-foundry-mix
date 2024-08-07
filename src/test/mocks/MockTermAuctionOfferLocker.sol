@@ -55,8 +55,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
 
         for (uint256 i; i < offerSubmissions.length; i++) {
             TermAuctionOfferSubmission memory submission = offerSubmissions[i];
-            bytes32 offerId = keccak256(abi.encodePacked(submission.id,msg.sender,address(this)));
-            TermAuctionOffer memory offer = lockedOffers[offerId];
+            TermAuctionOffer memory offer = lockedOffers[submission.id];
 
             // existing offer
             if (offer.amount > 0) {

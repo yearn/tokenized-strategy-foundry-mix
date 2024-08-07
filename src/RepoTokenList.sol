@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
-import "forge-std/console.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
@@ -119,6 +118,7 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
+
             if (getRepoTokenMaturity(current) < block.timestamp) {
                 bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
@@ -137,6 +137,11 @@ library RepoTokenList {
                     // already redeemed
                     removeMaturedToken = true;
                 }
+
+                (
+                    ,
+                    address purchaseToken,,
+                ) = ITermRepoToken(current).config();
 
                 next = _getNext(listData, current);
 

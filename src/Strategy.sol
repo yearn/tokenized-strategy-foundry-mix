@@ -18,6 +18,9 @@ import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {TermAuctionList, TermAuctionListData, PendingOffer} from "./TermAuctionList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
+// Import interfaces for many popular DeFi projects, or add your own!
+//import "../interfaces/<protocol>/<Interface>.sol";
+
 /**
  * The `TokenizedStrategy` variable can be used to retrieve the strategies
  * specific storage data your contract.
@@ -36,104 +39,484 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
+    // Errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
-    error BalanceBelowLiquidityThreshold();
+    error BalanceBelowliquidityReserveRatio();
     error InsufficientLiquidBalance(uint256 have, uint256 want);
     error RepoTokenConcentrationTooHigh(address repoToken);
-    
+
+    // Immutable state variables
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
     IERC4626 public immutable YEARN_VAULT;
 
+    // State variables
     ITermController public termController;
     ITermDiscountRateAdapter public discountRateAdapter;
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
-    uint256 public liquidityThreshold;      // purchase token precision (underlying)
-    uint256 public auctionRateMarkup;       // 1e18 (TODO: check this)
+    uint256 public liquidityReserveRatio; // purchase token precision (underlying)
+    uint256 public discountRateMarkup; // 1e18 (TODO: check this)
     uint256 public repoTokenConcentrationLimit;
 
-    function rescueToken(address token, uint256 amount) external onlyManagement {
+    /*//////////////////////////////////////////////////////////////
+                    MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Rescue tokens from the contract
+     * @param token The address of the token to rescue
+     * @param amount The amount of tokens to rescue
+     */
+    function rescueToken(
+        address token,
+        uint256 amount
+    ) external onlyManagement {
         if (amount > 0) {
             IERC20(token).safeTransfer(msg.sender, amount);
         }
     }
 
+    /**
+     * @notice Pause the contract
+     */
     function pause() external onlyManagement {
         _pause();
         TERM_VAULT_EVENT_EMITTER.emitPaused();
     }
 
+    /**
+     * @notice Unpause the contract
+     */
     function unpause() external onlyManagement {
         _unpause();
         TERM_VAULT_EVENT_EMITTER.emitUnpaused();
     }
 
-    // These governance functions should have a different role
-    function setTermController(address newTermController) external onlyManagement {
+    /**
+     * @notice Set the term controller
+     * @param newTermController The address of the new term controller
+     */
+    function setTermController(
+        address newTermController
+    ) external onlyManagement {
         require(newTermController != address(0));
-        TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(address(termController), newTermController);
+        TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
+            address(termController),
+            newTermController
+        );
         termController = ITermController(newTermController);
     }
 
-    function setTimeToMaturityThreshold(uint256 newTimeToMaturityThreshold) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(timeToMaturityThreshold, newTimeToMaturityThreshold);
+    /**
+     * @notice Set the discount rate adapter used to price repoTokens
+     * @param newAdapter The address of the new discount rate adapter
+     */
+    function setDiscountRateAdapter(
+        address newAdapter
+    ) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
+            address(discountRateAdapter),
+            newAdapter
+        );
+        discountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+    }
+
+    /**
+     * @notice Set the weighted time to maturity cap
+     * @param newTimeToMaturityThreshold The new weighted time to maturity cap
+     */
+    function setTimeToMaturityThreshold(
+        uint256 newTimeToMaturityThreshold
+    ) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(
+            timeToMaturityThreshold,
+            newTimeToMaturityThreshold
+        );
         timeToMaturityThreshold = newTimeToMaturityThreshold;
     }
 
-    function setLiquidityThreshold(uint256 newLiquidityThreshold) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitLiquidityThresholdUpdated(liquidityThreshold, newLiquidityThreshold);
-        liquidityThreshold = newLiquidityThreshold;
+    /**
+     * @notice Set the liquidity reserve factor
+     * @param newLiquidityReserveRatio The new liquidity reserve factor
+     */
+    function setLiquidityReserveRatio(
+        uint256 newLiquidityReserveRatio
+    ) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitLiquidityReserveRatioUpdated(
+            liquidityReserveRatio,
+            newLiquidityReserveRatio
+        );
+        liquidityReserveRatio = newLiquidityReserveRatio;
     }
 
-    function setAuctionRateMarkup(uint256 newAuctionRateMarkup) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitAuctionRateMarkupUpdated(auctionRateMarkup, newAuctionRateMarkup);
-        auctionRateMarkup = newAuctionRateMarkup;
-    }
-
-    function setCollateralTokenParams(address tokenAddr, uint256 minCollateralRatio) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(tokenAddr, minCollateralRatio);
-        repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
-    }
-
-    function setRepoTokenConcentrationLimit(uint256 newRepoTokenConcentrationLimit) external onlyManagement {
+    /**
+     * @notice Set the repoToken concentration limit
+     * @param newRepoTokenConcentrationLimit The new repoToken concentration limit
+     */
+    function setRepoTokenConcentrationLimit(
+        uint256 newRepoTokenConcentrationLimit
+    ) external onlyManagement {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
-            repoTokenConcentrationLimit, newRepoTokenConcentrationLimit
+            repoTokenConcentrationLimit,
+            newRepoTokenConcentrationLimit
         );
         repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
     }
 
-    function setDiscountRateAdapter(address newAdapter) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(address(discountRateAdapter), newAdapter);
-        discountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+    /**
+     * @notice Set the markup that the vault will receive in excess of the oracle rate
+     * @param newDiscountRateMarkup The new auction rate markup
+     */
+    function setdiscountRateMarkup(
+        uint256 newDiscountRateMarkup
+    ) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
+            discountRateMarkup,
+            newDiscountRateMarkup
+        );
+        discountRateMarkup = newDiscountRateMarkup;
     }
 
+    /**
+     * @notice Set the collateral token parameters
+     * @param tokenAddr The address of the collateral token to be accepted
+     * @param minCollateralRatio The minimum collateral ratio accepted by the strategy
+     */
+    function setCollateralTokenParams(
+        address tokenAddr,
+        uint256 minCollateralRatio
+    ) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(
+            tokenAddr,
+            minCollateralRatio
+        );
+        repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+
+    /**
+     * @notice Calculates the total value of all assets managed by the strategy
+     * @return The total asset value in the purchase token precision
+     *
+     * @dev This function aggregates the total liquid balance, the present value of all repoTokens,
+     * and the present value of all pending offers to calculate the total asset value.     
+     */
+    function totalAssetValue() external view returns (uint256) {
+        return _totalAssetValue();
+    }
+
+    /**
+     * @notice Get the total liquid balance of the assets managed by the strategy
+     * @return The total liquid balance in the purchase token precision
+     *
+     * @dev This function aggregates the balance of the underlying asset held directly by the strategy
+     * and the balance of the asset held in the Yearn Vault to calculate the total liquid balance.     
+     */
+    function totalLiquidBalance() external view returns (uint256) {
+        return _totalLiquidBalance(address(this));
+    }
+
+    /**
+     * @notice Returns an array of addresses representing the repoTokens currently held by the strategy
+     * @return address[] An array of addresses of the repoTokens held by the strategy
+     *
+     * @dev This function calls the `holdings` function from the `RepoTokenList` library to get the list
+     * of repoTokens currently held in the `RepoTokenListData` structure.
+     */
     function repoTokenHoldings() external view returns (address[] memory) {
         return repoTokenListData.holdings();
     }
 
+    /**
+     * @notice Get an array of pending offers submitted into Term auctions
+     * @return bytes32[] An array of `bytes32` values representing the IDs of the pending offers
+     *
+     * @dev This function calls the `pendingOffers` function from the `TermAuctionList` library to get the list
+     * of pending offers currently submitted into Term auctions from the `TermAuctionListData` structure.
+     */
     function pendingOffers() external view returns (bytes32[] memory) {
         return termAuctionListData.pendingOffers();
     }
 
+    /**
+     * @notice Simulates the weighted time to maturity for a specified repoToken and amount, including the impact on the entire strategy's holdings
+     * @param repoToken The address of the repoToken to be simulated
+     * @param amount The amount of the repoToken to be simulated
+     * @return uint256 The simulated weighted time to maturity for the entire strategy
+     *
+     * @dev This function validates the repoToken, normalizes its amount, checks concentration limits,
+     * and calculates the weighted time to maturity for the specified repoToken and amount. The result
+     * reflects the new weighted time to maturity for the entire strategy, including the new repoToken position.
+     */
+    function simulateWeightedTimeToMaturity(
+        address repoToken,
+        uint256 amount
+    ) external view returns (uint256) {
+        // do not validate if we are simulating with existing repoTokens
+        if (repoToken != address(0)) {
+            repoTokenListData.validateRepoToken(
+                ITermRepoToken(repoToken),
+                termController,
+                address(asset)
+            );
+
+            uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+            uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
+                repoToken
+            ).redemptionValue() *
+                amount *
+                PURCHASE_TOKEN_PRECISION) /
+                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            _validateRepoTokenConcentration(
+                repoToken,
+                repoTokenAmountInBaseAssetPrecision,
+                0
+            );
+        }
+
+        return
+            _calculateWeightedMaturity(
+                repoToken,
+                amount,
+                _totalLiquidBalance(address(this))
+            );
+    }
+
+    /**
+     * @notice Calculates the present value of a specified repoToken based on its discount rate, redemption timestamp, and amount
+     * @param repoToken The address of the repoToken
+     * @param discountRate The discount rate to be used in the present value calculation
+     * @param amount The amount of the repoToken to be discounted
+     * @return uint256 The present value of the specified repoToken and amount
+     *
+     * @dev This function retrieves the redemption timestamp, calculates the repoToken precision,
+     * normalizes the repoToken amount to base asset precision, and calculates the present value
+     * using the provided discount rate and redemption timestamp.
+     */
+    function calculateRepoTokenPresentValue(
+        address repoToken,
+        uint256 discountRate,
+        uint256 amount
+    ) external view returns (uint256) {
+        (uint256 redemptionTimestamp, , , ) = ITermRepoToken(repoToken)
+            .config();
+        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+        uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
+            .redemptionValue() *
+            amount *
+            PURCHASE_TOKEN_PRECISION) /
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+        return
+            RepoTokenUtils.calculatePresentValue(
+                repoTokenAmountInBaseAssetPrecision,
+                PURCHASE_TOKEN_PRECISION,
+                redemptionTimestamp,
+                discountRate
+            );
+    }
+
+    /**
+     * @notice Calculates the present value of a specified repoToken held by the strategy
+     * @param repoToken The address of the repoToken to value
+     * @return uint256 The present value of the specified repoToken
+     *
+     * @dev This function calculates the present value of the specified repoToken from both
+     * the `repoTokenListData` and `termAuctionListData` structures, then sums these values
+     * to provide a comprehensive valuation.
+     */
+    function getRepoTokenHoldingValue(
+        address repoToken
+    ) public view returns (uint256) {
+        return
+            repoTokenListData.getPresentValue(
+                PURCHASE_TOKEN_PRECISION,
+                repoToken
+            ) +
+            termAuctionListData.getPresentValue(
+                repoTokenListData,
+                discountRateAdapter,
+                PURCHASE_TOKEN_PRECISION,
+                repoToken
+            );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @dev Withdraw assets from the Yearn vault
+     * @param amount The amount to withdraw
+     */
+    function _withdrawAsset(uint256 amount) private {
+        YEARN_VAULT.withdraw(
+            YEARN_VAULT.convertToShares(amount),
+            address(this),
+            address(this)
+        );
+    }
+
+    /**
+     * @dev Retrieves the asset balance from the Yearn Vault
+     * @return The balance of assets in the purchase token precision
+     */
+    function _assetBalance() private view returns (uint256) {
+        return
+            YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
+    }
+
+    /**
+     * @notice Calculates the total liquid balance of the assets managed by the strategy
+     * @param addr The address of the strategy or contract that holds the assets
+     * @return uint256 The total liquid balance of the assets
+     *
+     * @dev This function aggregates the balance of the underlying asset held directly by the strategy
+     * and the balance of the asset held in the Yearn Vault to calculate the total liquid balance.
+     */
+    function _totalLiquidBalance(address addr) private view returns (uint256) {
+        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
+        return _assetBalance() + underlyingBalance;
+    }
+
+    /**
+     * @notice Calculates the total value of all assets managed by the strategy (internal function)
+     * @return totalValue The total value of all assets
+     *
+     * @dev This function aggregates the total liquid balance, the present value of all repoTokens,
+     * and the present value of all pending offers to calculate the total asset value.
+     */
+    function _totalAssetValue() internal view returns (uint256 totalValue) {
+        return
+            _totalLiquidBalance(address(this)) +
+            repoTokenListData.getPresentValue(
+                PURCHASE_TOKEN_PRECISION,
+                address(0)
+            ) +
+            termAuctionListData.getPresentValue(
+                repoTokenListData,
+                discountRateAdapter,
+                PURCHASE_TOKEN_PRECISION,
+                address(0)
+            );
+    }
+
+    /**
+     * @dev Validate the concentration of repoTokens
+     * @param repoToken The address of the repoToken
+     * @param repoTokenAmountInBaseAssetPrecision The amount of the repoToken in base asset precision
+     * @param liquidBalanceToRemove The liquid balance to remove
+     */
+    function _validateRepoTokenConcentration(
+        address repoToken,
+        uint256 repoTokenAmountInBaseAssetPrecision,
+        uint256 liquidBalanceToRemove
+    ) private view {
+        // Retrieve the current value of the repoToken held by the strategy and add the new repoToken amount
+        uint256 repoTokenValue = getRepoTokenHoldingValue(repoToken) +
+            repoTokenAmountInBaseAssetPrecision;
+
+        // Retrieve the total asset value of the strategy and adjust it for the new repoToken amount and liquid balance to be removed            
+        uint256 totalAsseValue = _totalAssetValue() +
+            repoTokenAmountInBaseAssetPrecision -
+            liquidBalanceToRemove;
+
+        // Normalize the repoToken value and total asset value to 1e18 precision
+        repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
+        totalAsseValue = (totalAsseValue * 1e18) / PURCHASE_TOKEN_PRECISION;
+
+        // Calculate the repoToken concentration
+        uint256 repoTokenConcentration = totalAsseValue == 0
+            ? 0
+            : (repoTokenValue * 1e18) / totalAsseValue;
+
+        // Check if the repoToken concentration exceeds the predefined limit
+        if (repoTokenConcentration > repoTokenConcentrationLimit) {
+            revert RepoTokenConcentrationTooHigh(repoToken);
+        }
+    }
+
+    /**
+     * @notice Validates the resulting weighted time to maturity when submitting a new offer
+     * @param repoToken The address of the repoToken associated with the Term auction offer
+     * @param newOfferAmount The amount associated with the Term auction offer
+     * @param newLiquidBalance The new liquid balance of the strategy after accounting for the new offer
+     *
+     * @dev This function calculates the resulting weighted time to maturity assuming that a submitted offer is accepted
+     * and checks if it exceeds the predefined threshold (`timeToMaturityThreshold`). If the threshold is exceeded,
+     * the function reverts the transaction with an error.
+     */
+    function _validateWeightedMaturity(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 newLiquidBalance
+    ) private {
+        // Calculate the precision of the repoToken        
+        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+
+        // Convert the new offer amount to repoToken precision        
+        uint256 offerAmountInRepoPrecision = RepoTokenUtils
+            .purchaseToRepoPrecision(
+                repoTokenPrecision,
+                PURCHASE_TOKEN_PRECISION,
+                newOfferAmount
+            );
+
+        // Calculate the resulting weighted time to maturity            
+        uint256 resultingWeightedTimeToMaturity = _calculateWeightedMaturity(
+            repoToken,
+            offerAmountInRepoPrecision,
+            newLiquidBalance
+        );
+
+        // Check if the resulting weighted time to maturity exceeds the threshold
+        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+    }
+    
+    /**
+     * @notice Calculates the weighted time to maturity for the strategy's holdings, including the impact of a specified repoToken and amount
+     * @param repoToken The address of the repoToken (optional)
+     * @param repoTokenAmount The amount of the repoToken to be included in the calculation
+     * @param liquidBalance The liquid balance of the strategy
+     * @return uint256 The weighted time to maturity in seconds for the entire strategy, including the specified repoToken and amount
+     *
+     * @dev This function aggregates the cumulative weighted time to maturity and the cumulative amount of both existing repoTokens
+     * and offers, then calculates the weighted time to maturity for the entire strategy. It considers both repoTokens and auction offers.
+     * The `repoToken` and `repoTokenAmount` parameters are optional and provide flexibility to adjust the calculations to include
+     * the provided repoToken amount. If `repoToken` is set to `address(0)` or `repoTokenAmount` is `0`, the function calculates
+     * the cumulative data without specific token adjustments.     
+     */
     function _calculateWeightedMaturity(
-        address repoToken, 
-        uint256 repoTokenAmount, 
+        address repoToken,
+        uint256 repoTokenAmount,
         uint256 liquidBalance
     ) private view returns (uint256) {
-        uint256 cumulativeWeightedTimeToMaturity;  // in seconds
-        uint256 cumulativeAmount;  // in purchase token precision
 
+        // Initialize cumulative weighted time to maturity and cumulative amount        
+        uint256 cumulativeWeightedTimeToMaturity; // in seconds
+        uint256 cumulativeAmount; // in purchase token precision
+
+        // Get cumulative data from repoToken list
         (
             uint256 cumulativeRepoTokenWeightedTimeToMaturity,
             uint256 cumulativeRepoTokenAmount,
             bool foundInRepoTokenList
         ) = repoTokenListData.getCumulativeRepoTokenData(
-            repoToken, repoTokenAmount, PURCHASE_TOKEN_PRECISION, liquidBalance
-        );
+                repoToken,
+                repoTokenAmount,
+                PURCHASE_TOKEN_PRECISION,
+                liquidBalance
+            );
 
+        // Accumulate repoToken data
         cumulativeWeightedTimeToMaturity += cumulativeRepoTokenWeightedTimeToMaturity;
         cumulativeAmount += cumulativeRepoTokenAmount;
 
@@ -142,246 +525,166 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             uint256 cumulativeOfferAmount,
             bool foundInOfferList
         ) = termAuctionListData.getCumulativeOfferData(
-            repoTokenListData, termController, repoToken, repoTokenAmount, PURCHASE_TOKEN_PRECISION
-        );      
-
-        cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
-        cumulativeAmount += cumulativeOfferAmount;
-
-        if (!foundInRepoTokenList && !foundInOfferList && repoToken != address(0)) {
-            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                repoToken, 
+                repoTokenListData,
+                termController,
+                repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
             );
 
+        // Accumulate offer data
+        cumulativeWeightedTimeToMaturity += cumulativeOfferWeightedTimeToMaturity;
+        cumulativeAmount += cumulativeOfferAmount;
+
+        if (
+            !foundInRepoTokenList &&
+            !foundInOfferList &&
+            repoToken != address(0)
+        ) {
+            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+                .getNormalizedRepoTokenAmount(
+                    repoToken,
+                    repoTokenAmount,
+                    PURCHASE_TOKEN_PRECISION
+                );
+
             cumulativeAmount += repoTokenAmountInBaseAssetPrecision;
-            cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(
-                repoToken, 
-                repoTokenAmountInBaseAssetPrecision
-            );
+            cumulativeWeightedTimeToMaturity += RepoTokenList
+                .getRepoTokenWeightedTimeToMaturity(
+                    repoToken,
+                    repoTokenAmountInBaseAssetPrecision
+                );
         }
 
-        /// @dev avoid div by 0
+        // Avoid division by zero
         if (cumulativeAmount == 0 && liquidBalance == 0) {
             return 0;
         }
 
+        // Calculate and return weighted time to maturity
         // time * purchaseTokenPrecision / purchaseTokenPrecision
-        return cumulativeWeightedTimeToMaturity / (cumulativeAmount + liquidBalance);
+        return
+            cumulativeWeightedTimeToMaturity /
+            (cumulativeAmount + liquidBalance);
     }
 
-    function simulateWeightedTimeToMaturity(address repoToken, uint256 amount) external view returns (uint256) {
-        // do not validate if we are simulating with existing repo tokens
-        if (repoToken != address(0)) {
-            repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
-
-            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-            uint256 repoTokenAmountInBaseAssetPrecision = 
-                (ITermRepoToken(repoToken).redemptionValue() * amount * PURCHASE_TOKEN_PRECISION) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-            _validateRepoTokenConcentration(repoToken, repoTokenAmountInBaseAssetPrecision, 0);
-        }
-
-        return _calculateWeightedMaturity(repoToken, amount, _totalLiquidBalance(address(this)));
+    function _sweepAsset() private {
+        YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));        
     }
 
-    function calculateRepoTokenPresentValue(
-        address repoToken, 
-        uint256 auctionRate, 
-        uint256 amount
-    ) external view returns (uint256) {
-        (uint256 redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-        uint256 repoTokenAmountInBaseAssetPrecision = 
-            (ITermRepoToken(repoToken).redemptionValue() * amount * PURCHASE_TOKEN_PRECISION) / 
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-        return RepoTokenUtils.calculatePresentValue(
-            repoTokenAmountInBaseAssetPrecision, 
-            PURCHASE_TOKEN_PRECISION, 
-            redemptionTimestamp, 
-            auctionRate
-        );  
-    }
+    /**
+     * @notice Rebalances the strategy's assets by sweeping assets and redeeming matured repoTokens
+     * @param liquidAmountRequired The amount of liquid assets required to be maintained by the strategy
+     *
+     * @dev This function removes completed auction offers, redeems matured repoTokens, and adjusts the underlying
+     * balance to maintain the required liquidity. It ensures that the strategy has sufficient liquid assets while
+     * optimizing asset allocation.    
+     */
+    function _redeemRepoTokens(uint256 liquidAmountRequired) private {
+        uint256 liquidityBefore = IERC20(asset).balanceOf(address(this));
 
-    function _totalLiquidBalance(address addr) private view returns (uint256) {
-        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        return _assetBalance() + underlyingBalance;
-    }
-
-    function _sweepAssetAndRedeemRepoTokens(uint256 liquidAmountRequired) private {
-        termAuctionListData.removeCompleted(repoTokenListData, termController, discountRateAdapter, address(asset));
-        repoTokenListData.removeAndRedeemMaturedTokens();
-
-        uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
-        if (underlyingBalance > liquidAmountRequired) {
-            unchecked {
-                YEARN_VAULT.deposit(underlyingBalance - liquidAmountRequired, address(this));
-            }
-        } else if (underlyingBalance < liquidAmountRequired) {
-            unchecked {
-                _withdrawAsset(liquidAmountRequired - underlyingBalance);
-            }
-        }
-    }
-
-    function _withdrawAsset(uint256 amount) private {
-        YEARN_VAULT.withdraw(YEARN_VAULT.convertToShares(amount), address(this), address(this));
-    }
-
-    function _assetBalance() private view returns (uint256) {
-        return YEARN_VAULT.convertToAssets(YEARN_VAULT.balanceOf(address(this)));
-    }
-
-    function sellRepoToken(address repoToken, uint256 repoTokenAmount) external whenNotPaused nonReentrant {
-        require(repoTokenAmount > 0);
-        require(_totalLiquidBalance(address(this)) > 0);
-
-        (uint256 auctionRate, uint256 redemptionTimestamp) = repoTokenListData.validateAndInsertRepoToken(
-            ITermRepoToken(repoToken),
+        // Remove completed auction offers
+        termAuctionListData.removeCompleted(
+            repoTokenListData,
             termController,
             discountRateAdapter,
             address(asset)
         );
 
-        _sweepAssetAndRedeemRepoTokens(0);
+        // Remove and redeem matured repoTokens
+        repoTokenListData.removeAndRedeemMaturedTokens();
 
-        uint256 liquidBalance = _totalLiquidBalance(address(this));
-        require(liquidBalance > 0);
+        uint256 liquidityAfter = IERC20(asset).balanceOf(address(this));
+        uint256 liquidityDiff = liquidityAfter - liquidityBefore;
 
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
-        uint256 repoTokenAmountInBaseAssetPrecision = 
-            (ITermRepoToken(repoToken).redemptionValue() * repoTokenAmount * PURCHASE_TOKEN_PRECISION) / 
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-        uint256 proceeds = RepoTokenUtils.calculatePresentValue(
-            repoTokenAmountInBaseAssetPrecision, 
-            PURCHASE_TOKEN_PRECISION, 
-            redemptionTimestamp, 
-            auctionRate + auctionRateMarkup
-        );
-
-        if (liquidBalance < proceeds) {
-            revert InsufficientLiquidBalance(liquidBalance, proceeds);
-        }
-
-        uint256 resultingTimeToMaturity = _calculateWeightedMaturity(
-            repoToken, repoTokenAmount, liquidBalance - proceeds
-        );
-
-        if (resultingTimeToMaturity > timeToMaturityThreshold) {
-            revert TimeToMaturityAboveThreshold();
-        }
-
-        if ((liquidBalance - proceeds) < liquidityThreshold) {
-            revert BalanceBelowLiquidityThreshold();
-        }
-
-        _validateRepoTokenConcentration(repoToken, repoTokenAmountInBaseAssetPrecision, proceeds);
-
-        // withdraw from underlying vault
-        _withdrawAsset(proceeds);
-        
-        IERC20(repoToken).safeTransferFrom(msg.sender, address(this), repoTokenAmount);
-        IERC20(asset).safeTransfer(msg.sender, proceeds);
-    }
-
-    function _validateRepoTokenConcentration(
-        address repoToken, 
-        uint256 repoTokenAmountInBaseAssetPrecision,
-        uint256 liquidBalanceToRemove
-    ) private view {
-        // _repoTokenValue returns asset precision
-        uint256 repoTokenValue = getRepoTokenValue(repoToken) + repoTokenAmountInBaseAssetPrecision;
-        uint256 totalAsseValue = _totalAssetValue() + repoTokenAmountInBaseAssetPrecision - liquidBalanceToRemove;
-
-        // repoTokenConcentrationLimit is in 1e18 precision
-        repoTokenValue = repoTokenValue * 1e18 / PURCHASE_TOKEN_PRECISION;
-        totalAsseValue = totalAsseValue * 1e18 / PURCHASE_TOKEN_PRECISION;
-
-        uint256 repoTokenConcentration = totalAsseValue == 0 ? 0 : repoTokenValue * 1e18 / totalAsseValue;
-
-        if (repoTokenConcentration > repoTokenConcentrationLimit) {
-            revert RepoTokenConcentrationTooHigh(repoToken);
-        }
-    }
-    
-    function deleteAuctionOffers(address termAuction, bytes32[] calldata offerIds) external onlyManagement {
-        if (!termController.isTermDeployed(termAuction)) {
-            revert InvalidTermAuction(termAuction);
-        }
-
-        ITermAuction auction = ITermAuction(termAuction);
-        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(auction.termAuctionOfferLocker());
-
-        offerLocker.unlockOffers(offerIds);
-
-        termAuctionListData.removeCompleted(repoTokenListData, termController, discountRateAdapter, address(asset));
-
-        _sweepAssetAndRedeemRepoTokens(0);
-    }
-
-    function _generateOfferId(
-        bytes32 id,
-        address offerLocker
-    ) internal view returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(id, address(this), offerLocker)
-        );
-    }
-
-    function _validateWeightedMaturity(
-        address repoToken, 
-        uint256 newOfferAmount,
-        uint256 newLiquidBalance
-    ) private {
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
-        uint256 offerAmountInRepoPrecision = RepoTokenUtils.purchaseToRepoPrecision(
-            repoTokenPrecision, PURCHASE_TOKEN_PRECISION, newOfferAmount
-        );
-        uint256 resultingWeightedTimeToMaturity = _calculateWeightedMaturity(
-            repoToken, offerAmountInRepoPrecision, newLiquidBalance
-        );
-
-        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
-            revert TimeToMaturityAboveThreshold();
+        // Deposit excess underlying balance into Yearn Vault
+        if (liquidityDiff > liquidAmountRequired) {
+            unchecked {
+                YEARN_VAULT.deposit(
+                    liquidityDiff - liquidAmountRequired,
+                    address(this)
+                );
+            }
+        // Withdraw shortfall from Yearn Vault to meet required liquidity            
+        } else if (liquidityDiff < liquidAmountRequired) {
+            unchecked {
+                _withdrawAsset(liquidAmountRequired - liquidityDiff);
+            }
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                    STRATEGIST FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Submits an offer into a term auction for a specified repoToken
+     * @param termAuction The address of the term auction
+     * @param repoToken The address of the repoToken
+     * @param idHash The hash of the offer ID
+     * @param offerPriceHash The hash of the offer price
+     * @param purchaseTokenAmount The amount of purchase tokens being offered
+     * @return offerIds An array of offer IDs for the submitted offers
+     *
+     * @dev This function validates the underlying repoToken, checks concentration limits, ensures the auction is open,
+     * and rebalances liquidity to support the offer submission. It handles both new offers and edits to existing offers.    
+     */
     function submitAuctionOffer(
         address termAuction,
         address repoToken,
         bytes32 idHash,
         bytes32 offerPriceHash,
         uint256 purchaseTokenAmount
-    ) external whenNotPaused nonReentrant onlyManagement returns (bytes32[] memory offerIds) {
-        require(purchaseTokenAmount > 0);
+    )
+        external
+        whenNotPaused
+        nonReentrant
+        onlyManagement
+        returns (bytes32[] memory offerIds)
+    {
+        require(purchaseTokenAmount > 0, "Purchase token amount must be greater than zero");
 
+        // Verify that the term auction is valid and deployed by term
         if (!termController.isTermDeployed(termAuction)) {
             revert InvalidTermAuction(termAuction);
         }
 
         ITermAuction auction = ITermAuction(termAuction);
+        require(auction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
 
-        require(auction.termRepoId() == ITermRepoToken(repoToken).termRepoId());
-
-        // validate purchase token and min collateral ratio
-        repoTokenListData.validateRepoToken(ITermRepoToken(repoToken), termController, address(asset));
+        // Validate purchase token, min collateral ratio and insert the repoToken if necessary
+        repoTokenListData.validateRepoToken(
+            ITermRepoToken(repoToken),
+            termController,
+            address(asset)
+        );
 
         _validateRepoTokenConcentration(repoToken, purchaseTokenAmount, 0);
 
-        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(auction.termAuctionOfferLocker());
+        // Prepare and submit the offer
+        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
+            auction.termAuctionOfferLocker()
+        );
         require(
-            block.timestamp > offerLocker.auctionStartTime()
-                || block.timestamp < auction.auctionEndTime(),
+            block.timestamp > offerLocker.auctionStartTime() ||
+                block.timestamp < auction.auctionEndTime(),
             "Auction not open"
         );
 
-        _sweepAssetAndRedeemRepoTokens(0);  //@dev sweep to ensure liquid balances up to date
+        // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
+        _sweepAsset();
+        _redeemRepoTokens(0);
 
+        // Retrieve the total liquid balance
         uint256 liquidBalance = _totalLiquidBalance(address(this));
+
         uint256 newOfferAmount = purchaseTokenAmount;
         bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
-        uint256 currentOfferAmount = termAuctionListData.offers[offerId].offerAmount;
+        uint256 currentOfferAmount = termAuctionListData
+            .offers[offerId]
+            .offerAmount;
+
+        // Handle adjustments if editing an existing offer
         if (newOfferAmount > currentOfferAmount) {
             // increasing offer amount
             uint256 offerDebit;
@@ -393,10 +696,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 revert InsufficientLiquidBalance(liquidBalance, offerDebit);
             }
             uint256 newLiquidBalance = liquidBalance - offerDebit;
-            if (newLiquidBalance < liquidityThreshold) {
-                revert BalanceBelowLiquidityThreshold();
+            if (newLiquidBalance < liquidityReserveRatio) {
+                revert BalanceBelowliquidityReserveRatio();
             }
-            _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
+            _validateWeightedMaturity(
+                repoToken,
+                newOfferAmount,
+                newLiquidBalance
+            );
         } else if (currentOfferAmount > newOfferAmount) {
             // decreasing offer amount
             uint256 offerCredit;
@@ -404,30 +711,20 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 offerCredit = currentOfferAmount - newOfferAmount;
             }
             uint256 newLiquidBalance = liquidBalance + offerCredit;
-            if (newLiquidBalance < liquidityThreshold) {
-                revert BalanceBelowLiquidityThreshold();
+            if (newLiquidBalance < liquidityReserveRatio) {
+                revert BalanceBelowliquidityReserveRatio();
             }
-            _validateWeightedMaturity(repoToken, newOfferAmount, newLiquidBalance);
+            _validateWeightedMaturity(
+                repoToken,
+                newOfferAmount,
+                newLiquidBalance
+            );
         } else {
             // no change in offer amount, do nothing
         }
 
-        {
-            uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();        
-            uint256 offerAmount = RepoTokenUtils.purchaseToRepoPrecision(
-                repoTokenPrecision, PURCHASE_TOKEN_PRECISION, purchaseTokenAmount
-            );
-            uint256 resultingWeightedTimeToMaturity = _removeRedeemAndCalculateWeightedMaturity(
-                repoToken, offerAmount, liquidBalance - actualPurchaseTokenAmount
-            );
-
-            if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
-                revert TimeToMaturityAboveThreshold();
-            }
-        }
-
+        // Submit the offer and lock it in the auction
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
-
         offer.id = currentOfferAmount > 0 ? offerId : idHash;
         offer.offeror = address(this);
         offer.offerPriceHash = offerPriceHash;
@@ -435,15 +732,25 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         offer.purchaseToken = address(asset);
 
         offerIds = _submitOffer(
-            auction, 
-            offerLocker, 
+            auction,
+            offerLocker,
             offer,
-            repoToken, 
+            repoToken,
             newOfferAmount,
             currentOfferAmount
         );
     }
 
+    /**
+     * @dev Submits an offer to a term auction and locks it using the offer locker.
+     * @param auction The term auction contract
+     * @param offerLocker The offer locker contract
+     * @param offer The offer details
+     * @param repoToken The address of the repoToken
+     * @param newOfferAmount The amount of the new offer
+     * @param currentOfferAmount The amount of the current offer, if it exists
+     * @return offerIds An array of offer IDs for the submitted offers
+     */
     function _submitOffer(
         ITermAuction auction,
         ITermAuctionOfferLocker offerLocker,
@@ -452,12 +759,19 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 newOfferAmount,
         uint256 currentOfferAmount
     ) private returns (bytes32[] memory offerIds) {
-        ITermRepoServicer repoServicer = ITermRepoServicer(offerLocker.termRepoServicer());
+        // Retrieve the repo servicer contract
+        ITermRepoServicer repoServicer = ITermRepoServicer(
+            offerLocker.termRepoServicer()
+        );
 
-        ITermAuctionOfferLocker.TermAuctionOfferSubmission[] memory offerSubmissions = 
-            new ITermAuctionOfferLocker.TermAuctionOfferSubmission[](1);
+        // Prepare the offer submission details
+        ITermAuctionOfferLocker.TermAuctionOfferSubmission[]
+            memory offerSubmissions = new ITermAuctionOfferLocker.TermAuctionOfferSubmission[](
+                1
+            );
         offerSubmissions[0] = offer;
 
+        // Handle additional asset withdrawal if the new offer amount is greater than the current amount
         if (newOfferAmount > currentOfferAmount) {
             uint256 offerDebit;
             unchecked {
@@ -465,23 +779,31 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 offerDebit = newOfferAmount - currentOfferAmount;
             }
             _withdrawAsset(offerDebit);
-            IERC20(asset).safeApprove(address(repoServicer.termRepoLocker()), offerDebit);            
+            IERC20(asset).safeApprove(
+                address(repoServicer.termRepoLocker()),
+                offerDebit
+            );
         }
 
+        // Submit the offer and get the offer IDs
         offerIds = offerLocker.lockOffers(offerSubmissions);
 
-        require(offerIds.length > 0);
+        require(offerIds.length > 0, "No offer IDs returned");
 
+        // Update the pending offers list
         if (currentOfferAmount == 0) {
             // new offer
-            termAuctionListData.insertPending(offerIds[0], PendingOffer({
-                repoToken: repoToken,
-                offerAmount: offer.amount,
-                termAuction: auction,
-                offerLocker: offerLocker
-            }));
+            termAuctionListData.insertPending(
+                offerIds[0],
+                PendingOffer({
+                    repoToken: repoToken,
+                    offerAmount: offer.amount,
+                    termAuction: auction,
+                    offerLocker: offerLocker
+                })
+            );
         } else {
-            // edit offer, overwrite existing
+            // Edit offer, overwrite existing
             termAuctionListData.offers[offerIds[0]] = PendingOffer({
                 repoToken: repoToken,
                 offerAmount: offer.amount,
@@ -491,33 +813,161 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
     }
 
+    /**
+     * @dev Removes specified offers from a term auction and performs related cleanup.
+     * @param termAuction The address of the term auction from which offers will be deleted.
+     * @param offerIds An array of offer IDs to be deleted.
+     */
+    function deleteAuctionOffers(
+        address termAuction,
+        bytes32[] calldata offerIds
+    ) external onlyManagement {
+        // Validate if the term auction is deployed by term
+        if (!termController.isTermDeployed(termAuction)) {
+            revert InvalidTermAuction(termAuction);
+        }
+
+        // Retrieve the auction and offer locker contracts
+        ITermAuction auction = ITermAuction(termAuction);
+        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
+            auction.termAuctionOfferLocker()
+        );
+
+        // Unlock the specified offers
+        offerLocker.unlockOffers(offerIds);
+
+        // Update the term auction list data and remove completed offers
+        termAuctionListData.removeCompleted(
+            repoTokenListData,
+            termController,
+            discountRateAdapter,
+            address(asset)
+        );
+
+        // Sweep any remaining assets and redeem repoTokens
+        _sweepAsset();
+        _redeemRepoTokens(0);
+    }
+
+    /**
+     * @dev Generate a term offer ID
+     * @param id The term offer ID hash
+     * @param offerLocker The address of the term offer locker
+     * @return The generated term offer ID
+     */
+    function _generateOfferId(
+        bytes32 id,
+        address offerLocker
+    ) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(id, address(this), offerLocker));
+    }
+
+    /**
+     * @notice Close the auction
+     */
     function auctionClosed() external {
-        _sweepAssetAndRedeemRepoTokens(0);
+        _sweepAsset();
+        _redeemRepoTokens(0);
     }
 
-    function totalAssetValue() external view returns (uint256) {
-        return _totalAssetValue();
-    }
+    /*//////////////////////////////////////////////////////////////
+                    PUBLIC FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-    function totalLiquidBalance() external view returns (uint256) {
-        return _totalLiquidBalance(address(this));
-    }
-    
-    function getRepoTokenValue(address repoToken) public view returns (uint256) {
-        return repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, repoToken) + 
-            termAuctionListData.getPresentValue(
-                repoTokenListData, discountRateAdapter, PURCHASE_TOKEN_PRECISION, repoToken
+    /**
+     * @notice Allows the sale of a specified amount of a repoToken in exchange for assets.
+     * @param repoToken The address of the repoToken to be sold.
+     * @param repoTokenAmount The amount of the repoToken to be sold.
+     */
+    function sellRepoToken(
+        address repoToken,
+        uint256 repoTokenAmount
+    ) external whenNotPaused nonReentrant {
+        // Ensure the amount of repoTokens to sell is greater than zero
+        require(repoTokenAmount > 0);
+
+        // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
+        (uint256 discountRate, uint256 redemptionTimestamp) = repoTokenListData
+            .validateAndInsertRepoToken(
+                ITermRepoToken(repoToken),
+                termController,
+                discountRateAdapter,
+                address(asset)
             );
+
+        // Sweep assets and redeem repoTokens, if needed
+        _sweepAsset();
+        _redeemRepoTokens(0);
+
+        // Retrieve total liquid balance and ensure it's greater than zero
+        uint256 liquidBalance = _totalLiquidBalance(address(this));
+        require(liquidBalance > 0);
+
+        // Calculate the repoToken amount in base asset precision
+        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+        uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
+            .redemptionValue() *
+            repoTokenAmount *
+            PURCHASE_TOKEN_PRECISION) /
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+
+        // Calculate the proceeds from selling the repoToken            
+        uint256 proceeds = RepoTokenUtils.calculatePresentValue(
+            repoTokenAmountInBaseAssetPrecision,
+            PURCHASE_TOKEN_PRECISION,
+            redemptionTimestamp,
+            discountRate + discountRateMarkup
+        );
+
+        // Ensure the liquid balance is sufficient to cover the proceeds
+        if (liquidBalance < proceeds) {
+            revert InsufficientLiquidBalance(liquidBalance, proceeds);
+        }
+
+        // Calculate resulting time to maturity after the sale and ensure it doesn't exceed the threshold
+        uint256 resultingTimeToMaturity = _calculateWeightedMaturity(
+            repoToken,
+            repoTokenAmount,
+            liquidBalance - proceeds
+        );
+        if (resultingTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+
+        // Ensure the remaining liquid balance is above the liquidity threshold
+        if ((liquidBalance - proceeds) < liquidityReserveRatio) {
+            revert BalanceBelowliquidityReserveRatio();
+        }
+
+        // Validate resulting repoToken concentration to ensure it meets requirements
+        _validateRepoTokenConcentration(
+            repoToken,
+            repoTokenAmountInBaseAssetPrecision,
+            proceeds
+        );
+
+        // withdraw from underlying vault
+        _withdrawAsset(proceeds);
+
+        // Transfer repoTokens from the sender to the contract
+        IERC20(repoToken).safeTransferFrom(
+            msg.sender,
+            address(this),
+            repoTokenAmount
+        );
+
+        // Transfer the proceeds in assets to the sender
+        IERC20(asset).safeTransfer(msg.sender, proceeds);
     }
 
-    function _totalAssetValue() internal view returns (uint256 totalValue) {
-        return _totalLiquidBalance(address(this)) + 
-            repoTokenListData.getPresentValue(PURCHASE_TOKEN_PRECISION, address(0)) + 
-            termAuctionListData.getPresentValue(
-                repoTokenListData, discountRateAdapter, PURCHASE_TOKEN_PRECISION, address(0)
-            );
-    }
-
+    /**
+     * @notice Constructor to initialize the Strategy contract
+     * @param _asset The address of the asset
+     * @param _name The name of the strategy
+     * @param _yearnVault The address of the Yearn vault
+     * @param _discountRateAdapter The address of the discount rate adapter
+     * @param _eventEmitter The address of the event emitter
+     */
     constructor(
         address _asset,
         string memory _name,
@@ -527,7 +977,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     ) BaseStrategy(_asset, _name) {
         YEARN_VAULT = IERC4626(_yearnVault);
         TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
-        PURCHASE_TOKEN_PRECISION = 10**ERC20(asset).decimals();
+        PURCHASE_TOKEN_PRECISION = 10 ** ERC20(asset).decimals();
 
         discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
 
@@ -549,8 +999,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param _amount The amount of 'asset' that the strategy can attempt
      * to deposit in the yield source.
      */
-    function _deployFunds(uint256 _amount) internal override whenNotPaused { 
-        _sweepAssetAndRedeemRepoTokens(0);
+    function _deployFunds(uint256 _amount) internal override whenNotPaused {
+        _sweepAsset();
+        _redeemRepoTokens(0);
     }
 
     /**
@@ -574,8 +1025,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
-    function _freeFunds(uint256 _amount) internal override whenNotPaused { 
-        _sweepAssetAndRedeemRepoTokens(_amount);
+    function _freeFunds(uint256 _amount) internal override whenNotPaused {
+        _redeemRepoTokens(_amount);
     }
 
     /**
@@ -603,9 +1054,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function _harvestAndReport()
         internal
         override
-        whenNotPaused returns (uint256 _totalAssets)
+        whenNotPaused
+        returns (uint256 _totalAssets)
     {
-        _sweepAssetAndRedeemRepoTokens(0);
+        _sweepAsset();
+        _redeemRepoTokens(0);
         return _totalAssetValue();
     }
 
@@ -643,7 +1096,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // if(yieldSource.notShutdown()) {
         //    return asset.balanceOf(address(this)) + asset.balanceOf(yieldSource);
         // }
-        return asset.balanceOf(address(this));
+        return type(uint256).max;
     }
 
     /**
