@@ -45,6 +45,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     error BalanceBelowliquidityReserveRatio();
     error InsufficientLiquidBalance(uint256 have, uint256 want);
     error RepoTokenConcentrationTooHigh(address repoToken);
+    error RepoTokenBlacklisted(address repoToken);
+    error DepositPaused();
 
     // Immutable state variables
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
@@ -52,7 +54,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     IERC4626 public immutable YEARN_VAULT;
 
     // State variables
-    ITermController public termController;
+    /// @notice previous term controller
+    ITermController public prevTermController;
+    /// @notice current term controller
+    ITermController public currTermController;
     ITermDiscountRateAdapter public discountRateAdapter;
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
@@ -60,6 +65,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     uint256 public liquidityReserveRatio; // purchase token precision (underlying)
     uint256 public discountRateMarkup; // 1e18 (TODO: check this)
     uint256 public repoTokenConcentrationLimit;
+    mapping(address => bool) repoTokenBlacklist;
+    bool depositLock;
+
+    modifier notBlacklisted(address repoToken) {
+        if (repoTokenBlacklist[repoToken]) {
+            revert RepoTokenBlacklisted(repoToken);
+        }
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                     MANAGEMENT FUNCTIONS
@@ -82,17 +96,33 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Pause the contract
      */
-    function pause() external onlyManagement {
-        _pause();
-        TERM_VAULT_EVENT_EMITTER.emitPaused();
+    function pauseDeposit() external onlyManagement {
+        depositLock = true;
+        TERM_VAULT_EVENT_EMITTER.emitDepositPaused();
     }
 
     /**
      * @notice Unpause the contract
      */
-    function unpause() external onlyManagement {
+    function unpauseDeposit() external onlyManagement {
+        depositLock = false;
+        TERM_VAULT_EVENT_EMITTER.emitDepositUnpaused();
+    }
+
+    /**
+     * @notice Pause the contract
+     */
+    function pauseStrategy() external onlyManagement {
+        _pause();
+        TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
+    }
+
+    /**
+     * @notice Unpause the contract
+     */
+    function unpauseStrategy() external onlyManagement {
         _unpause();
-        TERM_VAULT_EVENT_EMITTER.emitUnpaused();
+        TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
     }
 
     /**
@@ -103,11 +133,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         address newTermController
     ) external onlyManagement {
         require(newTermController != address(0));
+        address current = address(currTermController);
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
-            address(termController),
+            current,
             newTermController
         );
-        termController = ITermController(newTermController);
+        prevTermController = ITermController(current);
+        currTermController = ITermController(newTermController);
     }
 
     /**
@@ -196,6 +228,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
     }
 
+    function setRepoTokenBlacklist(address repoToken, bool blacklisted) external onlyManagement {
+        TERM_VAULT_EVENT_EMITTER.emitRepoTokenBlacklistUpdated(repoToken, blacklisted);
+        repoTokenBlacklist[repoToken] = blacklisted;
+    }
+
     /*//////////////////////////////////////////////////////////////
                     VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -261,9 +298,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     ) external view returns (uint256) {
         // do not validate if we are simulating with existing repoTokens
         if (repoToken != address(0)) {
+            if (!_isTermDeployed(repoToken)) {
+                revert RepoTokenList.InvalidRepoToken(address(repoToken));
+            }
+
             repoTokenListData.validateRepoToken(
                 ITermRepoToken(repoToken),
-                termController,
                 address(asset)
             );
 
@@ -526,7 +566,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             bool foundInOfferList
         ) = termAuctionListData.getCumulativeOfferData(
                 repoTokenListData,
-                termController,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
@@ -572,6 +611,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));        
     }
 
+    function _isTermDeployed(address termContract) private view returns (bool) {
+        if (address(currTermController) != address(0) && currTermController.isTermDeployed(termContract)) {
+            return true;
+        }
+        if (address(prevTermController) != address(0) && prevTermController.isTermDeployed(termContract)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * @notice Rebalances the strategy's assets by sweeping assets and redeeming matured repoTokens
      * @param liquidAmountRequired The amount of liquid assets required to be maintained by the strategy
@@ -586,7 +635,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Remove completed auction offers
         termAuctionListData.removeCompleted(
             repoTokenListData,
-            termController,
             discountRateAdapter,
             address(asset)
         );
@@ -617,6 +665,42 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                     STRATEGIST FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _validateAndGetOfferLocker(
+        ITermAuction termAuction,
+        address repoToken,
+        uint256 purchaseTokenAmount
+    ) private view returns (ITermAuctionOfferLocker) {
+        // Verify that the term auction and repo token are valid and deployed by term
+        if (!_isTermDeployed(address(termAuction))) {
+            revert InvalidTermAuction(address(termAuction));
+        }
+        if (!_isTermDeployed(repoToken)) {
+            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+        }
+
+        require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
+
+        // Validate purchase token, min collateral ratio and insert the repoToken if necessary
+        repoTokenListData.validateRepoToken(
+            ITermRepoToken(repoToken),
+            address(asset)
+        );
+
+        _validateRepoTokenConcentration(repoToken, purchaseTokenAmount, 0);
+
+        // Prepare and submit the offer
+        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
+            termAuction.termAuctionOfferLocker()
+        );
+        require(
+            block.timestamp > offerLocker.auctionStartTime() ||
+                block.timestamp < termAuction.auctionEndTime(),
+            "Auction not open"
+        );
+
+        return offerLocker;
+    }
+
     /**
      * @notice Submits an offer into a term auction for a specified repoToken
      * @param termAuction The address of the term auction
@@ -630,7 +714,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and rebalances liquidity to support the offer submission. It handles both new offers and edits to existing offers.    
      */
     function submitAuctionOffer(
-        address termAuction,
+        ITermAuction termAuction,
         address repoToken,
         bytes32 idHash,
         bytes32 offerPriceHash,
@@ -639,36 +723,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         external
         whenNotPaused
         nonReentrant
+        notBlacklisted(repoToken)
         onlyManagement
         returns (bytes32[] memory offerIds)
     {
         require(purchaseTokenAmount > 0, "Purchase token amount must be greater than zero");
 
-        // Verify that the term auction is valid and deployed by term
-        if (!termController.isTermDeployed(termAuction)) {
-            revert InvalidTermAuction(termAuction);
-        }
-
-        ITermAuction auction = ITermAuction(termAuction);
-        require(auction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
-
-        // Validate purchase token, min collateral ratio and insert the repoToken if necessary
-        repoTokenListData.validateRepoToken(
-            ITermRepoToken(repoToken),
-            termController,
-            address(asset)
-        );
-
-        _validateRepoTokenConcentration(repoToken, purchaseTokenAmount, 0);
-
-        // Prepare and submit the offer
-        ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
-            auction.termAuctionOfferLocker()
-        );
-        require(
-            block.timestamp > offerLocker.auctionStartTime() ||
-                block.timestamp < auction.auctionEndTime(),
-            "Auction not open"
+        ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
+            termAuction,
+            repoToken,
+            purchaseTokenAmount
         );
 
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
@@ -732,7 +796,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         offer.purchaseToken = address(asset);
 
         offerIds = _submitOffer(
-            auction,
+            termAuction,
             offerLocker,
             offer,
             repoToken,
@@ -823,7 +887,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         bytes32[] calldata offerIds
     ) external onlyManagement {
         // Validate if the term auction is deployed by term
-        if (!termController.isTermDeployed(termAuction)) {
+        if (!_isTermDeployed(termAuction)) {
             revert InvalidTermAuction(termAuction);
         }
 
@@ -839,7 +903,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Update the term auction list data and remove completed offers
         termAuctionListData.removeCompleted(
             repoTokenListData,
-            termController,
             discountRateAdapter,
             address(asset)
         );
@@ -882,15 +945,19 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function sellRepoToken(
         address repoToken,
         uint256 repoTokenAmount
-    ) external whenNotPaused nonReentrant {
+    ) external whenNotPaused nonReentrant notBlacklisted(repoToken) {
         // Ensure the amount of repoTokens to sell is greater than zero
         require(repoTokenAmount > 0);
+
+        // Make sure repo token is valid and deployed by Term
+        if (!_isTermDeployed(repoToken)) {
+            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+        }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
         (uint256 discountRate, uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
-                termController,
                 discountRateAdapter,
                 address(asset)
             );
@@ -1000,6 +1067,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override whenNotPaused {
+        if (depositLock) {
+            revert DepositPaused();
+        }
+
         _sweepAsset();
         _redeemRepoTokens(0);
     }

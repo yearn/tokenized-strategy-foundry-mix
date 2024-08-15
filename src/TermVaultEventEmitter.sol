@@ -59,12 +59,20 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit RepoTokenConcentrationLimitUpdated(oldLimit, newLimit);
     }
 
-    function emitPaused() external onlyRole(VAULT_CONTRACT) {
-        emit Paused();
+    function emitDepositPaused() external onlyRole(VAULT_CONTRACT) {
+        emit DepositPaused();
     }
 
-    function emitUnpaused() external onlyRole(VAULT_CONTRACT) {
-        emit Unpaused();
+    function emitDepositUnpaused() external onlyRole(VAULT_CONTRACT) {
+        emit DepositUnpaused();
+    }
+
+    function emitStrategyPaused() external onlyRole(VAULT_CONTRACT) {
+        emit StrategyPaused();
+    }
+
+    function emitStrategyUnpaused() external onlyRole(VAULT_CONTRACT) {
+        emit StrategyUnpaused();
     }
 
     function emitDiscountRateAdapterUpdated(
@@ -72,6 +80,10 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         address newAdapter
     ) external onlyRole(VAULT_CONTRACT) {
         emit DiscountRateAdapterUpdated(oldAdapter, newAdapter);
+    }
+
+    function emitRepoTokenBlacklistUpdated(address repoToken, bool blacklisted) external onlyRole(VAULT_CONTRACT) {
+        emit RepoTokenBlacklistUpdated(repoToken, blacklisted);
     }
 
     // ========================================================================

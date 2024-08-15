@@ -169,7 +169,6 @@ library TermAuctionList {
      * @notice Removes completed or cancelled offers from the list data and processes the corresponding repoTokens
      * @param listData The list data
      * @param repoTokenListData The repoToken list data
-     * @param termController The term controller
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the asset
      *
@@ -180,7 +179,6 @@ library TermAuctionList {
     function removeCompleted(
         TermAuctionListData storage listData, 
         RepoTokenListData storage repoTokenListData,
-        ITermController termController,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal {
@@ -230,6 +228,8 @@ library TermAuctionList {
             }
 
             if (insertRepoToken) {
+                // TODO: do we need to validate termDeployed(repoToken) here?
+
                 // Auction still open => include offerAmount in totalValue 
                 // (otherwise locked purchaseToken will be missing from TV)               
                 // Auction completed but not closed => include offer.offerAmount in totalValue 
@@ -237,7 +237,7 @@ library TermAuctionList {
                 // This applies if the repoToken hasn't been added to the repoTokenList 
                 // (only for new auctions, not reopenings).                 
                 repoTokenListData.validateAndInsertRepoToken(
-                    ITermRepoToken(offer.repoToken), termController, discountRateAdapter, asset
+                    ITermRepoToken(offer.repoToken), discountRateAdapter, asset
                 );
             }
 
@@ -317,7 +317,6 @@ library TermAuctionList {
      * @notice Get cumulative offer data for a specified repoToken
      * @param listData The list data
      * @param repoTokenListData The repoToken list data
-     * @param termController The term controller
      * @param repoToken The address of the repoToken (optional)
      * @param newOfferAmount The new offer amount for the specified repoToken 
      * @param purchaseTokenPrecision The precision of the purchase token
@@ -333,7 +332,6 @@ library TermAuctionList {
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
-        ITermController termController,
         address repoToken, 
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision

@@ -304,7 +304,6 @@ library RepoTokenList {
      * @notice Validates a repoToken against specific criteria
      * @param listData The list data
      * @param repoToken The repoToken to validate
-     * @param termController The term controller
      * @param asset The address of the base asset
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken 
      * 
@@ -314,14 +313,8 @@ library RepoTokenList {
     function validateRepoToken(
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
-        ITermController termController,
         address asset
     ) internal view returns (uint256 redemptionTimestamp) {
-        // Ensure the repo token is deployed by term
-        if (!termController.isTermDeployed(address(repoToken))) {
-            revert InvalidRepoToken(address(repoToken));
-        }
-
         // Retrieve repo token configuration
         address purchaseToken;
         address collateralManager;
@@ -357,7 +350,6 @@ library RepoTokenList {
      * @notice Validate and insert a repoToken into the list data
      * @param listData The list data
      * @param repoToken The repoToken to validate and insert
-     * @param termController The term controller
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
      * @return discountRate The discount rate to be applied to the validated repoToken 
@@ -366,7 +358,6 @@ library RepoTokenList {
     function validateAndInsertRepoToken(
         RepoTokenListData storage listData, 
         ITermRepoToken repoToken,
-        ITermController termController,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
@@ -388,7 +379,7 @@ library RepoTokenList {
         } else {
             discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
-            redemptionTimestamp = validateRepoToken(listData, repoToken, termController, asset);
+            redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
 
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
