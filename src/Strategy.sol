@@ -42,7 +42,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     // Errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
-    error BalanceBelowliquidityReserveRatio();
+    error BalanceBelowRequiredReserveRatio();
     error InsufficientLiquidBalance(uint256 have, uint256 want);
     error RepoTokenConcentrationTooHigh(address repoToken);
     error RepoTokenBlacklisted(address repoToken);
@@ -62,9 +62,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
-    uint256 public liquidityReserveRatio; // purchase token precision (underlying)
+    uint256 public requiredReserveRatio; // 1e18
     uint256 public discountRateMarkup; // 1e18 (TODO: check this)
-    uint256 public repoTokenConcentrationLimit;
+    uint256 public repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) repoTokenBlacklist;
     bool depositLock;
 
@@ -172,16 +172,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
     /**
      * @notice Set the liquidity reserve factor
-     * @param newLiquidityReserveRatio The new liquidity reserve factor
+     * @param newRequiredReserveRatio The new liquidity reserve factor
      */
-    function setLiquidityReserveRatio(
-        uint256 newLiquidityReserveRatio
+    function setRequiredReserveRatio(
+        uint256 newRequiredReserveRatio
     ) external onlyManagement {
-        TERM_VAULT_EVENT_EMITTER.emitLiquidityReserveRatioUpdated(
-            liquidityReserveRatio,
-            newLiquidityReserveRatio
+        TERM_VAULT_EVENT_EMITTER.emitRequiredReserveRatioUpdated(
+            requiredReserveRatio,
+            newRequiredReserveRatio
         );
-        liquidityReserveRatio = newLiquidityReserveRatio;
+        requiredReserveRatio = newRequiredReserveRatio;
     }
 
     /**
@@ -237,7 +237,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                     VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-
     /**
      * @notice Calculates the total value of all assets managed by the strategy
      * @return The total asset value in the purchase token precision
@@ -246,7 +245,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and the present value of all pending offers to calculate the total asset value.     
      */
     function totalAssetValue() external view returns (uint256) {
-        return _totalAssetValue();
+        return _totalAssetValue(_totalLiquidBalance(address(this)));
     }
 
     /**
@@ -258,6 +257,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function totalLiquidBalance() external view returns (uint256) {
         return _totalLiquidBalance(address(this));
+    }
+
+    function _liquidReserveRatio(uint256 liquidBalance) internal view returns (uint256) {
+        uint256 assetValue = _totalAssetValue(liquidBalance);
+        if (assetValue == 0) return 0;
+        return liquidBalance * 1e18 / assetValue;
+    }
+
+    function liquidReserveRatio() external view returns (uint256) {
+        return _liquidReserveRatio(_totalLiquidBalance(address(this)));
     }
 
     /**
@@ -282,21 +291,34 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return termAuctionListData.pendingOffers();
     }
 
+    function getRepoTokenConcentrationRatio(address repoToken) external view returns (uint256) {
+        return _getRepoTokenConcentrationRatio(
+            repoToken, 0, _totalAssetValue(_totalLiquidBalance(address(0))), 0
+        );
+    }
+
     /**
      * @notice Simulates the weighted time to maturity for a specified repoToken and amount, including the impact on the entire strategy's holdings
      * @param repoToken The address of the repoToken to be simulated
      * @param amount The amount of the repoToken to be simulated
-     * @return uint256 The simulated weighted time to maturity for the entire strategy
+     * @return simulatedWeightedMaturity The simulated weighted time to maturity for the entire strategy
      *
      * @dev This function validates the repoToken, normalizes its amount, checks concentration limits,
      * and calculates the weighted time to maturity for the specified repoToken and amount. The result
      * reflects the new weighted time to maturity for the entire strategy, including the new repoToken position.
      */
-    function simulateWeightedTimeToMaturity(
+    function simulateTransaction(
         address repoToken,
         uint256 amount
-    ) external view returns (uint256) {
+    ) external view returns (
+        uint256 simulatedWeightedMaturity, 
+        uint256 simulatedConcentrationRatio,
+        uint256 simulatedLiquidityRatio
+    ) {
         // do not validate if we are simulating with existing repoTokens
+        uint256 liquidBalance = _totalLiquidBalance(address(0));
+        uint256 repoTokenAmountInBaseAssetPrecision;
+        uint256 proceeds;
         if (repoToken != address(0)) {
             if (!_isTermDeployed(repoToken)) {
                 revert RepoTokenList.InvalidRepoToken(address(repoToken));
@@ -309,32 +331,31 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
             uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-            uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
+            repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
                 repoToken
             ).redemptionValue() *
                 amount *
                 PURCHASE_TOKEN_PRECISION) /
                 (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
-            uint256 proceeds = RepoTokenUtils.calculatePresentValue(
+            proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
                 PURCHASE_TOKEN_PRECISION,
                 redemptionTimestamp,
                 discountRate + discountRateMarkup
             );
-
-            _validateRepoTokenConcentration(
-                repoToken,
-                repoTokenAmountInBaseAssetPrecision,
-                proceeds
-            );
         }
 
-        return
-            _calculateWeightedMaturity(
-                repoToken,
-                amount,
-                _totalLiquidBalance(address(this))
-            );
+        simulatedWeightedMaturity = _calculateWeightedMaturity(
+            repoToken, amount, liquidBalance - proceeds);
+
+        simulatedConcentrationRatio = _getRepoTokenConcentrationRatio(
+            repoToken, 
+            repoTokenAmountInBaseAssetPrecision, 
+            _totalAssetValue(liquidBalance), 
+            proceeds
+        );
+
+        simulatedLiquidityRatio = _liquidReserveRatio(liquidBalance - proceeds);
     }
 
     /**
@@ -440,9 +461,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @dev This function aggregates the total liquid balance, the present value of all repoTokens,
      * and the present value of all pending offers to calculate the total asset value.
      */
-    function _totalAssetValue() internal view returns (uint256 totalValue) {
+    function _totalAssetValue(uint256 liquidBalance) internal view returns (uint256 totalValue) {
         return
-            _totalLiquidBalance(address(this)) +
+            liquidBalance +
             repoTokenListData.getPresentValue(
                 PURCHASE_TOKEN_PRECISION,
                 address(0)
@@ -455,6 +476,31 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
     }
 
+    function _getRepoTokenConcentrationRatio(
+        address repoToken,
+        uint256 repoTokenAmountInBaseAssetPrecision,
+        uint256 assetValue,
+        uint256 liquidBalanceToRemove        
+    ) private view returns (uint256) {
+        // Retrieve the current value of the repoToken held by the strategy and add the new repoToken amount
+        uint256 repoTokenValue = getRepoTokenHoldingValue(repoToken) +
+            repoTokenAmountInBaseAssetPrecision;
+
+        // Retrieve the total asset value of the strategy and adjust it for the new repoToken amount and liquid balance to be removed            
+        uint256 totalAssetValue = assetValue +
+            repoTokenAmountInBaseAssetPrecision -
+            liquidBalanceToRemove;
+
+        // Normalize the repoToken value and total asset value to 1e18 precision
+        repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
+        totalAssetValue = (totalAssetValue * 1e18) / PURCHASE_TOKEN_PRECISION;
+
+        // Calculate the repoToken concentration
+        return totalAssetValue == 0
+            ? 0
+            : (repoTokenValue * 1e18) / totalAssetValue;
+    }
+
     /**
      * @dev Validate the concentration of repoTokens
      * @param repoToken The address of the repoToken
@@ -464,25 +510,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function _validateRepoTokenConcentration(
         address repoToken,
         uint256 repoTokenAmountInBaseAssetPrecision,
+        uint256 assetValue,
         uint256 liquidBalanceToRemove
     ) private view {
-        // Retrieve the current value of the repoToken held by the strategy and add the new repoToken amount
-        uint256 repoTokenValue = getRepoTokenHoldingValue(repoToken) +
-            repoTokenAmountInBaseAssetPrecision;
-
-        // Retrieve the total asset value of the strategy and adjust it for the new repoToken amount and liquid balance to be removed            
-        uint256 totalAsseValue = _totalAssetValue() +
-            repoTokenAmountInBaseAssetPrecision -
-            liquidBalanceToRemove;
-
-        // Normalize the repoToken value and total asset value to 1e18 precision
-        repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
-        totalAsseValue = (totalAsseValue * 1e18) / PURCHASE_TOKEN_PRECISION;
-
-        // Calculate the repoToken concentration
-        uint256 repoTokenConcentration = totalAsseValue == 0
-            ? 0
-            : (repoTokenValue * 1e18) / totalAsseValue;
+        uint256 repoTokenConcentration = _getRepoTokenConcentrationRatio(
+            repoToken,
+            repoTokenAmountInBaseAssetPrecision,
+            assetValue,
+            liquidBalanceToRemove
+        );
 
         // Check if the repoToken concentration exceeds the predefined limit
         if (repoTokenConcentration > repoTokenConcentrationLimit) {
@@ -734,8 +770,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 liquidBalance = _totalLiquidBalance(address(this));
 
         // Check that new offer does not violate reserve ratio constraint
-        if (liquidBalance < liquidityReserveRatio) {
-            revert BalanceBelowliquidityReserveRatio();
+        if (_liquidReserveRatio(liquidBalance) < requiredReserveRatio) {
+            revert BalanceBelowRequiredReserveRatio();
         }
 
         // Calculate the resulting weighted time to maturity            
@@ -752,7 +788,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Passing in 0 amount and 0 liquid balance adjustment because offer and balance already updated
-        _validateRepoTokenConcentration(repoToken, 0, 0);
+        _validateRepoTokenConcentration(repoToken, 0, _totalAssetValue(liquidBalance), 0);
     }
 
     /**
@@ -959,14 +995,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Ensure the remaining liquid balance is above the liquidity threshold
         uint256 newLiquidBalance = liquidBalance - proceeds;
-        if (newLiquidBalance < liquidityReserveRatio) {
-            revert BalanceBelowliquidityReserveRatio();
+        if (_liquidReserveRatio(newLiquidBalance) < requiredReserveRatio) {
+            revert BalanceBelowRequiredReserveRatio();
         }
 
         // Validate resulting repoToken concentration to ensure it meets requirements
         _validateRepoTokenConcentration(
             repoToken,
             repoTokenAmountInBaseAssetPrecision,
+            _totalAssetValue(liquidBalance),
             proceeds
         );
 
@@ -1087,7 +1124,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     {
         _sweepAsset();
         _redeemRepoTokens(0);
-        return _totalAssetValue();
+        return _totalAssetValue(_totalLiquidBalance(address(this)));
     }
 
     /*//////////////////////////////////////////////////////////////

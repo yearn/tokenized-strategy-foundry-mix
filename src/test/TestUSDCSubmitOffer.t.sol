@@ -88,6 +88,10 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
     }
 
+    function testEditOfferWithConcentrationLimit() public {
+        
+    }
+
     function testDeleteOffers() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 
