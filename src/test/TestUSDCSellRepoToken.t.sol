@@ -303,7 +303,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(management);
         termStrategy.submitAuctionOffer(
-            address(repoToken4WeekAuction), address(repoToken4Week), idHash, bytes32("test price"), 3e6
+            repoToken4WeekAuction, address(repoToken4Week), idHash, bytes32("test price"), 3e6
         );
 
         assertEq(termStrategy.simulateWeightedTimeToMaturity(address(0), 0), 1108800);
@@ -319,9 +319,11 @@ contract TestUSDCSellRepoToken is Setup {
         vm.prank(management);
         termStrategy.setTermController(address(0));
 
+        address currentController = address(termStrategy.currTermController());
         vm.prank(management);
         termStrategy.setTermController(address(newController));
-        assertEq(address(termStrategy.termController()), address(newController));
+        assertEq(address(termStrategy.currTermController()), address(newController));
+        assertEq(address(termStrategy.prevTermController()), currentController);
 
         vm.expectRevert("!management");
         termStrategy.setTimeToMaturityThreshold(12345);
@@ -552,10 +554,10 @@ contract TestUSDCSellRepoToken is Setup {
         mockUSDC.mint(testDepositor, depositAmount);
 
         vm.expectRevert("!management");
-        termStrategy.pause();
+        termStrategy.pauseStrategy();
 
         vm.prank(management);
-        termStrategy.pause();
+        termStrategy.pauseStrategy();
 
         vm.startPrank(testDepositor);
         mockUSDC.approve(address(termStrategy), type(uint256).max);

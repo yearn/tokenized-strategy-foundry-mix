@@ -50,12 +50,12 @@ contract TestUSDCSubmitOffer is Setup {
         // test: only management can submit offers
         vm.expectRevert("!management");
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), idHash, bytes32("test price"), offerAmount
+            repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
         vm.prank(management);
         offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), idHash, bytes32("test price"), offerAmount
+            repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
         assertEq(offerIds.length, 1);
@@ -80,7 +80,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            address(repoToken1WeekAuction), address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
+            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
         );        
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);

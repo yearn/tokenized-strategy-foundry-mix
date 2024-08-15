@@ -14,13 +14,22 @@ interface ITermVaultEvents {
 
     event RepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit);
 
-    event Paused();
+    event DepositPaused();
 
-    event Unpaused();
+    event DepositUnpaused();
+
+    event StrategyPaused();
+
+    event StrategyUnpaused();
 
     event DiscountRateAdapterUpdated(
         address indexed oldAdapter, 
         address indexed newAdapter
+    );
+
+    event RepoTokenBlacklistUpdated(
+        address indexed repoToken,
+        bool blacklisted
     );
 
     function emitTermControllerUpdated(address oldController, address newController) external;
@@ -35,12 +44,18 @@ interface ITermVaultEvents {
 
     function emitRepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit) external;
 
-    function emitPaused() external;
+    function emitDepositPaused() external;
 
-    function emitUnpaused() external;
+    function emitDepositUnpaused() external;
+
+    function emitStrategyPaused() external;
+
+    function emitStrategyUnpaused() external;
 
     function emitDiscountRateAdapterUpdated(
         address oldAdapter,
         address newAdapter
     ) external;
+
+    function emitRepoTokenBlacklistUpdated(address repoToken, bool blacklisted) external;
 }

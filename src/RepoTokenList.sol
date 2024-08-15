@@ -197,6 +197,14 @@ library RepoTokenList {
         
         address current = listData.head;
         while (current != NULL_NODE) {
+            // Filter by a specific repoToken, address(0) bypasses this filter
+            if (repoTokenToMatch != address(0) && current != repoTokenToMatch) {
+                // Not a match, do not add to totalPresentValue
+                // Move to the next token in the list
+                current = _getNext(listData, current);
+                continue;
+            }
+    
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
             uint256 repoTokenPrecision = 10**ERC20(current).decimals();
@@ -217,10 +225,9 @@ library RepoTokenList {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
             }
 
-            // If filtering by a specific repo token, stop early if matched
+            // Filter by a specific repo token, address(0) bypasses this condition
             if (repoTokenToMatch != address(0) && current == repoTokenToMatch) {
-                // matching a specific repoToken and terminate early because the list is sorted
-                // with no duplicates
+                // Found a match, terminate early
                 break;
             }
 
@@ -304,7 +311,6 @@ library RepoTokenList {
      * @notice Validates a repoToken against specific criteria
      * @param listData The list data
      * @param repoToken The repoToken to validate
-     * @param termController The term controller
      * @param asset The address of the base asset
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken 
      * 
@@ -314,14 +320,8 @@ library RepoTokenList {
     function validateRepoToken(
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
-        ITermController termController,
         address asset
     ) internal view returns (uint256 redemptionTimestamp) {
-        // Ensure the repo token is deployed by term
-        if (!termController.isTermDeployed(address(repoToken))) {
-            revert InvalidRepoToken(address(repoToken));
-        }
-
         // Retrieve repo token configuration
         address purchaseToken;
         address collateralManager;
@@ -357,7 +357,6 @@ library RepoTokenList {
      * @notice Validate and insert a repoToken into the list data
      * @param listData The list data
      * @param repoToken The repoToken to validate and insert
-     * @param termController The term controller
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
      * @return discountRate The discount rate to be applied to the validated repoToken 
@@ -366,7 +365,6 @@ library RepoTokenList {
     function validateAndInsertRepoToken(
         RepoTokenListData storage listData, 
         ITermRepoToken repoToken,
-        ITermController termController,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
@@ -388,7 +386,7 @@ library RepoTokenList {
         } else {
             discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
-            redemptionTimestamp = validateRepoToken(listData, repoToken, termController, asset);
+            redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
 
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
