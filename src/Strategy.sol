@@ -302,11 +302,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 revert RepoTokenList.InvalidRepoToken(address(repoToken));
             }
 
-            repoTokenListData.validateRepoToken(
+            uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
                 ITermRepoToken(repoToken),
                 address(asset)
             );
 
+            uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
             uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
             uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
                 repoToken
@@ -314,10 +315,17 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 amount *
                 PURCHASE_TOKEN_PRECISION) /
                 (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            uint256 proceeds = RepoTokenUtils.calculatePresentValue(
+                repoTokenAmountInBaseAssetPrecision,
+                PURCHASE_TOKEN_PRECISION,
+                redemptionTimestamp,
+                discountRate + discountRateMarkup
+            );
+
             _validateRepoTokenConcentration(
                 repoToken,
                 repoTokenAmountInBaseAssetPrecision,
-                0
+                proceeds
             );
         }
 
@@ -479,45 +487,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Check if the repoToken concentration exceeds the predefined limit
         if (repoTokenConcentration > repoTokenConcentrationLimit) {
             revert RepoTokenConcentrationTooHigh(repoToken);
-        }
-    }
-
-    /**
-     * @notice Validates the resulting weighted time to maturity when submitting a new offer
-     * @param repoToken The address of the repoToken associated with the Term auction offer
-     * @param newOfferAmount The amount associated with the Term auction offer
-     * @param newLiquidBalance The new liquid balance of the strategy after accounting for the new offer
-     *
-     * @dev This function calculates the resulting weighted time to maturity assuming that a submitted offer is accepted
-     * and checks if it exceeds the predefined threshold (`timeToMaturityThreshold`). If the threshold is exceeded,
-     * the function reverts the transaction with an error.
-     */
-    function _validateWeightedMaturity(
-        address repoToken,
-        uint256 newOfferAmount,
-        uint256 newLiquidBalance
-    ) private {
-        // Calculate the precision of the repoToken        
-        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-
-        // Convert the new offer amount to repoToken precision        
-        uint256 offerAmountInRepoPrecision = RepoTokenUtils
-            .purchaseToRepoPrecision(
-                repoTokenPrecision,
-                PURCHASE_TOKEN_PRECISION,
-                newOfferAmount
-            );
-
-        // Calculate the resulting weighted time to maturity            
-        uint256 resultingWeightedTimeToMaturity = _calculateWeightedMaturity(
-            repoToken,
-            offerAmountInRepoPrecision,
-            newLiquidBalance
-        );
-
-        // Check if the resulting weighted time to maturity exceeds the threshold
-        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
-            revert TimeToMaturityAboveThreshold();
         }
     }
     
@@ -686,8 +655,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             address(asset)
         );
 
-        _validateRepoTokenConcentration(repoToken, purchaseTokenAmount, 0);
-
         // Prepare and submit the offer
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
             termAuction.termAuctionOfferLocker()
@@ -739,53 +706,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         _sweepAsset();
         _redeemRepoTokens(0);
 
-        // Retrieve the total liquid balance
-        uint256 liquidBalance = _totalLiquidBalance(address(this));
-
-        uint256 newOfferAmount = purchaseTokenAmount;
         bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
+        uint256 newOfferAmount = purchaseTokenAmount;
         uint256 currentOfferAmount = termAuctionListData
             .offers[offerId]
             .offerAmount;
-
-        // Handle adjustments if editing an existing offer
-        if (newOfferAmount > currentOfferAmount) {
-            // increasing offer amount
-            uint256 offerDebit;
-            unchecked {
-                // checked above
-                offerDebit = newOfferAmount - currentOfferAmount;
-            }
-            if (liquidBalance < offerDebit) {
-                revert InsufficientLiquidBalance(liquidBalance, offerDebit);
-            }
-            uint256 newLiquidBalance = liquidBalance - offerDebit;
-            if (newLiquidBalance < liquidityReserveRatio) {
-                revert BalanceBelowliquidityReserveRatio();
-            }
-            _validateWeightedMaturity(
-                repoToken,
-                newOfferAmount,
-                newLiquidBalance
-            );
-        } else if (currentOfferAmount > newOfferAmount) {
-            // decreasing offer amount
-            uint256 offerCredit;
-            unchecked {
-                offerCredit = currentOfferAmount - newOfferAmount;
-            }
-            uint256 newLiquidBalance = liquidBalance + offerCredit;
-            if (newLiquidBalance < liquidityReserveRatio) {
-                revert BalanceBelowliquidityReserveRatio();
-            }
-            _validateWeightedMaturity(
-                repoToken,
-                newOfferAmount,
-                newLiquidBalance
-            );
-        } else {
-            // no change in offer amount, do nothing
-        }
 
         // Submit the offer and lock it in the auction
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
@@ -795,6 +720,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         offer.amount = purchaseTokenAmount;
         offer.purchaseToken = address(asset);
 
+        // InsufficientLiquidBalance checked inside _submitOffer
         offerIds = _submitOffer(
             termAuction,
             offerLocker,
@@ -803,6 +729,30 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             newOfferAmount,
             currentOfferAmount
         );
+
+        // Retrieve the total liquid balance
+        uint256 liquidBalance = _totalLiquidBalance(address(this));
+
+        // Check that new offer does not violate reserve ratio constraint
+        if (liquidBalance < liquidityReserveRatio) {
+            revert BalanceBelowliquidityReserveRatio();
+        }
+
+        // Calculate the resulting weighted time to maturity            
+        // Passing in 0 adjustment because offer and balance already updated
+        uint256 resultingWeightedTimeToMaturity = _calculateWeightedMaturity(
+            address(0),
+            0,
+            liquidBalance
+        );
+
+        // Check if the resulting weighted time to maturity exceeds the threshold
+        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+            revert TimeToMaturityAboveThreshold();
+        }
+
+        // Passing in 0 amount and 0 liquid balance adjustment because offer and balance already updated
+        _validateRepoTokenConcentration(repoToken, 0, 0);
     }
 
     /**
@@ -842,6 +792,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 // checked above
                 offerDebit = newOfferAmount - currentOfferAmount;
             }
+
+            uint256 liquidBalance = _totalLiquidBalance(address(this));            
+            if (liquidBalance < offerDebit) {
+                revert InsufficientLiquidBalance(liquidBalance, offerDebit);
+            }
+
             _withdrawAsset(offerDebit);
             IERC20(asset).safeApprove(
                 address(repoServicer.termRepoLocker()),
@@ -1002,7 +958,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        if ((liquidBalance - proceeds) < liquidityReserveRatio) {
+        uint256 newLiquidBalance = liquidBalance - proceeds;
+        if (newLiquidBalance < liquidityReserveRatio) {
             revert BalanceBelowliquidityReserveRatio();
         }
 

@@ -277,8 +277,9 @@ library TermAuctionList {
         for (uint256 i; i < offers.length; i++) {
             PendingOfferMemory memory offer = offers[i];
 
-            // Filter by specific repo token if provided
+            // Filter by specific repo token if provided, address(0) bypasses this filter
             if (repoTokenToMatch != address(0) && offer.repoToken != repoTokenToMatch) {
+                // Not a match, skip
                 continue;
             }
 

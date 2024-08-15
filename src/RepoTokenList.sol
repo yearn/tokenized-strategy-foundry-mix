@@ -197,6 +197,14 @@ library RepoTokenList {
         
         address current = listData.head;
         while (current != NULL_NODE) {
+            // Filter by a specific repoToken, address(0) bypasses this filter
+            if (repoTokenToMatch != address(0) && current != repoTokenToMatch) {
+                // Not a match, do not add to totalPresentValue
+                // Move to the next token in the list
+                current = _getNext(listData, current);
+                continue;
+            }
+    
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
             uint256 repoTokenPrecision = 10**ERC20(current).decimals();
@@ -217,10 +225,9 @@ library RepoTokenList {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
             }
 
-            // If filtering by a specific repo token, stop early if matched
+            // Filter by a specific repo token, address(0) bypasses this condition
             if (repoTokenToMatch != address(0) && current == repoTokenToMatch) {
-                // matching a specific repoToken and terminate early because the list is sorted
-                // with no duplicates
+                // Found a match, terminate early
                 break;
             }
 
