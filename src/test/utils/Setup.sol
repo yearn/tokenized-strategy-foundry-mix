@@ -5,6 +5,7 @@ import "forge-std/console2.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
 import {Strategy, ERC20} from "../../Strategy.sol";
+import {TermDiscountRateAdapter} from "../../TermDiscountRateAdapter.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
@@ -68,6 +69,7 @@ contract Setup is ExtendedTest, IEvents {
 
     // Term finance mocks
     MockTermController internal termController;
+    TermDiscountRateAdapter internal discountRateAdapter;
     TermVaultEventEmitter internal termVaultEventEmitterImpl;
     TermVaultEventEmitter internal termVaultEventEmitter;
     ERC4626Mock internal mockYearnVault;
@@ -90,9 +92,10 @@ contract Setup is ExtendedTest, IEvents {
 
         // Factory from mainnet, tokenized strategy needs to be hardcoded to 0xBB51273D6c746910C7C06fe718f30c936170feD0
         tokenizedStrategy = new TokenizedStrategy(address(mockFactory));
-        vm.etch(0x2e234DAe75C793f67A35089C9d99245E1C58470b, address(tokenizedStrategy).code);
+        vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
+        discountRateAdapter = new TermDiscountRateAdapter(address(termController));
         termVaultEventEmitterImpl = new TermVaultEventEmitter();
         termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
         mockYearnVault = new ERC4626Mock(address(asset));
@@ -102,7 +105,7 @@ contract Setup is ExtendedTest, IEvents {
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        factory = strategy.FACTORY();
+//        factory = strategy.FACTORY();
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -116,7 +119,15 @@ contract Setup is ExtendedTest, IEvents {
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy", address(mockYearnVault), address(termVaultEventEmitter)))
+            address(
+                new Strategy(
+                    address(asset), 
+                    "Tokenized Strategy", 
+                    address(mockYearnVault), 
+                    address(discountRateAdapter),
+                    address(termVaultEventEmitter)
+                )
+            )
         );
 
         vm.prank(adminWallet);

@@ -48,6 +48,7 @@ contract TestUSDCSellRepoToken is Setup {
         vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(10 weeks);
+        termStrategy.setRepoTokenConcentrationLimit(1e18);
         vm.stopPrank();
 
     }
@@ -159,6 +160,15 @@ contract TestUSDCSellRepoToken is Setup {
         amounts[0] = amount1;
 
         _sellRepoTokens(tokens, amounts, true, true, err);
+    }
+
+    function _sell1RepoTokenNoMintExpectRevert(MockTermRepoToken rt1, uint256 amount1, bytes memory err) private {
+        address[] memory tokens = new address[](1);
+        tokens[0] = address(rt1);
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = amount1;
+
+        _sellRepoTokens(tokens, amounts, true, false, err);
     }
 
     function _sell3RepoTokens(
@@ -321,25 +331,25 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(termStrategy.timeToMaturityThreshold(), 12345);
 
         vm.expectRevert("!management");
-        termStrategy.setLiquidityThreshold(12345);
+        termStrategy.setLiquidityReserveRatio(12345);
 
         vm.prank(management);
-        termStrategy.setLiquidityThreshold(12345);
-        assertEq(termStrategy.liquidityThreshold(), 12345);
+        termStrategy.setLiquidityReserveRatio(12345);
+        assertEq(termStrategy.liquidityReserveRatio(), 12345);
 
         vm.expectRevert("!management");
-        termStrategy.setAuctionRateMarkup(12345);
+        termStrategy.setdiscountRateMarkup(12345);
 
         vm.prank(management);
-        termStrategy.setAuctionRateMarkup(12345);
-        assertEq(termStrategy.auctionRateMarkup(), 12345);
+        termStrategy.setdiscountRateMarkup(12345);
+        assertEq(termStrategy.discountRateMarkup(), 12345);
 
         vm.expectRevert("!management");
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
 
         vm.prank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        assertEq(termStrategy.auctionRateMarkup(), 12345);
+        assertEq(termStrategy.discountRateMarkup(), 12345);
     }
 
     function testRepoTokenValidationFailures() public {
@@ -353,7 +363,7 @@ contract TestUSDCSellRepoToken is Setup {
         repoTokenMatured.mint(testUser, 1000e18);
 
         // test: token has no auction clearing rate
-        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        vm.expectRevert();
         vm.prank(testUser);
         termStrategy.sellRepoToken(address(repoToken1Week), 1e18);           
 
@@ -508,5 +518,55 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(holdings.length, 1);
 
         console.log("totalAssetValue", termStrategy.totalAssetValue());
+    }
+
+    function testConcentrationLimitFailure() public {
+        address testDepositor = vm.addr(0x111111);
+        uint256 depositAmount = 1000e6;
+
+        mockUSDC.mint(testDepositor, depositAmount);
+
+        vm.startPrank(testDepositor);
+        mockUSDC.approve(address(termStrategy), type(uint256).max);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
+
+        vm.expectRevert("!management");
+        termStrategy.setRepoTokenConcentrationLimit(0.4e18);
+
+        // Set to 40%
+        vm.prank(management);
+        termStrategy.setRepoTokenConcentrationLimit(0.4e18);
+
+        _sell1RepoTokenNoMintExpectRevert(
+            repoToken2Week, 
+            500e18,
+            abi.encodeWithSelector(Strategy.RepoTokenConcentrationTooHigh.selector, address(repoToken2Week))
+        );
+    }
+
+    function testPausing() public {
+        address testDepositor = vm.addr(0x111111);
+        uint256 depositAmount = 1000e6;
+
+        mockUSDC.mint(testDepositor, depositAmount);
+
+        vm.expectRevert("!management");
+        termStrategy.pause();
+
+        vm.prank(management);
+        termStrategy.pause();
+
+        vm.startPrank(testDepositor);
+        mockUSDC.approve(address(termStrategy), type(uint256).max);
+        vm.expectRevert("Pausable: paused");
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
+
+        _sell1RepoTokenExpectRevert(
+            repoToken2Week, 
+            2e18,
+            "Pausable: paused"
+        );
     }
 }

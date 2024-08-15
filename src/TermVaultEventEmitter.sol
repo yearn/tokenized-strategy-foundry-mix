@@ -43,16 +43,35 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit TimeToMaturityThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    function emitLiquidityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
-        emit LiquidityThresholdUpdated(oldThreshold, newThreshold);
+    function emitLiquidityReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
+        emit LiquidityReserveRatioUpdated(oldThreshold, newThreshold);
     }
 
-    function emitAuctionRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external onlyRole(VAULT_CONTRACT) {
-        emit AuctionRateMarkupUpdated(oldMarkup, newMarkup);
+    function emitDiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external onlyRole(VAULT_CONTRACT) {
+        emit DiscountRateMarkupUpdated(oldMarkup, newMarkup);
     }
 
     function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external onlyRole(VAULT_CONTRACT) {
         emit MinCollateralRatioUpdated(collateral, minCollateralRatio);
+    }
+
+    function emitRepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit) external onlyRole(VAULT_CONTRACT) {
+        emit RepoTokenConcentrationLimitUpdated(oldLimit, newLimit);
+    }
+
+    function emitPaused() external onlyRole(VAULT_CONTRACT) {
+        emit Paused();
+    }
+
+    function emitUnpaused() external onlyRole(VAULT_CONTRACT) {
+        emit Unpaused();
+    }
+
+    function emitDiscountRateAdapterUpdated(
+        address oldAdapter,
+        address newAdapter
+    ) external onlyRole(VAULT_CONTRACT) {
+        emit DiscountRateAdapterUpdated(oldAdapter, newAdapter);
     }
 
     // ========================================================================

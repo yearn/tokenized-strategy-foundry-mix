@@ -111,7 +111,7 @@ contract TestUSDCSubmitOffer is Setup {
     function _getRepoTokenAmountGivenPurchaseTokenAmount(
         uint256 purchaseTokenAmount,
         MockTermRepoToken termRepoToken,
-        uint256 auctionRate
+        uint256 discountRate
     ) private view returns (uint256) {
         (uint256 redemptionTimestamp, address purchaseToken, ,) = termRepoToken.config();
 
@@ -123,7 +123,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         // purchaseTokenAmount * (1 + r * days / 360) = repoTokenAmountInBaseAssetPrecision
         uint256 repoTokenAmountInBaseAssetPrecision = 
-            purchaseTokenAmount * (purchaseTokenPrecision + (auctionRate * timeLeftToMaturityDayFraction / RATE_PRECISION)) / purchaseTokenPrecision;
+            purchaseTokenAmount * (purchaseTokenPrecision + (discountRate * timeLeftToMaturityDayFraction / RATE_PRECISION)) / purchaseTokenPrecision;
 
         return repoTokenAmountInBaseAssetPrecision * repoTokenPrecision / purchaseTokenPrecision;
     }
