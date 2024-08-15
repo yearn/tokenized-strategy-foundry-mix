@@ -1158,16 +1158,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        // NOTE: Withdraw limitations such as liquidity constraints should be accounted for HERE
-        //  rather than _freeFunds in order to not count them as losses on withdraws.
-
-        // TODO: If desired implement withdraw limit logic and any needed state variables.
-
-        // EX:
-        // if(yieldSource.notShutdown()) {
-        //    return asset.balanceOf(address(this)) + asset.balanceOf(yieldSource);
-        // }
-        return type(uint256).max;
+        return _totalLiquidBalance(address(this));
     }
 
     /**
