@@ -292,6 +292,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     function getRepoTokenConcentrationRatio(address repoToken) external view returns (uint256) {
+        if (repoToken == address(0)) {
+            revert RepoTokenList.InvalidRepoToken(address(0));
+        }
         return _getRepoTokenConcentrationRatio(
             repoToken, 0, _totalAssetValue(_totalLiquidBalance(address(0))), 0
         );
@@ -312,7 +315,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 amount
     ) external view returns (
         uint256 simulatedWeightedMaturity, 
-        uint256 simulatedConcentrationRatio,
         uint256 simulatedLiquidityRatio
     ) {
         // do not validate if we are simulating with existing repoTokens
@@ -347,13 +349,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         simulatedWeightedMaturity = _calculateWeightedMaturity(
             repoToken, amount, liquidBalance - proceeds);
-
-        simulatedConcentrationRatio = _getRepoTokenConcentrationRatio(
-            repoToken, 
-            repoTokenAmountInBaseAssetPrecision, 
-            _totalAssetValue(liquidBalance), 
-            proceeds
-        );
 
         simulatedLiquidityRatio = _liquidReserveRatio(liquidBalance - proceeds);
     }
