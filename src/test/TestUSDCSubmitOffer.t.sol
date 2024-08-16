@@ -88,6 +88,29 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
     }
 
+    function testEditOfferWithConcentrationLimit() public {
+        bytes32 idHash1 = bytes32("offer id hash 1");
+
+        vm.prank(management);
+        termStrategy.setRepoTokenConcentrationLimit(0.5e18);
+
+        // 50% concentration
+        bytes32 offerId1 = _submitOffer(idHash1, 50e6);
+
+        // 60% concentration should fail (> 50%)
+        vm.expectRevert(abi.encodeWithSelector(Strategy.RepoTokenConcentrationTooHigh.selector, address(repoToken1Week)));
+        vm.prank(management);
+        bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), 60e6
+        );
+
+        // 40% concentration should pass
+        vm.prank(management);
+        offerIds = termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), 40e6
+        );        
+    }
+
     function testDeleteOffers() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 

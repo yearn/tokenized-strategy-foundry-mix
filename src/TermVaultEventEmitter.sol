@@ -43,8 +43,8 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit TimeToMaturityThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    function emitLiquidityReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
-        emit LiquidityReserveRatioUpdated(oldThreshold, newThreshold);
+    function emitRequiredReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
+        emit RequiredReserveRatioUpdated(oldThreshold, newThreshold);
     }
 
     function emitDiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external onlyRole(VAULT_CONTRACT) {
