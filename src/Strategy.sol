@@ -332,6 +332,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param repoToken The address of the repoToken to be simulated
      * @param amount The amount of the repoToken to be simulated
      * @return simulatedWeightedMaturity The simulated weighted time to maturity for the entire strategy
+     * @return simulatedRepoTokenConcentrationRatio The concentration ratio of the repoToken in the strategy (in 1e18 precision)
      * @return simulatedLiquidityRatio The simulated liquidity ratio after the transaction
      *
      * @dev This function simulates the effects of a potential transaction on the strategy's key metrics.
