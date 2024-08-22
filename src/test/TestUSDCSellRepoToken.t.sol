@@ -91,7 +91,7 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - expectedProceeds);
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
 
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
 
         (uint256 redemptionTimestamp, , ,) = ITermRepoToken(repoToken1Week).config();
 
@@ -253,7 +253,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_7_14_28_3_9_3() public {
         _sell3RepoTokens(repoToken1Week, 3e18, repoToken2Week, 9e18, repoToken4Week, 3e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
@@ -261,7 +261,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_14_7_28_9_3_3() public {
         _sell3RepoTokens(repoToken2Week, 9e18, repoToken1Week, 3e18, repoToken4Week, 3e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
@@ -269,7 +269,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_28_14_7_3_9_3() public {
         _sell3RepoTokens(repoToken4Week, 3e18, repoToken2Week, 9e18, repoToken1Week, 3e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
@@ -277,7 +277,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_28_7_14_3_3_9() public {
         _sell3RepoTokens(repoToken4Week, 3e18, repoToken1Week, 3e18, repoToken2Week, 9e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
@@ -285,7 +285,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_7_14_28_6_2_8() public {
         _sell3RepoTokens(repoToken1Week, 6e18, repoToken2Week, 2e18, repoToken4Week, 8e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1587600);
     }
 
@@ -293,7 +293,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testSellMultipleRepoTokens_7_14_28_8_1_3() public {
         _sell3RepoTokens(repoToken1Week, 8e18, repoToken2Week, 1e18, repoToken4Week, 3e18);
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
         assertEq(weightedTimeToMaturity, 1108800);
     }
 
@@ -312,7 +312,7 @@ contract TestUSDCSellRepoToken is Setup {
             repoToken4WeekAuction, address(repoToken4Week), idHash, bytes32("test price"), 3e6
         );
 
-        (uint256 weightedTimeToMaturity, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
 
         assertEq(weightedTimeToMaturity, 1108800);
     }
@@ -402,7 +402,7 @@ contract TestUSDCSellRepoToken is Setup {
     function testAboveMaturityThresholdFailure() public {
         _sell1RepoToken(repoToken2Week, 2e18);
 
-        (uint256 timeToMat, ) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 timeToMat, ,) = termStrategy.simulateTransaction(address(0), 0);
 
         vm.prank(management);
         termStrategy.setTimeToMaturityThreshold(timeToMat);

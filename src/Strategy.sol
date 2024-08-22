@@ -332,6 +332,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param repoToken The address of the repoToken to be simulated
      * @param amount The amount of the repoToken to be simulated
      * @return simulatedWeightedMaturity The simulated weighted time to maturity for the entire strategy
+     * @return simulatedRepoTokenConcentrationRatio The concentration ratio of the repoToken in the strategy (in 1e18 precision)
      * @return simulatedLiquidityRatio The simulated liquidity ratio after the transaction
      *
      * @dev This function simulates the effects of a potential transaction on the strategy's key metrics.
@@ -348,6 +349,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 amount
     ) external view returns (
         uint256 simulatedWeightedMaturity, 
+        uint256 simulatedRepoTokenConcentrationRatio,
         uint256 simulatedLiquidityRatio
     ) {
         // do not validate if we are simulating with existing repoTokens
@@ -382,6 +384,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         simulatedWeightedMaturity = _calculateWeightedMaturity(
             repoToken, amount, liquidBalance - proceeds);
+
+        if (repoToken != address(0)) {
+            simulatedRepoTokenConcentrationRatio = _getRepoTokenConcentrationRatio(
+                repoToken, 
+                repoTokenAmountInBaseAssetPrecision, 
+                _totalAssetValue(liquidBalance), 
+                proceeds
+            );
+        }
 
         simulatedLiquidityRatio = _liquidReserveRatio(liquidBalance - proceeds);
     }
