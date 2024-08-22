@@ -11,7 +11,6 @@ import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermVaultEvents} from "./interfaces/term/ITermVaultEvents.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
-import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
 import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
@@ -39,7 +38,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
-    // Errors
+    // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
     error BalanceBelowRequiredReserveRatio();
@@ -53,10 +52,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     uint256 public immutable PURCHASE_TOKEN_PRECISION;
     IERC4626 public immutable YEARN_VAULT;
 
-    // State variables
-    /// @notice previous term controller
+    /// @notice State variables
+    /// @dev Previous term controller
     ITermController public prevTermController;
-    /// @notice current term controller
+    /// @dev Current term controller
     ITermController public currTermController;
     ITermDiscountRateAdapter public discountRateAdapter;
     RepoTokenListData internal repoTokenListData;
@@ -65,8 +64,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     uint256 public requiredReserveRatio; // 1e18
     uint256 public discountRateMarkup; // 1e18 (TODO: check this)
     uint256 public repoTokenConcentrationLimit; // 1e18
-    mapping(address => bool) repoTokenBlacklist;
-    bool depositLock;
+    mapping(address => bool) public repoTokenBlacklist;
+    bool public depositLock;
 
     modifier notBlacklisted(address repoToken) {
         if (repoTokenBlacklist[repoToken]) {
@@ -114,6 +113,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function pauseStrategy() external onlyManagement {
         _pause();
+        depositLock = true;
         TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
     }
 
@@ -122,6 +122,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function unpauseStrategy() external onlyManagement {
         _unpause();
+        depositLock = false;
         TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
     }
 
@@ -171,9 +172,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Set the liquidity reserve factor
-     * @param newRequiredReserveRatio The new liquidity reserve factor
-     */
+    * @notice Set the required reserve ratio
+    * @dev This function can only be called by management
+    * @param newRequiredReserveRatio The new required reserve ratio (in 1e18 precision)
+    */
     function setRequiredReserveRatio(
         uint256 newRequiredReserveRatio
     ) external onlyManagement {
@@ -245,7 +247,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and the present value of all pending offers to calculate the total asset value.     
      */
     function totalAssetValue() external view returns (uint256) {
-        return _totalAssetValue(_totalLiquidBalance(address(this)));
+        return _totalAssetValue(_totalLiquidBalance());
     }
 
     /**
@@ -256,17 +258,32 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * and the balance of the asset held in the Yearn Vault to calculate the total liquid balance.     
      */
     function totalLiquidBalance() external view returns (uint256) {
-        return _totalLiquidBalance(address(this));
+        return _totalLiquidBalance();
     }
 
+    /**
+     * @notice Calculate the liquid reserve ratio
+     * @param liquidBalance The current liquid balance of the strategy
+     * @return The liquid reserve ratio in 1e18 precision
+     *
+     * @dev This function calculates the ratio of liquid balance to total asset value.
+     * It returns 0 if the total asset value is 0 to avoid division by zero.
+     */
     function _liquidReserveRatio(uint256 liquidBalance) internal view returns (uint256) {
         uint256 assetValue = _totalAssetValue(liquidBalance);
         if (assetValue == 0) return 0;
         return liquidBalance * 1e18 / assetValue;
     }
 
+    /**
+     * @notice Get the current liquid reserve ratio of the strategy
+     * @return The current liquid reserve ratio in 1e18 precision
+     *
+     * @dev This function calculates the liquid reserve ratio based on the current
+     * total liquid balance of the strategy.
+     */
     function liquidReserveRatio() external view returns (uint256) {
-        return _liquidReserveRatio(_totalLiquidBalance(address(this)));
+        return _liquidReserveRatio(_totalLiquidBalance());
     }
 
     /**
@@ -291,12 +308,22 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return termAuctionListData.pendingOffers();
     }
 
+    /**
+     * @notice Calculate the concentration ratio of a specific repoToken in the strategy
+     * @param repoToken The address of the repoToken to calculate the concentration for
+     * @return The concentration ratio of the repoToken in the strategy (in 1e18 precision)
+     *
+     * @dev This function computes the current concentration ratio of a specific repoToken
+     * in the strategy's portfolio. It reverts if the repoToken address is zero. The calculation
+     * is based on the current total asset value and does not consider any additional purchases
+     * or removals of the repoToken.
+     */
     function getRepoTokenConcentrationRatio(address repoToken) external view returns (uint256) {
         if (repoToken == address(0)) {
             revert RepoTokenList.InvalidRepoToken(address(0));
         }
         return _getRepoTokenConcentrationRatio(
-            repoToken, 0, _totalAssetValue(_totalLiquidBalance(address(0))), 0
+            repoToken, 0, _totalAssetValue(_totalLiquidBalance()), 0
         );
     }
 
@@ -305,10 +332,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param repoToken The address of the repoToken to be simulated
      * @param amount The amount of the repoToken to be simulated
      * @return simulatedWeightedMaturity The simulated weighted time to maturity for the entire strategy
+     * @return simulatedLiquidityRatio The simulated liquidity ratio after the transaction
      *
-     * @dev This function validates the repoToken, normalizes its amount, checks concentration limits,
-     * and calculates the weighted time to maturity for the specified repoToken and amount. The result
-     * reflects the new weighted time to maturity for the entire strategy, including the new repoToken position.
+     * @dev This function simulates the effects of a potential transaction on the strategy's key metrics.
+     * It calculates the new weighted time to maturity and liquidity ratio, considering the specified
+     * repoToken and amount. For existing repoTokens, use address(0) as the repoToken parameter.
+     * The function performs various checks and calculations, including:
+     * - Validating the repoToken (if not address(0))
+     * - Calculating the present value of the transaction
+     * - Estimating the impact on the strategy's liquid balance
+     * - Computing the new weighted maturity and liquidity ratio
      */
     function simulateTransaction(
         address repoToken,
@@ -318,7 +351,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 simulatedLiquidityRatio
     ) {
         // do not validate if we are simulating with existing repoTokens
-        uint256 liquidBalance = _totalLiquidBalance(address(0));
+        uint256 liquidBalance = _totalLiquidBalance();
         uint256 repoTokenAmountInBaseAssetPrecision;
         uint256 proceeds;
         if (repoToken != address(0)) {
@@ -438,13 +471,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
     /**
      * @notice Calculates the total liquid balance of the assets managed by the strategy
-     * @param addr The address of the strategy or contract that holds the assets
      * @return uint256 The total liquid balance of the assets
      *
      * @dev This function aggregates the balance of the underlying asset held directly by the strategy
      * and the balance of the asset held in the Yearn Vault to calculate the total liquid balance.
      */
-    function _totalLiquidBalance(address addr) private view returns (uint256) {
+    function _totalLiquidBalance() private view returns (uint256) {
         uint256 underlyingBalance = IERC20(asset).balanceOf(address(this));
         return _assetBalance() + underlyingBalance;
     }
@@ -471,6 +503,18 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
     }
 
+    /**
+     * @notice Calculates the concentration ratio of a specific repoToken in the strategy
+     * @param repoToken The address of the repoToken to calculate the concentration for
+     * @param repoTokenAmountInBaseAssetPrecision The amount of the repoToken in base asset precision to be added
+     * @param assetValue The current total asset value of the strategy
+     * @param liquidBalanceToRemove The amount of liquid balance to be removed from the strategy
+     * @return The concentration ratio of the repoToken in the strategy (in 1e18 precision)
+     *
+     * @dev This function computes the concentration ratio of a specific repoToken, considering both
+     * existing holdings and a potential new addition. It adjusts the total asset value, normalizes
+     * values to 1e18 precision, and handles the case where total asset value might be zero.
+     */
     function _getRepoTokenConcentrationRatio(
         address repoToken,
         uint256 repoTokenAmountInBaseAssetPrecision,
@@ -482,25 +526,30 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             repoTokenAmountInBaseAssetPrecision;
 
         // Retrieve the total asset value of the strategy and adjust it for the new repoToken amount and liquid balance to be removed            
-        uint256 totalAssetValue = assetValue +
+        uint256 adjustedTotalAssetValue = assetValue +
             repoTokenAmountInBaseAssetPrecision -
             liquidBalanceToRemove;
 
         // Normalize the repoToken value and total asset value to 1e18 precision
         repoTokenValue = (repoTokenValue * 1e18) / PURCHASE_TOKEN_PRECISION;
-        totalAssetValue = (totalAssetValue * 1e18) / PURCHASE_TOKEN_PRECISION;
+        adjustedTotalAssetValue = (adjustedTotalAssetValue * 1e18) / PURCHASE_TOKEN_PRECISION;
 
         // Calculate the repoToken concentration
-        return totalAssetValue == 0
+        return adjustedTotalAssetValue == 0
             ? 0
-            : (repoTokenValue * 1e18) / totalAssetValue;
+            : (repoTokenValue * 1e18) / adjustedTotalAssetValue;
     }
 
     /**
-     * @dev Validate the concentration of repoTokens
-     * @param repoToken The address of the repoToken
+     * @notice Validate the concentration of a repoToken against the strategy's limit
+     * @param repoToken The address of the repoToken to validate
      * @param repoTokenAmountInBaseAssetPrecision The amount of the repoToken in base asset precision
-     * @param liquidBalanceToRemove The liquid balance to remove
+     * @param assetValue The current total asset value of the strategy
+     * @param liquidBalanceToRemove The amount of liquid balance to be removed from the strategy
+     *
+     * @dev This function calculates the concentration ratio of the specified repoToken
+     * and compares it against the predefined concentration limit. It reverts with a
+     * RepoTokenConcentrationTooHigh error if the concentration exceeds the limit.
      */
     function _validateRepoTokenConcentration(
         address repoToken,
@@ -607,10 +656,24 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             (cumulativeAmount + liquidBalance);
     }
 
+    /**
+     * @notice Deposits all available asset tokens into the liquid vault
+     *
+     * @dev This function transfers the entire balance of the asset token held by this contract
+     * into the associated liquid vault.
+     */
     function _sweepAsset() private {
         YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));        
     }
 
+    /**
+     * @notice Checks if a term contract is marked as deployed in either the current or previous term controller
+     * @param termContract The address of the term contract to check
+     * @return bool True if the term contract is deployed, false otherwise
+     *
+     * @dev This function first checks the current term controller, then the previous one if necessary.
+     * It handles cases where either controller might be unset (address(0)).
+     */
     function _isTermDeployed(address termContract) private view returns (bool) {
         if (address(currTermController) != address(0) && currTermController.isTermDeployed(termContract)) {
             return true;
@@ -665,10 +728,19 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                     STRATEGIST FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Validates a term auction and repo token, and retrieves the associated offer locker
+     * @param termAuction The term auction contract to validate
+     * @param repoToken The repo token address to validate
+     * @return ITermAuctionOfferLocker The offer locker associated with the validated term auction
+     *
+     * @dev This function performs several validation steps: verifying term auction and repo token deployment,
+     * matching repo token to auction's term repo ID, validating repo token against strategy requirements,
+     * and ensuring the auction is open. It reverts with specific error messages on validation failures.
+     */
     function _validateAndGetOfferLocker(
         ITermAuction termAuction,
-        address repoToken,
-        uint256 purchaseTokenAmount
+        address repoToken
     ) private view returns (ITermAuctionOfferLocker) {
         // Verify that the term auction and repo token are valid and deployed by term
         if (!_isTermDeployed(address(termAuction))) {
@@ -729,8 +801,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
-            repoToken,
-            purchaseTokenAmount
+            repoToken
         );
 
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
@@ -762,7 +833,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
 
         // Retrieve the total liquid balance
-        uint256 liquidBalance = _totalLiquidBalance(address(this));
+        uint256 liquidBalance = _totalLiquidBalance();
 
         // Check that new offer does not violate reserve ratio constraint
         if (_liquidReserveRatio(liquidBalance) < requiredReserveRatio) {
@@ -824,7 +895,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 offerDebit = newOfferAmount - currentOfferAmount;
             }
 
-            uint256 liquidBalance = _totalLiquidBalance(address(this));            
+            uint256 liquidBalance = _totalLiquidBalance();            
             if (liquidBalance < offerDebit) {
                 revert InsufficientLiquidBalance(liquidBalance, offerDebit);
             }
@@ -954,7 +1025,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         _redeemRepoTokens(0);
 
         // Retrieve total liquid balance and ensure it's greater than zero
-        uint256 liquidBalance = _totalLiquidBalance(address(this));
+        uint256 liquidBalance = _totalLiquidBalance();
         require(liquidBalance > 0);
 
         // Calculate the repoToken amount in base asset precision
@@ -1119,7 +1190,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     {
         _sweepAsset();
         _redeemRepoTokens(0);
-        return _totalAssetValue(_totalLiquidBalance(address(this)));
+        return _totalAssetValue(_totalLiquidBalance());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1147,7 +1218,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return _totalLiquidBalance(address(this));
+        return _totalLiquidBalance();
     }
 
     /**
