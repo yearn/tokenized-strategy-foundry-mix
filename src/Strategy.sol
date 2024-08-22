@@ -79,20 +79,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Rescue tokens from the contract
-     * @param token The address of the token to rescue
-     * @param amount The amount of tokens to rescue
-     */
-    function rescueToken(
-        address token,
-        uint256 amount
-    ) external onlyManagement {
-        if (amount > 0) {
-            IERC20(token).safeTransfer(msg.sender, amount);
-        }
-    }
-
-    /**
      * @notice Pause the contract
      */
     function pauseDeposit() external onlyManagement {
