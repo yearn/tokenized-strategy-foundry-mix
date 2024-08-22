@@ -601,8 +601,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         ) = repoTokenListData.getCumulativeRepoTokenData(
                 repoToken,
                 repoTokenAmount,
-                PURCHASE_TOKEN_PRECISION,
-                liquidBalance
+                PURCHASE_TOKEN_PRECISION
             );
 
         // Accumulate repoToken data
