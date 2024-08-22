@@ -5,7 +5,6 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
 import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
-import {ITermController, AuctionMetadata} from "./interfaces/term/ITermController.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -74,20 +73,20 @@ library RepoTokenList {
     /**
      * @notice Returns an array of addresses representing the repoTokens currently held in the list data
      * @param listData The list data
-     * @return holdings An array of addresses of the repoTokens held in the list
+     * @return holdingsArray An array of addresses of the repoTokens held in the list
      *
      * @dev This function iterates through the list of repoTokens and returns their addresses in an array.
      * It first counts the number of repoTokens, initializes an array of that size, and then populates the array
      * with the addresses of the repoTokens.
      */
-    function holdings(RepoTokenListData storage listData) internal view returns (address[] memory holdings) {
+    function holdings(RepoTokenListData storage listData) internal view returns (address[] memory holdingsArray) {
         uint256 count = _count(listData);
         if (count > 0) {
-            holdings = new address[](count);
+            holdingsArray = new address[](count);
             uint256 i;
             address current = listData.head;
             while (current != NULL_NODE) {
-                holdings[i++] = current;
+                holdingsArray[i++] = current;
                 current = _getNext(listData, current);
             } 
         }   
@@ -105,7 +104,7 @@ library RepoTokenList {
         uint256 currentMaturity = getRepoTokenMaturity(repoToken);
 
         if (currentMaturity > block.timestamp) {
-            uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity, repoToken);
+            uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity);
             // Not matured yet
             weightedTimeToMaturity = timeToMaturity * repoTokenBalanceInBaseAssetPrecision;
         }
@@ -117,7 +116,6 @@ library RepoTokenList {
      * @param repoToken The address of the repoToken (optional)
      * @param repoTokenAmount The amount of the repoToken (optional)
      * @param purchaseTokenPrecision The precision of the purchase token
-     * @param liquidBalance The liquid balance
      * @return cumulativeWeightedTimeToMaturity The cumulative weighted time to maturity for all repoTokens
      * @return cumulativeRepoTokenAmount The cumulative repoToken amount across all repoTokens
      * @return found Whether the specified repoToken was found in the list
@@ -131,8 +129,7 @@ library RepoTokenList {
         RepoTokenListData storage listData,
         address repoToken, 
         uint256 repoTokenAmount,
-        uint256 purchaseTokenPrecision,
-        uint256 liquidBalance
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeRepoTokenAmount, bool found) {
         // Return early if the list is empty
         if (listData.head == NULL_NODE) return (0, 0, false);
@@ -243,13 +240,12 @@ library RepoTokenList {
     /**
      * @notice Calculates the time remaining until a repoToken matures
      * @param redemptionTimestamp The redemption timestamp of the repoToken
-     * @param repoToken The address of the repoToken
      * @return uint256 The time remaining (in seconds) until the repoToken matures
      *
      * @dev This function calculates the difference between the redemption timestamp and the current block timestamp
      * to determine how many seconds are left until the repoToken reaches its maturity.
      */
-    function _getRepoTokenTimeToMaturity(uint256 redemptionTimestamp, address repoToken) private view returns (uint256) {
+    function _getRepoTokenTimeToMaturity(uint256 redemptionTimestamp) private view returns (uint256) {
         return redemptionTimestamp - block.timestamp;
     }
 
