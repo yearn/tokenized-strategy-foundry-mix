@@ -3,10 +3,8 @@ pragma solidity ^0.8.18;
 
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
-import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
@@ -98,7 +96,7 @@ library TermAuctionList {
      * @dev This function iterates through the `offers` array and sets the `isRepoTokenSeen` flag to `true`
      * for the specified `repoToken`. This helps to avoid double-counting or reprocessing the same repoToken.
      */
-    function _markRepoTokenAsSeen(PendingOfferMemory[] memory offers, address repoToken) private view {
+    function _markRepoTokenAsSeen(PendingOfferMemory[] memory offers, address repoToken) private pure {
         for (uint256 i; i < offers.length; i++) {
             if (repoToken == offers[i].repoToken) {
                 offers[i].isRepoTokenSeen = true;
