@@ -133,7 +133,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Set the repo redemption haircut
      * @param repoToken The address of the repo token
-     * @param haircut The repo redemption haircut
+     * @param haircut The repo redemption haircut in 18 decimals
      */
     function setRepoRedemptionHaircut(address repoToken, uint256 haircut) external onlyManagement {
         repoRedemptionHaircut[repoToken] = haircut;
