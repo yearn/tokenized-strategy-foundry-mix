@@ -65,6 +65,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     uint256 public discountRateMarkup; // 1e18 (TODO: check this)
     uint256 public repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) public repoTokenBlacklist;
+    mapping(address => uint256) public repoRedemptionHaircut;
     bool public depositLock;
 
     modifier notBlacklisted(address repoToken) {
@@ -127,6 +128,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
         prevTermController = ITermController(current);
         currTermController = ITermController(newTermController);
+    }
+
+    /**
+     * @notice Set the repo redemption haircut
+     * @param repoToken The address of the repo token
+     * @param haircut The repo redemption haircut
+     */
+    function setRepoRedemptionHaircut(address repoToken, uint256 haircut) external onlyManagement {
+        repoRedemptionHaircut[repoToken] = haircut;
     }
 
     /**
@@ -353,13 +363,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
 
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
             uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
             repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
                 repoToken
-            ).redemptionValue() *
+            ).redemptionValue() * repoRedemptionHaircutMantissa *
                 amount *
                 PURCHASE_TOKEN_PRECISION) /
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION * 1e18);
             proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
                 PURCHASE_TOKEN_PRECISION,
@@ -402,11 +413,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         (uint256 redemptionTimestamp, , , ) = ITermRepoToken(repoToken)
             .config();
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
         uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
-            .redemptionValue() *
+            .redemptionValue() * repoRedemptionHaircutMantissa *
             amount *
             PURCHASE_TOKEN_PRECISION) /
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION * 1e18);
         return
             RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
@@ -1026,11 +1038,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Calculate the repoToken amount in base asset precision
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
+        uint256 repoRedemptionHaircutMantissa = repoRedemptionHaircut[repoToken] == 0 ? 1e18 : repoRedemptionHaircut[repoToken];
         uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
-            .redemptionValue() *
+            .redemptionValue() * repoRedemptionHaircutMantissa *
             repoTokenAmount *
             PURCHASE_TOKEN_PRECISION) /
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION * 1e18);
 
         // Calculate the proceeds from selling the repoToken            
         uint256 proceeds = RepoTokenUtils.calculatePresentValue(
