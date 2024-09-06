@@ -922,12 +922,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
         } else {
             // Edit offer, overwrite existing
-            termAuctionListData.offers[offerIds[0]] = PendingOffer({
-                repoToken: repoToken,
-                offerAmount: offer.amount,
-                termAuction: auction,
-                offerLocker: offerLocker
-            });
+            PendingOffer storage pendingOffer = termAuctionListData.offers[offerIds[0]];
+            pendingOffer.offerAmount = offer.amount;
         }
     }
 
