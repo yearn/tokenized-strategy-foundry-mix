@@ -759,8 +759,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             termAuction.termAuctionOfferLocker()
         );
         require(
-            block.timestamp > offerLocker.auctionStartTime() ||
-                block.timestamp < termAuction.auctionEndTime(),
+            block.timestamp > offerLocker.auctionStartTime() &&
+                block.timestamp < offerLocker.revealTime(),
             "Auction not open"
         );
 
