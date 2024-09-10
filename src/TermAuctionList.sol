@@ -290,7 +290,8 @@ library TermAuctionList {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken, 
                         ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                        purchaseTokenPrecision
+                        purchaseTokenPrecision,
+                        discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                     );
                     totalValue += RepoTokenUtils.calculatePresentValue(
                         repoTokenAmountInBaseAssetPrecision, 
@@ -315,6 +316,7 @@ library TermAuctionList {
      * @notice Get cumulative offer data for a specified repoToken
      * @param listData The list data
      * @param repoTokenListData The repoToken list data
+     * @param discountRateAdapter The discount rate adapter
      * @param repoToken The address of the repoToken (optional)
      * @param newOfferAmount The new offer amount for the specified repoToken 
      * @param purchaseTokenPrecision The precision of the purchase token
@@ -330,6 +332,7 @@ library TermAuctionList {
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
+        ITermDiscountRateAdapter discountRateAdapter,
         address repoToken, 
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
@@ -360,7 +363,8 @@ library TermAuctionList {
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
                             offer.repoToken, 
                             ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                            purchaseTokenPrecision
+                            purchaseTokenPrecision,
+                            discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                         );
 
                         _markRepoTokenAsSeen(offers, offer.repoToken);
