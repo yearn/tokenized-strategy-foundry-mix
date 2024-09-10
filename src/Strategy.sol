@@ -1057,7 +1057,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue; // note we require totalAssetValue > 0 above
+        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
         if (newLiquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
