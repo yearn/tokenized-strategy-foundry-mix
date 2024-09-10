@@ -2,6 +2,8 @@
 pragma solidity ^0.8.18;
 
 interface ITermVaultEvents {
+    event VaultContractPaired(address vault);
+    
     event TermControllerUpdated(address oldController, address newController);
 
     event TimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold);
