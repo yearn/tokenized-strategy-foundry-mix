@@ -545,7 +545,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param liquidBalanceToRemove The amount of liquid balance to be removed from the strategy
      *
      * @dev This function calculates the concentration ratio of the specified repoToken
-     * and compares it against the predefined concentration limit. It reverts with a
+     * and compares it against the             simulatedRepoTokenConcentrationRatio = _getRepoTokenConcentrationRatio(
+                repoToken, 
+                repoTokenAmountInBaseAssetPrecision, 
+                _totalAssetValue(liquidBalance), 
+                proceeds
+            );predefined concentration limit. It reverts with a
      * RepoTokenConcentrationTooHigh error if the concentration exceeds the limit.
      */
     function _validateRepoTokenConcentration(
@@ -830,9 +835,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Retrieve the total liquid balance
         uint256 liquidBalance = _totalLiquidBalance();
+        uint256 totalAssetValue = _totalAssetValue(liquidBalance);
+        uint256 liquidReserveRatio = totalAssetValue == 0 ? 0 : liquidBalance * 1e18 / totalAssetValue;
 
         // Check that new offer does not violate reserve ratio constraint
-        if (_liquidReserveRatio(liquidBalance) < requiredReserveRatio) {
+        if (liquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -850,7 +857,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Passing in 0 amount and 0 liquid balance adjustment because offer and balance already updated
-        _validateRepoTokenConcentration(repoToken, 0, _totalAssetValue(liquidBalance), 0);
+        _validateRepoTokenConcentration(repoToken, 0, totalAssetValue, 0);
     }
 
     /**
@@ -1016,9 +1023,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         _sweepAsset();
         _redeemRepoTokens(0);
 
-        // Retrieve total liquid balance and ensure it's greater than zero
+        // Retrieve total asset value and liquid balance and ensure they are greater than zero
         uint256 liquidBalance = _totalLiquidBalance();
         require(liquidBalance > 0);
+        uint256 totalAssetValue = _totalAssetValue(liquidBalance);
+        require(totalAssetValue > 0);
 
         // Calculate the repoToken amount in base asset precision
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
@@ -1052,8 +1061,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        uint256 newLiquidBalance = liquidBalance - proceeds;
-        if (_liquidReserveRatio(newLiquidBalance) < requiredReserveRatio) {
+        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue;
+        if (newLiquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -1061,7 +1070,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         _validateRepoTokenConcentration(
             repoToken,
             repoTokenAmountInBaseAssetPrecision,
-            _totalAssetValue(liquidBalance),
+            totalAssetValue,
             proceeds
         );
 
