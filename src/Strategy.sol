@@ -907,6 +907,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             PendingOffer storage pendingOffer = termAuctionListData.offers[offerIds[0]];
             pendingOffer.offerAmount = offer.amount;
         }
+
+         if (newOfferAmount < currentOfferAmount) {
+            YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));  
+        }
+
     }
 
     /**
