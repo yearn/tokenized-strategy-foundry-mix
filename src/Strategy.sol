@@ -653,16 +653,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Deposits all available asset tokens into the liquid vault
-     *
-     * @dev This function transfers the entire balance of the asset token held by this contract
-     * into the associated liquid vault.
-     */
-    function _sweepAsset() private {
-        YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));        
-    }
-
-    /**
      * @notice Checks if a term contract is marked as deployed in either the current or previous term controller
      * @param termContract The address of the term contract to check
      * @return bool True if the term contract is deployed, false otherwise
@@ -689,36 +679,26 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * optimizing asset allocation.    
      */
     function _redeemRepoTokens(uint256 liquidAmountRequired) private {
-        uint256 liquidityBefore = IERC20(asset).balanceOf(address(this));
-
         // Remove completed auction offers
-        termAuctionListData.removeCompleted(
-            repoTokenListData,
-            discountRateAdapter,
-            address(asset)
-        );
+        termAuctionListData.removeCompleted(repoTokenListData, discountRateAdapter, address(asset));
 
         // Remove and redeem matured repoTokens
         repoTokenListData.removeAndRedeemMaturedTokens();
 
-        uint256 liquidityAfter = IERC20(asset).balanceOf(address(this));
-        uint256 liquidityDiff = liquidityAfter - liquidityBefore;
+        uint256 liquidity = IERC20(asset).balanceOf(address(this));
 
         // Deposit excess underlying balance into Yearn Vault
-        if (liquidityDiff > liquidAmountRequired) {
+        if (liquidity > liquidAmountRequired) {
             unchecked {
-                YEARN_VAULT.deposit(
-                    liquidityDiff - liquidAmountRequired,
-                    address(this)
-                );
+                YEARN_VAULT.deposit(liquidity - liquidAmountRequired, address(this));
             }
-        // Withdraw shortfall from Yearn Vault to meet required liquidity            
-        } else if (liquidityDiff < liquidAmountRequired) {
+            // Withdraw shortfall from Yearn Vault to meet required liquidity
+        } else if (liquidity < liquidAmountRequired) {
             unchecked {
-                _withdrawAsset(liquidAmountRequired - liquidityDiff);
+                _withdrawAsset(liquidAmountRequired - liquidity);
             }
         }
-    }
+}
 
     /*//////////////////////////////////////////////////////////////
                     STRATEGIST FUNCTIONS
@@ -801,7 +781,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
 
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
-        _sweepAsset();
         _redeemRepoTokens(0);
 
         bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
@@ -958,7 +937,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
 
         // Sweep any remaining assets and redeem repoTokens
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -979,7 +957,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @notice Required for post-processing after auction clos
      */
     function auctionClosed() external {
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -1013,7 +990,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
 
         // Sweep assets and redeem repoTokens, if needed
-        _sweepAsset();
         _redeemRepoTokens(0);
 
         // Retrieve total liquid balance and ensure it's greater than zero
@@ -1128,7 +1104,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             revert DepositPaused();
         }
 
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -1185,7 +1160,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         whenNotPaused
         returns (uint256 _totalAssets)
     {
-        _sweepAsset();
         _redeemRepoTokens(0);
         return _totalAssetValue(_totalLiquidBalance());
     }
