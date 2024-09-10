@@ -50,6 +50,7 @@ contract Setup is ExtendedTest, IEvents {
     address public performanceFeeRecipient = address(3);
     address public adminWallet = address(111);
     address public devopsWallet = address(222);
+    address public oracleWallet = address(333);
 
     // Address of the real deployed Factory
     address public factory;
@@ -95,7 +96,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
-        discountRateAdapter = new TermDiscountRateAdapter(address(termController), adminWallet);
+        discountRateAdapter = new TermDiscountRateAdapter(address(termController), oracleWallet);
         termVaultEventEmitterImpl = new TermVaultEventEmitter();
         termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
         mockYearnVault = new ERC4626Mock(address(asset));
