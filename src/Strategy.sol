@@ -831,7 +831,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Retrieve the total liquid balance
         uint256 liquidBalance = _totalLiquidBalance();
         uint256 totalAssetValue = _totalAssetValue(liquidBalance);
-        uint256 liquidReserveRatio = totalAssetValue == 0 ? 0 : liquidBalance * 1e18 / totalAssetValue;
+        require(totalAssetValue > 0);
+        uint256 liquidReserveRatio = liquidBalance * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
 
         // Check that new offer does not violate reserve ratio constraint
         if (liquidReserveRatio < requiredReserveRatio) {
@@ -1056,7 +1057,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue;
+        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue; // note we require totalAssetValue > 0 above
         if (newLiquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
