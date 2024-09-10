@@ -545,12 +545,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param liquidBalanceToRemove The amount of liquid balance to be removed from the strategy
      *
      * @dev This function calculates the concentration ratio of the specified repoToken
-     * and compares it against the             simulatedRepoTokenConcentrationRatio = _getRepoTokenConcentrationRatio(
-                repoToken, 
-                repoTokenAmountInBaseAssetPrecision, 
-                _totalAssetValue(liquidBalance), 
-                proceeds
-            );predefined concentration limit. It reverts with a
+     * and compares it against the predefined concentration limit. It reverts with a
      * RepoTokenConcentrationTooHigh error if the concentration exceeds the limit.
      */
     function _validateRepoTokenConcentration(
