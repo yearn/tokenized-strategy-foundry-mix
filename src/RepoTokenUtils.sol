@@ -13,40 +13,6 @@ library RepoTokenUtils {
     uint256 public constant RATE_PRECISION = 1e18;
 
     /*//////////////////////////////////////////////////////////////
-                        PURE FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Convert repoToken amount to purchase token precision
-     * @param repoTokenPrecision The precision of the repoToken
-     * @param purchaseTokenPrecision The precision of the purchase token
-     * @param purchaseTokenAmountInRepoPrecision The amount of purchase token in repoToken precision
-     * @return The amount in purchase token precision
-     */
-    function repoToPurchasePrecision(
-        uint256 repoTokenPrecision, 
-        uint256 purchaseTokenPrecision,
-        uint256 purchaseTokenAmountInRepoPrecision
-    ) internal pure returns (uint256) {
-        return (purchaseTokenAmountInRepoPrecision * purchaseTokenPrecision) / repoTokenPrecision;
-    }
-
-    /**
-     * @notice Convert purchase token amount to repoToken precision
-     * @param repoTokenPrecision The precision of the repoToken
-     * @param purchaseTokenPrecision The precision of the purchase token
-     * @param repoTokenAmount The amount of repoToken
-     * @return The amount in repoToken precision
-     */
-    function purchaseToRepoPrecision(
-        uint256 repoTokenPrecision, 
-        uint256 purchaseTokenPrecision,
-        uint256 repoTokenAmount
-    ) internal pure returns (uint256) {
-        return (repoTokenAmount * repoTokenPrecision) / purchaseTokenPrecision;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 

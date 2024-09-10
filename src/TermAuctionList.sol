@@ -210,7 +210,7 @@ library TermAuctionList {
                     removeNode = true;                  
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
-                    offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer ammount
+                    offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer amount
                 }
             }
 
@@ -226,7 +226,6 @@ library TermAuctionList {
             }
 
             if (insertRepoToken) {
-                // TODO: do we need to validate termDeployed(repoToken) here?
 
                 // Auction still open => include offerAmount in totalValue 
                 // (otherwise locked purchaseToken will be missing from TV)               
@@ -286,7 +285,7 @@ library TermAuctionList {
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+            if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
                 if (!offer.isRepoTokenSeen) {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken, 
@@ -355,7 +354,7 @@ library TermAuctionList {
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-                if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+                if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
                     // use normalized repoToken amount if repoToken is not in the list
                     if (!offer.isRepoTokenSeen) {                    
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(

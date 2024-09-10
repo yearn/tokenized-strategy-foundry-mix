@@ -28,7 +28,7 @@ contract StrategyAprOracle is AprOracleBase {
     function aprAfterDebtChange(
         address _strategy,
         int256 _delta
-    ) external view override returns (uint256) {
+    ) external pure override returns (uint256) {
         // TODO: Implement any necessary logic to return the most accurate
         //      APR estimation for the strategy.
         return 1e17;
