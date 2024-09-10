@@ -351,15 +351,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 ITermRepoToken(repoToken),
                 address(asset)
             );
-
+            
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
-            uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-            repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(
-                repoToken
-            ).redemptionValue() *
-                amount *
-                PURCHASE_TOKEN_PRECISION) /
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                repoToken,
+                amount,
+                PURCHASE_TOKEN_PRECISION,
+                discountRateAdapter.repoRedemptionHaircut(repoToken)
+            );
             proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
                 PURCHASE_TOKEN_PRECISION,
@@ -398,15 +397,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         address repoToken,
         uint256 discountRate,
         uint256 amount
-    ) external view returns (uint256) {
+    ) public view returns (uint256) {
         (uint256 redemptionTimestamp, , , ) = ITermRepoToken(repoToken)
             .config();
-        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-        uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
-            .redemptionValue() *
-            amount *
-            PURCHASE_TOKEN_PRECISION) /
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+        uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+            .getNormalizedRepoTokenAmount(
+                repoToken,
+                amount,
+                PURCHASE_TOKEN_PRECISION,
+                discountRateAdapter.repoRedemptionHaircut(repoToken)
+            );
         return
             RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
@@ -428,11 +428,10 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenHoldingValue(
         address repoToken
     ) public view returns (uint256) {
+        uint256 repoTokenBalance = ITermRepoToken(repoToken).balanceOf(address(this));
+        uint256 repoTokenPresentValue = calculateRepoTokenPresentValue(repoToken, discountRateAdapter.getDiscountRate(repoToken), repoTokenBalance);
         return
-            repoTokenListData.getPresentValue(
-                PURCHASE_TOKEN_PRECISION,
-                repoToken
-            ) +
+            repoTokenPresentValue +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
@@ -489,6 +488,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         return
             liquidBalance +
             repoTokenListData.getPresentValue(
+                discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
                 address(0)
             ) +
@@ -596,6 +596,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             uint256 cumulativeRepoTokenAmount,
             bool foundInRepoTokenList
         ) = repoTokenListData.getCumulativeRepoTokenData(
+                discountRateAdapter,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
@@ -611,6 +612,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             bool foundInOfferList
         ) = termAuctionListData.getCumulativeOfferData(
                 repoTokenListData,
+                discountRateAdapter,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
@@ -625,11 +627,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             !foundInOfferList &&
             repoToken != address(0)
         ) {
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
             uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
                 .getNormalizedRepoTokenAmount(
                     repoToken,
                     repoTokenAmount,
-                    PURCHASE_TOKEN_PRECISION
+                    PURCHASE_TOKEN_PRECISION,
+                    repoRedemptionHaircut
                 );
 
             cumulativeAmount += repoTokenAmountInBaseAssetPrecision;
@@ -1005,7 +1009,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
-        (uint256 discountRate, uint256 redemptionTimestamp) = repoTokenListData
+        (, uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
                 discountRateAdapter,
@@ -1020,13 +1024,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 liquidBalance = _totalLiquidBalance();
         require(liquidBalance > 0);
 
-        // Calculate the repoToken amount in base asset precision
-        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
-        uint256 repoTokenAmountInBaseAssetPrecision = (ITermRepoToken(repoToken)
-            .redemptionValue() *
-            repoTokenAmount *
-            PURCHASE_TOKEN_PRECISION) /
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+        uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+
+        // Calculate the repoToken amount in base asset precision        
+        uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+            repoToken,
+            repoTokenAmount,
+            PURCHASE_TOKEN_PRECISION,
+            discountRateAdapter.repoRedemptionHaircut(repoToken)
+        );
 
         // Calculate the proceeds from selling the repoToken            
         uint256 proceeds = RepoTokenUtils.calculatePresentValue(

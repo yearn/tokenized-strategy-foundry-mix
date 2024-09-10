@@ -95,7 +95,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
-        discountRateAdapter = new TermDiscountRateAdapter(address(termController));
+        discountRateAdapter = new TermDiscountRateAdapter(address(termController), adminWallet);
         termVaultEventEmitterImpl = new TermVaultEventEmitter();
         termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
         mockYearnVault = new ERC4626Mock(address(asset));
