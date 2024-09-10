@@ -53,6 +53,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     IERC4626 public immutable YEARN_VAULT;
 
     /// @notice State variables
+    bool public depositLock;
     /// @dev Previous term controller
     ITermController public prevTermController;
     /// @dev Current term controller
@@ -62,10 +63,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
     uint256 public requiredReserveRatio; // 1e18
-    uint256 public discountRateMarkup; // 1e18 (TODO: check this)
+    uint256 public discountRateMarkup; // 1e18
     uint256 public repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) public repoTokenBlacklist;
-    bool public depositLock;
 
     modifier notBlacklisted(address repoToken) {
         if (repoTokenBlacklist[repoToken]) {
@@ -344,7 +344,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 proceeds;
         if (repoToken != address(0)) {
             if (!_isTermDeployed(repoToken)) {
-                revert RepoTokenList.InvalidRepoToken(address(repoToken));
+                revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
             uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
@@ -743,7 +743,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             revert InvalidTermAuction(address(termAuction));
         }
         if (!_isTermDeployed(repoToken)) {
-            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+            revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
         require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
@@ -976,7 +976,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Close the auction
+     * @notice Required for post-processing after auction clos
      */
     function auctionClosed() external {
         _sweepAsset();
@@ -1001,7 +1001,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Make sure repo token is valid and deployed by Term
         if (!_isTermDeployed(repoToken)) {
-            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+            revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
@@ -1101,6 +1101,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
 
         IERC20(_asset).safeApprove(_yearnVault, type(uint256).max);
+
+        timeToMaturityThreshold = 45 days;
+        requiredReserveRatio = 0.2e18;
+        discountRateMarkup = 0.005e18;
+        repoTokenConcentrationLimit = 0.1e18;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1214,38 +1219,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Gets the max amount of `asset` that an address can deposit.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overridden by strategists.
-     *
-     * This function will be called before any deposit or mints to enforce
-     * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist etc.
-     *
-     *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
-     *
-     * This does not need to take into account any conversion rates
-     * from shares to assets. But should know that any non max uint256
-     * amounts may be converted to shares. So it is recommended to keep
-     * custom amounts low enough as not to cause overflow when multiplied
-     * by `totalSupply`.
-     *
-     * @param . The address that is depositing into the strategy.
-     * @return . The available amount the `_owner` can deposit in terms of `asset`
-     *
-    function availableDepositLimit(
-        address _owner
-    ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-        EX:    
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
-    }
-    */
-
-    /**
      * @dev Optional function for strategist to override that can
      *  be called in between reports.
      *
@@ -1300,12 +1273,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param _amount The amount of asset to attempt to free.
      *
     function _emergencyWithdraw(uint256 _amount) internal override {
-        TODO: If desired implement simple logic to free deployed funds.
-
         EX:
             _amount = min(_amount, aToken.balanceOf(address(this)));
             _freeFunds(_amount);
     }
-
     */
 }
