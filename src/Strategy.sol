@@ -428,10 +428,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function getRepoTokenHoldingValue(
         address repoToken
     ) public view returns (uint256) {
-        uint256 repoTokenBalance = ITermRepoToken(repoToken).balanceOf(address(this));
-        uint256 repoTokenPresentValue = calculateRepoTokenPresentValue(repoToken, discountRateAdapter.getDiscountRate(repoToken), repoTokenBalance);
-        return
-            repoTokenPresentValue +
+        return 
+            repoTokenListData.getPresentValue(
+                discountRateAdapter,
+                PURCHASE_TOKEN_PRECISION,
+                repoToken
+            ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
