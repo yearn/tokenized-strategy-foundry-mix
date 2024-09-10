@@ -326,7 +326,7 @@ library RepoTokenList {
         (redemptionTimestamp, purchaseToken, , collateralManager) = repoToken.config();
 
         // Validate purchase token
-        if (purchaseToken != address(asset)) {
+        if (purchaseToken != asset) {
             revert InvalidRepoToken(address(repoToken));
         }
 
