@@ -901,7 +901,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 address(repoServicer.termRepoLocker()),
                 offerDebit
             );
-        } 
+        }
 
         // Submit the offer and get the offer IDs
         offerIds = offerLocker.lockOffers(offerSubmissions);
