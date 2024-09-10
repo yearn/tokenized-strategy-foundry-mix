@@ -53,6 +53,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     IERC4626 public immutable YEARN_VAULT;
 
     /// @notice State variables
+    bool public depositLock;
     /// @dev Previous term controller
     ITermController public prevTermController;
     /// @dev Current term controller
@@ -62,10 +63,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     TermAuctionListData internal termAuctionListData;
     uint256 public timeToMaturityThreshold; // seconds
     uint256 public requiredReserveRatio; // 1e18
-    uint256 public discountRateMarkup; // 1e18 (TODO: check this)
+    uint256 public discountRateMarkup; // 1e18
     uint256 public repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) public repoTokenBlacklist;
-    bool public depositLock;
 
     modifier notBlacklisted(address repoToken) {
         if (repoTokenBlacklist[repoToken]) {
@@ -344,7 +344,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         uint256 proceeds;
         if (repoToken != address(0)) {
             if (!_isTermDeployed(repoToken)) {
-                revert RepoTokenList.InvalidRepoToken(address(repoToken));
+                revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
             uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
@@ -653,16 +653,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Deposits all available asset tokens into the liquid vault
-     *
-     * @dev This function transfers the entire balance of the asset token held by this contract
-     * into the associated liquid vault.
-     */
-    function _sweepAsset() private {
-        YEARN_VAULT.deposit(IERC20(asset).balanceOf(address(this)), address(this));        
-    }
-
-    /**
      * @notice Checks if a term contract is marked as deployed in either the current or previous term controller
      * @param termContract The address of the term contract to check
      * @return bool True if the term contract is deployed, false otherwise
@@ -689,36 +679,26 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * optimizing asset allocation.    
      */
     function _redeemRepoTokens(uint256 liquidAmountRequired) private {
-        uint256 liquidityBefore = IERC20(asset).balanceOf(address(this));
-
         // Remove completed auction offers
-        termAuctionListData.removeCompleted(
-            repoTokenListData,
-            discountRateAdapter,
-            address(asset)
-        );
+        termAuctionListData.removeCompleted(repoTokenListData, discountRateAdapter, address(asset));
 
         // Remove and redeem matured repoTokens
         repoTokenListData.removeAndRedeemMaturedTokens();
 
-        uint256 liquidityAfter = IERC20(asset).balanceOf(address(this));
-        uint256 liquidityDiff = liquidityAfter - liquidityBefore;
+        uint256 liquidity = IERC20(asset).balanceOf(address(this));
 
         // Deposit excess underlying balance into Yearn Vault
-        if (liquidityDiff > liquidAmountRequired) {
+        if (liquidity > liquidAmountRequired) {
             unchecked {
-                YEARN_VAULT.deposit(
-                    liquidityDiff - liquidAmountRequired,
-                    address(this)
-                );
+                YEARN_VAULT.deposit(liquidity - liquidAmountRequired, address(this));
             }
-        // Withdraw shortfall from Yearn Vault to meet required liquidity            
-        } else if (liquidityDiff < liquidAmountRequired) {
+            // Withdraw shortfall from Yearn Vault to meet required liquidity
+        } else if (liquidity < liquidAmountRequired) {
             unchecked {
-                _withdrawAsset(liquidAmountRequired - liquidityDiff);
+                _withdrawAsset(liquidAmountRequired - liquidity);
             }
         }
-    }
+}
 
     /*//////////////////////////////////////////////////////////////
                     STRATEGIST FUNCTIONS
@@ -743,7 +723,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             revert InvalidTermAuction(address(termAuction));
         }
         if (!_isTermDeployed(repoToken)) {
-            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+            revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
         require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
@@ -801,7 +781,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
 
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
-        _sweepAsset();
         _redeemRepoTokens(0);
 
         bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
@@ -830,9 +809,12 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Retrieve the total liquid balance
         uint256 liquidBalance = _totalLiquidBalance();
+        uint256 totalAssetValue = _totalAssetValue(liquidBalance);
+        require(totalAssetValue > 0);
+        uint256 liquidReserveRatio = liquidBalance * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
 
         // Check that new offer does not violate reserve ratio constraint
-        if (_liquidReserveRatio(liquidBalance) < requiredReserveRatio) {
+        if (liquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -850,7 +832,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Passing in 0 amount and 0 liquid balance adjustment because offer and balance already updated
-        _validateRepoTokenConcentration(repoToken, 0, _totalAssetValue(liquidBalance), 0);
+        _validateRepoTokenConcentration(repoToken, 0, totalAssetValue, 0);
     }
 
     /**
@@ -963,7 +945,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
 
         // Sweep any remaining assets and redeem repoTokens
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -981,10 +962,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Close the auction
+     * @notice Required for post-processing after auction clos
      */
     function auctionClosed() external {
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -1006,7 +986,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Make sure repo token is valid and deployed by Term
         if (!_isTermDeployed(repoToken)) {
-            revert RepoTokenList.InvalidRepoToken(address(repoToken));
+            revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
@@ -1018,12 +998,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
 
         // Sweep assets and redeem repoTokens, if needed
-        _sweepAsset();
         _redeemRepoTokens(0);
 
-        // Retrieve total liquid balance and ensure it's greater than zero
+        // Retrieve total asset value and liquid balance and ensure they are greater than zero
         uint256 liquidBalance = _totalLiquidBalance();
         require(liquidBalance > 0);
+        uint256 totalAssetValue = _totalAssetValue(liquidBalance);
+        require(totalAssetValue > 0);
 
         // Calculate the repoToken amount in base asset precision
         uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
@@ -1057,8 +1038,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
-        uint256 newLiquidBalance = liquidBalance - proceeds;
-        if (_liquidReserveRatio(newLiquidBalance) < requiredReserveRatio) {
+        uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
+        if (newLiquidReserveRatio < requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -1066,7 +1047,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         _validateRepoTokenConcentration(
             repoToken,
             repoTokenAmountInBaseAssetPrecision,
-            _totalAssetValue(liquidBalance),
+            totalAssetValue,
             proceeds
         );
 
@@ -1106,6 +1087,11 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
 
         IERC20(_asset).safeApprove(_yearnVault, type(uint256).max);
+
+        timeToMaturityThreshold = 45 days;
+        requiredReserveRatio = 0.2e18;
+        discountRateMarkup = 0.005e18;
+        repoTokenConcentrationLimit = 0.1e18;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1128,7 +1114,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             revert DepositPaused();
         }
 
-        _sweepAsset();
         _redeemRepoTokens(0);
     }
 
@@ -1185,7 +1170,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         whenNotPaused
         returns (uint256 _totalAssets)
     {
-        _sweepAsset();
         _redeemRepoTokens(0);
         return _totalAssetValue(_totalLiquidBalance());
     }
@@ -1217,38 +1201,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     ) public view override returns (uint256) {
         return _totalLiquidBalance();
     }
-
-    /**
-     * @notice Gets the max amount of `asset` that an address can deposit.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overridden by strategists.
-     *
-     * This function will be called before any deposit or mints to enforce
-     * any limits desired by the strategist. This can be used for either a
-     * traditional deposit limit or for implementing a whitelist etc.
-     *
-     *   EX:
-     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
-     *
-     * This does not need to take into account any conversion rates
-     * from shares to assets. But should know that any non max uint256
-     * amounts may be converted to shares. So it is recommended to keep
-     * custom amounts low enough as not to cause overflow when multiplied
-     * by `totalSupply`.
-     *
-     * @param . The address that is depositing into the strategy.
-     * @return . The available amount the `_owner` can deposit in terms of `asset`
-     *
-    function availableDepositLimit(
-        address _owner
-    ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-        EX:    
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
-    }
-    */
 
     /**
      * @dev Optional function for strategist to override that can
@@ -1305,12 +1257,9 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param _amount The amount of asset to attempt to free.
      *
     function _emergencyWithdraw(uint256 _amount) internal override {
-        TODO: If desired implement simple logic to free deployed funds.
-
         EX:
             _amount = min(_amount, aToken.balanceOf(address(this)));
             _freeFunds(_amount);
     }
-
     */
 }
