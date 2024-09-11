@@ -56,7 +56,9 @@ library RepoTokenUtils {
         uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
         uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
         repoTokenAmountInBaseAssetPrecision =
+            repoRedemptionHaircut != 0 ?
             (redemptionValue * repoRedemptionHaircut * repoTokenAmount * purchaseTokenPrecision) / 
-            (repoTokenPrecision * RATE_PRECISION * 1e18);
+            (repoTokenPrecision * RATE_PRECISION * 1e18)
+            : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / (repoTokenPrecision * RATE_PRECISION);
     }
 }
