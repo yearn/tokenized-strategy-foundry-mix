@@ -363,6 +363,8 @@ library TermAuctionList {
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeOfferAmount += offerAmount;
             }
+            // Move to the next token in the list
+            current = _getNext(listData, current);
         }
     }
 }
