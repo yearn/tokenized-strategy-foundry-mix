@@ -120,6 +120,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         address newTermController
     ) external onlyManagement {
         require(newTermController != address(0));
+        require(ITermController(newTermController).getProtocolReserveAddress() != address(0));
         address current = address(currTermController);
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
             current,
@@ -136,11 +137,13 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function setDiscountRateAdapter(
         address newAdapter
     ) external onlyManagement {
+        ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+        require(address(newDiscountRateAdapter.TERM_CONTROLLER()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
             address(discountRateAdapter),
             newAdapter
         );
-        discountRateAdapter = ITermDiscountRateAdapter(newAdapter);
+        discountRateAdapter = newDiscountRateAdapter;
     }
 
     /**

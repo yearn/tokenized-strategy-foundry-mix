@@ -15,6 +15,10 @@ contract MockTermController is ITermController {
         return true;
     }
 
+    function getProtocolReserveAddress() external view returns (address) {
+        return address(100);
+    }
+
     function setOracleRate(bytes32 termRepoId, uint256 oracleRate) external {
         AuctionMetadata memory metadata;
 
