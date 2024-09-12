@@ -113,6 +113,7 @@ library RepoTokenList {
     /**
      * @notice This function calculates the cumulative weighted time to maturity and cumulative amount of all repoTokens in the list.
      * @param listData The list data
+     * @param discountRateAdapter The discount rate adapter
      * @param repoToken The address of the repoToken (optional)
      * @param repoTokenAmount The amount of the repoToken (optional)
      * @param purchaseTokenPrecision The precision of the purchase token
@@ -127,6 +128,7 @@ library RepoTokenList {
      */
     function getCumulativeRepoTokenData(
         RepoTokenListData storage listData,
+        ITermDiscountRateAdapter discountRateAdapter,
         address repoToken, 
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision
@@ -148,12 +150,10 @@ library RepoTokenList {
                 }
 
                 // Convert the repo token balance to base asset precision
-                uint256 redemptionValue = ITermRepoToken(current).redemptionValue();
-                uint256 repoTokenPrecision = 10**ERC20(current).decimals();
-
                 uint256 repoTokenBalanceInBaseAssetPrecision = 
-                    (redemptionValue * repoTokenBalance * purchaseTokenPrecision) / 
-                    (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+                    RepoTokenUtils.getNormalizedRepoTokenAmount(
+                        current, repoTokenBalance, purchaseTokenPrecision, discountRateAdapter.repoRedemptionHaircut(current)
+                    );
 
                 // Calculate the weighted time to maturity
                 uint256 weightedTimeToMaturity = getRepoTokenWeightedTimeToMaturity(
@@ -173,45 +173,31 @@ library RepoTokenList {
     /**
      * @notice Get the present value of repoTokens
      * @param listData The list data
+     * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
-     * @param repoTokenToMatch The address of the repoToken to match (optional)
      * @return totalPresentValue The total present value of the repoTokens
-     * @dev If the `repoTokenToMatch` parameter is provided (non-zero address), the function will filter
-     * the calculations to include only the specified repoToken. If `repoTokenToMatch` is not provided
-     * (zero address), it will aggregate the present value of all repoTokens in the list. 
-     * 
-     * Example usage:
-     * - To get the present value of all repoTokens: call with `repoTokenToMatch` set to `address(0)`.
-     * - To get the present value of a specific repoToken: call with `repoTokenToMatch` set to the address of the desired repoToken.     
+     * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
-        uint256 purchaseTokenPrecision,
-        address repoTokenToMatch
+        ITermDiscountRateAdapter discountRateAdapter,
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
         
         address current = listData.head;
         while (current != NULL_NODE) {
-            // Filter by a specific repoToken, address(0) bypasses this filter
-            if (repoTokenToMatch != address(0) && current != repoTokenToMatch) {
-                // Not a match, do not add to totalPresentValue
-                // Move to the next token in the list
-                current = _getNext(listData, current);
-                continue;
-            }
-    
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 repoTokenPrecision = 10**ERC20(current).decimals();
-            uint256 discountRate = listData.discountRates[current];
+            uint256 discountRate = discountRateAdapter.getDiscountRate(current);
 
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision
             uint256 repoTokenBalanceInBaseAssetPrecision = 
-                (ITermRepoToken(current).redemptionValue() * repoTokenBalance * purchaseTokenPrecision) / 
-                (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+                RepoTokenUtils.getNormalizedRepoTokenAmount(
+                    current, repoTokenBalance, purchaseTokenPrecision, discountRateAdapter.repoRedemptionHaircut(current)
+                );
 
             // Calculate present value based on maturity
             if (currentMaturity > block.timestamp) {
@@ -220,12 +206,6 @@ library RepoTokenList {
                 );
             } else {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
-            }
-
-            // Filter by a specific repo token, address(0) bypasses this condition
-            if (repoTokenToMatch != address(0) && current == repoTokenToMatch) {
-                // Found a match, terminate early
-                break;
             }
 
             // Move to the next token in the list
@@ -324,7 +304,7 @@ library RepoTokenList {
         (redemptionTimestamp, purchaseToken, , collateralManager) = repoToken.config();
 
         // Validate purchase token
-        if (purchaseToken != address(asset)) {
+        if (purchaseToken != asset) {
             revert InvalidRepoToken(address(repoToken));
         }
 

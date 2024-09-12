@@ -25,7 +25,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         purchaseToken = _purchaseToken;
         termRepoServicer = _repoServicer;
         repoLocker = MockTermRepoLocker(_repoLocker);
-        auctionStartTime = block.timestamp;
+        auctionStartTime = 0;
     }
 
     function termRepoId() external view returns (bytes32) {
@@ -41,7 +41,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
     }
 
     function revealTime() external view returns (uint256) {
-
+        return auction.auctionEndTime();
     }
 
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {

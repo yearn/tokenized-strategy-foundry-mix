@@ -13,40 +13,6 @@ library RepoTokenUtils {
     uint256 public constant RATE_PRECISION = 1e18;
 
     /*//////////////////////////////////////////////////////////////
-                        PURE FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /**
-     * @notice Convert repoToken amount to purchase token precision
-     * @param repoTokenPrecision The precision of the repoToken
-     * @param purchaseTokenPrecision The precision of the purchase token
-     * @param purchaseTokenAmountInRepoPrecision The amount of purchase token in repoToken precision
-     * @return The amount in purchase token precision
-     */
-    function repoToPurchasePrecision(
-        uint256 repoTokenPrecision, 
-        uint256 purchaseTokenPrecision,
-        uint256 purchaseTokenAmountInRepoPrecision
-    ) internal pure returns (uint256) {
-        return (purchaseTokenAmountInRepoPrecision * purchaseTokenPrecision) / repoTokenPrecision;
-    }
-
-    /**
-     * @notice Convert purchase token amount to repoToken precision
-     * @param repoTokenPrecision The precision of the repoToken
-     * @param purchaseTokenPrecision The precision of the purchase token
-     * @param repoTokenAmount The amount of repoToken
-     * @return The amount in repoToken precision
-     */
-    function purchaseToRepoPrecision(
-        uint256 repoTokenPrecision, 
-        uint256 purchaseTokenPrecision,
-        uint256 repoTokenAmount
-    ) internal pure returns (uint256) {
-        return (repoTokenAmount * repoTokenPrecision) / purchaseTokenPrecision;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -78,17 +44,21 @@ library RepoTokenUtils {
      * @param repoToken The address of the repoToken
      * @param repoTokenAmount The amount of the repoToken
      * @param purchaseTokenPrecision The precision of the purchase token
+     * @param repoRedemptionHaircut The haircut to be applied to the repoToken for bad debt
      * @return repoTokenAmountInBaseAssetPrecision The normalized amount of the repoToken in base asset precision
      */
     function getNormalizedRepoTokenAmount(
         address repoToken, 
         uint256 repoTokenAmount, 
-        uint256 purchaseTokenPrecision
+        uint256 purchaseTokenPrecision,
+        uint256 repoRedemptionHaircut
     ) internal view returns (uint256 repoTokenAmountInBaseAssetPrecision) {
         uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
         uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
         repoTokenAmountInBaseAssetPrecision =
-            (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / 
-            (repoTokenPrecision * RepoTokenUtils.RATE_PRECISION);
+            repoRedemptionHaircut != 0 ?
+            (redemptionValue * repoRedemptionHaircut * repoTokenAmount * purchaseTokenPrecision) / 
+            (repoTokenPrecision * RATE_PRECISION * 1e18)
+            : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / (repoTokenPrecision * RATE_PRECISION);
     }
 }
