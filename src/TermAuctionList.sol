@@ -8,6 +8,9 @@ import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapt
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
+import "forge-std/console.sol";
+
+
 // In-storage representation of an offer object
 struct PendingOffer {
     address repoToken;
@@ -103,6 +106,7 @@ library TermAuctionList {
         // If the list is empty, set the new repoToken as the head
         if (current == NULL_NODE) {
             listData.head = offerId;
+            listData.offers[offerId] = pendingOffer;
             return;
         }
 
@@ -363,6 +367,7 @@ library TermAuctionList {
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeOfferAmount += offerAmount;
             }
+            
             // Move to the next token in the list
             current = _getNext(listData, current);
         }
