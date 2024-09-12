@@ -8,7 +8,7 @@ import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {Strategy} from "../Strategy.sol";
 
-contract TestUSDCSubmitOffer is Setup {
+contract TestUSDCSubmitOf1er1 is Setup {
     uint256 internal constant TEST_REPO_TOKEN_RATE = 0.05e18;
 
     MockUSDC internal mockUSDC;
