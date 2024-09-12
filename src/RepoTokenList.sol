@@ -176,7 +176,7 @@ library RepoTokenList {
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
      * @return totalPresentValue The total present value of the repoTokens
-     * @dev  Aaggregates the present value of all repoTokens in the list. 
+     * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
