@@ -8,9 +8,6 @@ import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapt
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
-import "forge-std/console.sol";
-
-
 // In-storage representation of an offer object
 struct PendingOffer {
     address repoToken;
@@ -353,6 +350,10 @@ library TermAuctionList {
                             discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                         );
 
+
+                        // Mark the edge case auction as processed to avoid double counting
+                        // since multiple offers can be tied to the same auction, we need to mark
+                        // the edge case auction as processed to avoid double counting
                         edgeCaseAuction = address(offer.termAuction);
                     }
                 }
