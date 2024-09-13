@@ -175,35 +175,19 @@ library RepoTokenList {
      * @param listData The list data
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
-     * @param repoTokenToMatch The address of the repoToken to match (optional)
      * @return totalPresentValue The total present value of the repoTokens
-     * @dev If the `repoTokenToMatch` parameter is provided (non-zero address), the function will filter
-     * the calculations to include only the specified repoToken. If `repoTokenToMatch` is not provided
-     * (zero address), it will aggregate the present value of all repoTokens in the list. 
-     * 
-     * Example usage:
-     * - To get the present value of all repoTokens: call with `repoTokenToMatch` set to `address(0)`.
-     * - To get the present value of a specific repoToken: call with `repoTokenToMatch` set to the address of the desired repoToken.     
+     * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
         ITermDiscountRateAdapter discountRateAdapter,
-        uint256 purchaseTokenPrecision,
-        address repoTokenToMatch
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
         
         address current = listData.head;
         while (current != NULL_NODE) {
-            // Filter by a specific repoToken, address(0) bypasses this filter
-            if (repoTokenToMatch != address(0) && current != repoTokenToMatch) {
-                // Not a match, do not add to totalPresentValue
-                // Move to the next token in the list
-                current = _getNext(listData, current);
-                continue;
-            }
-    
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
             uint256 discountRate = discountRateAdapter.getDiscountRate(current);
@@ -222,12 +206,6 @@ library RepoTokenList {
                 );
             } else {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
-            }
-
-            // Filter by a specific repo token, address(0) bypasses this condition
-            if (repoTokenToMatch != address(0) && current == repoTokenToMatch) {
-                // Found a match, terminate early
-                break;
             }
 
             // Move to the next token in the list
