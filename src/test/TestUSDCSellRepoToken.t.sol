@@ -50,7 +50,7 @@ contract TestUSDCSellRepoToken is Setup {
         termStrategy.setTimeToMaturityThreshold(10 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
         termStrategy.setRequiredReserveRatio(0);
-        termStrategy.setdiscountRateMarkup(0);
+        termStrategy.setDiscountRateMarkup(0);
         vm.stopPrank();
 
     }
@@ -350,10 +350,10 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(termStrategy.requiredReserveRatio(), 12345);
 
         vm.expectRevert("!management");
-        termStrategy.setdiscountRateMarkup(12345);
+        termStrategy.setDiscountRateMarkup(12345);
 
         vm.prank(management);
-        termStrategy.setdiscountRateMarkup(12345);
+        termStrategy.setDiscountRateMarkup(12345);
         assertEq(termStrategy.discountRateMarkup(), 12345);
 
         vm.expectRevert("!management");
