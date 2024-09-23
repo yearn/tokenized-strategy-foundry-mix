@@ -112,13 +112,16 @@ contract TestUSDCIntegration is Setup {
         termStrategy.auctionClosed();
         holdings = termStrategy.repoTokenHoldings();
         assertEq(holdings.length, 2);
+        (uint256 holdings0Maturity, , ,) = MockTermRepoToken(holdings[0]).config();
+        (uint256 holdings1Maturity, , ,) = MockTermRepoToken(holdings[1]).config();
+        assert(holdings0Maturity <= holdings1Maturity);
         bytes32[] memory offers = termStrategy.pendingOffers();        
 
         assertEq(offers.length, 0);
 
-        // assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
+        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
-        // assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(
