@@ -46,7 +46,7 @@ contract TestUSDCIntegration is Setup {
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
         termStrategy.setRequiredReserveRatio(0);
-        termStrategy.setDiscountRateMarkup(0);
+        termStrategy.setdiscountRateMarkup(0);
         vm.stopPrank();
 
         // start with some initial funds
