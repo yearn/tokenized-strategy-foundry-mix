@@ -257,6 +257,8 @@ library TermAuctionList {
             // Filter by specific repo token if provided, address(0) bypasses this filter
             if (repoTokenToMatch != address(0) && offer.repoToken != repoTokenToMatch) {
                 // Not a match, skip
+                // Move to the next token in the list
+                current = _getNext(listData, current);
                 continue;
             }
 
