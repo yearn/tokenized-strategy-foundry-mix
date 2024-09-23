@@ -193,7 +193,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @notice Set the markup that the vault will receive in excess of the oracle rate
      * @param newDiscountRateMarkup The new auction rate markup
      */
-    function setdiscountRateMarkup(
+    function setDiscountRateMarkup(
         uint256 newDiscountRateMarkup
     ) external onlyManagement {
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
@@ -202,7 +202,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         );
         discountRateMarkup = newDiscountRateMarkup;
     }
-
     /**
      * @notice Set the collateral token parameters
      * @param tokenAddr The address of the collateral token to be accepted
