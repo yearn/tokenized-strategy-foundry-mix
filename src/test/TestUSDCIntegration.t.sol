@@ -18,6 +18,7 @@ contract TestUSDCIntegration is Setup {
     MockTermRepoToken internal repoToken1Week;
     MockTermRepoToken internal repoToken1Month;
     MockTermAuction internal repoToken1WeekAuction;
+    MockTermAuction internal repoToken1MonthAuction;
     Strategy internal termStrategy;
     StrategySnapshot internal initialState;
 
@@ -40,13 +41,14 @@ contract TestUSDCIntegration is Setup {
         termStrategy = Strategy(address(strategy));
 
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
+        repoToken1MonthAuction = new MockTermAuction(repoToken1Month);
 
         vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
         termStrategy.setRequiredReserveRatio(0);
-        termStrategy.setdiscountRateMarkup(0);
+        termStrategy.setDiscountRateMarkup(0);
         vm.stopPrank();
 
         // start with some initial funds
@@ -56,16 +58,16 @@ contract TestUSDCIntegration is Setup {
         initialState.totalLiquidBalance = termStrategy.totalLiquidBalance();
     }
 
-    function _submitOffer(bytes32 idHash, uint256 offerAmount) private returns (bytes32) { 
+    function _submitOffer(bytes32 idHash, uint256 offerAmount, MockTermAuction auction, MockTermRepoToken repoToken) private returns (bytes32) { 
         // test: only management can submit offers
         vm.expectRevert("!management");
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
+            auction, address(repoToken), idHash, bytes32("test price"), offerAmount
         );        
 
         vm.prank(management);
         offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
+            auction, address(repoToken), idHash, bytes32("test price"), offerAmount
         );        
 
         assertEq(offerIds.length, 1);
@@ -91,7 +93,7 @@ contract TestUSDCIntegration is Setup {
         assertEq(holdings.length, 1);
 
 
-        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6, repoToken1WeekAuction, repoToken1Week);
         bytes32[] memory offerIds = new bytes32[](1);
         offerIds[0] = offerId1;
         uint256[] memory fillAmounts = new uint256[](1);
@@ -114,7 +116,7 @@ contract TestUSDCIntegration is Setup {
         assertEq(holdings.length, 2);
         (uint256 holdings0Maturity, , ,) = MockTermRepoToken(holdings[0]).config();
         (uint256 holdings1Maturity, , ,) = MockTermRepoToken(holdings[1]).config();
-        assert(holdings0Maturity <= holdings1Maturity);
+        assertTrue(holdings0Maturity <= holdings1Maturity);
         bytes32[] memory offers = termStrategy.pendingOffers();        
 
         assertEq(offers.length, 0);
@@ -122,6 +124,30 @@ contract TestUSDCIntegration is Setup {
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+    }
+
+    function testSubmittingOffersToMultipleAuctions() public {       
+        address testUser = vm.addr(0x11111);  
+        mockUSDC.mint(testUser, 1e18);
+        repoToken1Month.mint(testUser, 1000e18);
+
+        vm.startPrank(testUser);
+        mockUSDC.approve(address(mockYearnVault), type(uint256).max);
+        mockYearnVault.deposit(1e18, testUser);
+        repoToken1Month.approve(address(strategy), type(uint256).max);
+        termStrategy.sellRepoToken(address(repoToken1Month), 1e6);
+        mockYearnVault.withdraw(1e18, testUser, testUser);
+        vm.stopPrank();
+
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6, repoToken1WeekAuction, repoToken1Week);
+
+        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), 1e6, repoToken1MonthAuction, repoToken1Month);
+
+        bytes32[] memory offers = termStrategy.pendingOffers();
+
+        assertEq(offers.length, 2);
+
+        assertTrue(offers[0] == offerId1 ? address(repoToken1WeekAuction) <= address(repoToken1MonthAuction) : address(repoToken1MonthAuction) <= address(repoToken1WeekAuction));
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(
