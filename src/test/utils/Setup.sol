@@ -5,6 +5,7 @@ import "forge-std/console2.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 
 import {Strategy, ERC20} from "../../Strategy.sol";
+import {StrategyFactory} from "../../StrategyFactory.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
@@ -23,6 +24,8 @@ contract Setup is ExtendedTest, IEvents {
     ERC20 public asset;
     IStrategyInterface public strategy;
 
+    StrategyFactory public strategyFactory;
+
     mapping(string => address) public tokenAddrs;
 
     // Addresses for different roles we will use repeatedly.
@@ -30,6 +33,7 @@ contract Setup is ExtendedTest, IEvents {
     address public keeper = address(4);
     address public management = address(1);
     address public performanceFeeRecipient = address(3);
+    address public emergencyAdmin = address(5);
 
     // Address of the real deployed Factory
     address public factory;
@@ -54,6 +58,13 @@ contract Setup is ExtendedTest, IEvents {
         // Set decimals
         decimals = asset.decimals();
 
+        strategyFactory = new StrategyFactory(
+            management,
+            performanceFeeRecipient,
+            keeper,
+            emergencyAdmin
+        );
+
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
@@ -71,15 +82,13 @@ contract Setup is ExtendedTest, IEvents {
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
         IStrategyInterface _strategy = IStrategyInterface(
-            address(new Strategy(address(asset), "Tokenized Strategy"))
+            address(
+                strategyFactory.newStrategy(
+                    address(asset),
+                    "Tokenized Strategy"
+                )
+            )
         );
-
-        // set keeper
-        _strategy.setKeeper(keeper);
-        // set treasury
-        _strategy.setPerformanceFeeRecipient(performanceFeeRecipient);
-        // set management of the strategy
-        _strategy.setPendingManagement(management);
 
         vm.prank(management);
         _strategy.acceptManagement();
