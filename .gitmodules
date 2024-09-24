@@ -6,11 +6,11 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
 	branch = v4.9.5
+[submodule "lib/tokenized-strategy"]
+	path = lib/tokenized-strategy
+	url = https://github.com/yearn/tokenized-strategy
+	branch = v3.0.3
 [submodule "lib/tokenized-strategy-periphery"]
 	path = lib/tokenized-strategy-periphery
 	url = https://github.com/yearn/tokenized-strategy-periphery
 	branch = master
-[submodule "lib/tokenized-strategy"]
-	path = lib/tokenized-strategy
-	url = https://github.com/yearn/tokenized-strategy
-	branch = v3.0.2-1
