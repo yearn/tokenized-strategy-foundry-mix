@@ -381,7 +381,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
             );
         }
 
-        simulatedLiquidityRatio = (liquidBalance - proceeds) / _totalAssetValue(liquidBalance);
+        uint256 assetValue = _totalAssetValue(liquidBalance);
+
+        if (assetValue == 0) {simulatedLiquidityRatio = 0;}
+        else {
+            simulatedLiquidityRatio = (liquidBalance - proceeds) * 10 ** 18 / assetValue;
+        }
+
+
     }
 
     /**
