@@ -39,7 +39,8 @@ contract StrategyFactory {
      */
     function newStrategy(
         address _asset,
-        he
+        string calldata _name
+    ) external virtual returns (address) {
         // tokenized strategies available setters.
         IStrategyInterface _newStrategy = IStrategyInterface(
             address(new Strategy(_asset, _name))
