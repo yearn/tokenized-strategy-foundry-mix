@@ -1,0 +1,50 @@
+[build.default]
+foundry-project-root       = '.'
+regen                      = true
+rekompile                  = true
+verbose                    = true
+debug                      = false
+require                    = 'src/test/kontrol/term-lemmas.k'
+module-import              = 'RepoTokenListInvariantsTest:TERM-LEMMAS'
+ast                        = true
+auxiliary-lemmas           = true
+
+[prove.default]
+foundry-project-root       = '.'
+verbose                    = true
+debug                      = false
+max-depth                  = 100000
+max-iterations             = 10000
+reinit                     = false
+cse                        = false
+workers                    = 1
+max-frontier-parallel      = 6
+maintenance-rate           = 24
+assume-defined             = true
+no-log-rewrites            = true
+kore-rpc-command           = 'kore-rpc-booster --no-post-exec-simplify'
+failure-information        = true
+counterexample-information = true
+minimize-proofs            = false
+fail-fast                  = true
+smt-timeout                = 16000
+smt-retry-limit            = 0
+break-every-step           = false
+break-on-jumpi             = false
+break-on-calls             = false
+break-on-storage           = false
+break-on-basic-blocks      = false
+break-on-cheatcodes        = false
+auto_abstract              = true
+run-constructor            = false
+bmc-depth                  = 3
+match-test                 = [
+        "RepoTokenListInvariantsTest.testInsertSortedNewToken",
+        "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
+    ]
+ast                        = true
+
+[show.default]
+foundry-project-root       = '.'
+verbose                    = true
+debug                      = false
