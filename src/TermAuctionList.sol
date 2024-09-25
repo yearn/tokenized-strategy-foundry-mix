@@ -103,6 +103,7 @@ library TermAuctionList {
         // If the list is empty, set the new repoToken as the head
         if (current == NULL_NODE) {
             listData.head = offerId;
+            listData.nodes[offerId].next = NULL_NODE;
             listData.offers[offerId] = pendingOffer;
             return;
         }
@@ -119,7 +120,7 @@ library TermAuctionList {
             address auctionToInsert = address(pendingOffer.termAuction);
 
             // Insert repoToken before current if its maturity is less than or equal
-            if (auctionToInsert <= currentAuction) {
+            if (auctionToInsert < currentAuction) {
                 if (prev == NULL_NODE) {
                     listData.head = offerId;
                 } else {
@@ -135,6 +136,7 @@ library TermAuctionList {
             // If at the end of the list, insert repoToken after current
             if (next == NULL_NODE) {
                 listData.nodes[current].next = offerId;
+                listData.nodes[offerId].next = NULL_NODE;
                 break;
             }
 
