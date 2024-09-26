@@ -1,0 +1,67 @@
+name: "[sepolia-deploy] deploy vault"
+on:
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: 'Asset address'
+        required: true
+        default: '0x'
+      vaultName:
+        description: 'Yearn vault name'
+        required: true
+        default: '0x'
+      vaultSymbol:
+        description: 'Yearn vault symbol'
+        required: true
+        default: '0x'
+      profitMaxUnlockTime:
+        description: 'Profit max unlock time'
+        required: true
+        default: '0'
+      roleManager:
+        description: 'Role Manager'
+        required: false
+        default: '0x'
+      roleNumber:
+        description: 'sum of roles'
+        required: false
+        default: '0'
+      depositLimit:
+        description: 'Deposit limit'
+        required: false
+        default: '0'
+
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: sepolia
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge script script/VaultManagement.s.sol:SetupVaultManagement --rpc-url $RPC_URL --broadcast --verify --verbosity 4
+        env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          ASSET_ADDRESS: ${{ github.event.inputs.asset }}
+          VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
+          VAULT_NAME: ${{ github.event.inputs.vaultName }}
+          VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
+          FEE_MANAGER: ${{ vars.FEE_MANAGER }}
+          FEE_RECIPIENT: ${{ vars.FEE_RECIPIENT }}
+          DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
+          IS_TEST: true
+          ROLE_MANAGER: ${{ github.event.inputs.roleManager }}
+          ROLE_NUM: ${{ github.event.inputs.roleNumber }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
+          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+  
