@@ -41,6 +41,7 @@ bmc-depth                  = 3
 match-test                 = [
         "RepoTokenListInvariantsTest.testInsertSortedNewToken",
         "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
+        "RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
     ]
 ast                        = true
 
