@@ -384,6 +384,7 @@ library RepoTokenList {
         // If the list is empty, set the new repoToken as the head
         if (current == NULL_NODE) {
             listData.head = repoToken;
+            listData.nodes[repoToken].next = NULL_NODE;
             return;
         }
 
@@ -399,7 +400,7 @@ library RepoTokenList {
             uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
 
             // Insert repoToken before current if its maturity is less than or equal
-            if (maturityToInsert <= currentMaturity) {
+            if (maturityToInsert < currentMaturity) {
                 if (prev == NULL_NODE) {
                     listData.head = repoToken;
                 } else {
@@ -415,6 +416,7 @@ library RepoTokenList {
             // If at the end of the list, insert repoToken after current
             if (next == NULL_NODE) {
                 listData.nodes[current].next = repoToken;
+                listData.nodes[repoToken].next = NULL_NODE;
                 break;
             }
 
