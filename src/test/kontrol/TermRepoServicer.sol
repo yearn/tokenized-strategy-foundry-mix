@@ -7,10 +7,16 @@ import "src/interfaces/term/ITermRepoServicer.sol";
 
 contract TermRepoServicer is ITermRepoServicer, Test, KontrolCheats {
     address _termRepoToken;
+    bool _redeemAlwaysSucceeds;
 
     function initializeSymbolic(address termRepoToken) public {
         kevm.symbolicStorage(address(this));
         _termRepoToken = termRepoToken;
+        _redeemAlwaysSucceeds = false;
+    }
+
+    function guaranteeRedeemAlwaysSucceeds() external {
+        _redeemAlwaysSucceeds = true;
     }
 
     function redeemTermRepoTokens(
@@ -18,12 +24,14 @@ contract TermRepoServicer is ITermRepoServicer, Test, KontrolCheats {
         uint256 amountToRedeem
     ) external {
         // Function might revert in some cases
-        require(kevm.freshBool() != 0);
+        if (!_redeemAlwaysSucceeds) {
+            require(kevm.freshBool() != 0);
+        }
 
-        kevm.symbolicStorage(address(this));
         kevm.symbolicStorage(_termRepoToken);
+        kevm.symbolicStorage(address(this));
     }
-    
+
     function termRepoToken() external view returns (address) {
         return _termRepoToken;
     }

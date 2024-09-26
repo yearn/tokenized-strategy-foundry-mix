@@ -266,6 +266,21 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
     }
 
     /**
+     * Configure the model of the RepoServicer for every token in the list to
+     * follow the assumption that redeemTermRepoTokens will not revert.
+     */
+    function _guaranteeRedeemAlwaysSucceeds() internal {
+        address current = _repoTokenList.head;
+
+        while (current != RepoTokenList.NULL_NODE) {
+            (, , address repoServicer,) = ITermRepoToken(current).config();
+            TermRepoServicer(repoServicer).guaranteeRedeemAlwaysSucceeds();
+
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    /**
      * Test that removeAndRedeemMaturedTokens preserves the list invariants.
      */
     function testRemoveAndRedeemMaturedTokens() external {
@@ -280,8 +295,8 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         _establishSortedByMaturity(Mode.Assume);
         _establishNoDuplicates(Mode.Assume);
 
-        // TODO: Can we assume for this test that token redemption always
-        // succeeds? Otherwise some of the invariants might not be preserved.
+        // Assume that the call to redeemTermRepoTokens will not revert
+        _guaranteeRedeemAlwaysSucceeds();
 
         // Call the function being tested
         _repoTokenList.removeAndRedeemMaturedTokens();
