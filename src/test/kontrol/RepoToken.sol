@@ -32,11 +32,11 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         _termRepoServicer.initializeSymbolic(address(this));
     }
 
-    function decimals() public view virtual returns (uint8) {
+    function decimals() public view returns (uint8) {
         return 18;
     }
 
-    function balanceOf(address account) public view virtual returns (uint256) {
+    function balanceOf(address account) public view returns (uint256) {
         return _balance[account];
     }
 
