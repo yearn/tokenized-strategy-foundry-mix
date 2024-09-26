@@ -8,7 +8,7 @@ on:
         default: '0x'
       oldStrategy:
         description: 'Old strategy address'
-        required: true
+        required: false
         default: '0x'
 
     
