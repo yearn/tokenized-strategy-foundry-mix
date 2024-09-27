@@ -19,16 +19,15 @@ contract VaultStrategySwitch is Script {
         // Retrieve environment variables
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address newStrategy = vm.envAddress("NEW_STRATEGY_ADDRESS");
+        address[] memory strategiesDefaultQueue = stringToAddresses(vm.envString("STRATEGIES_DEFAULT_QUEUE"), ",");
         address oldStrategy = vm.envOr("OLD_STRATEGY_ADDRESS", address(0));
-
-        address[] memory strategies = new address[](1);
-        strategies[0] = newStrategy;
+        
 
         IVault vault = IVault(yearnVaultAddress);
         vault.add_strategy(newStrategy);
         console.log("added strategy to vault");
         console.log(newStrategy);
-        vault.set_default_queue(strategies);
+        vault.set_default_queue(strategiesDefaultQueue);
         console.log("set default queue for vault");
 
 
@@ -41,9 +40,61 @@ contract VaultStrategySwitch is Script {
             console.log("revoked strategy from vault");
             console.log(oldStrategy);
 
-            vault.set_default_queue(strategies);
+            vault.set_default_queue(strategiesDefaultQueue);
             console.log("set default queue for vault");
         }        
         vm.stopBroadcast();
+    }
+
+     function stringToAddresses(string memory _str, string memory _delimiter) internal pure returns (address[] memory) {
+        // Split the string
+        string[] memory parts = split(_str, _delimiter);
+        
+        // Convert each part to an address
+        address[] memory addresses = new address[](parts.length);
+        for (uint i = 0; i < parts.length; i++) {
+            addresses[i] = vm.parseAddress(parts[i]);
+        }
+        
+        return addresses;
+    }
+
+    function split(string memory _base, string memory _delimiter) internal pure returns (string[] memory) {
+        bytes memory baseBytes = bytes(_base);
+        bytes memory delBytes = bytes(_delimiter);
+
+        uint count = 1;
+        for (uint i = 0; i < baseBytes.length; i++) {
+            if (keccak256(abi.encodePacked(baseBytes[i])) == keccak256(abi.encodePacked(delBytes[0]))) {
+                count++;
+            }
+        }
+
+        string[] memory parts = new string[](count);
+
+        count = 0;
+        uint lastIndex = 0;
+        for (uint i = 0; i < baseBytes.length; i++) {
+            if (keccak256(abi.encodePacked(baseBytes[i])) == keccak256(abi.encodePacked(delBytes[0]))) {
+                parts[count] = substring(_base, lastIndex, i);
+                lastIndex = i + 1;
+                count++;
+            }
+        }
+        parts[count] = substring(_base, lastIndex, baseBytes.length);
+
+        return parts;
+    }
+
+    function substring(string memory _base, uint _start, uint _end) internal pure returns (string memory) {
+        bytes memory baseBytes = bytes(_base);
+        require(_start <= _end && _end <= baseBytes.length, "Invalid substring range");
+
+        bytes memory result = new bytes(_end - _start);
+        for (uint i = _start; i < _end; i++) {
+            result[i - _start] = baseBytes[i];
+        }
+
+        return string(result);
     }
 }
