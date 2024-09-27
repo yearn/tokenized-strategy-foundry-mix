@@ -243,7 +243,7 @@ library RepoTokenList {
         address prev = current;
         while (current != NULL_NODE) {
             address next;
-            if (getRepoTokenMaturity(current) < block.timestamp) {
+            if (getRepoTokenMaturity(current) <= block.timestamp) {
                 bool removeMaturedToken;
                 uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
 
@@ -388,6 +388,8 @@ library RepoTokenList {
             return;
         }
 
+        uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
+
         address prev;
         while (current != NULL_NODE) {
 
@@ -397,7 +399,6 @@ library RepoTokenList {
             }
 
             uint256 currentMaturity = getRepoTokenMaturity(current);
-            uint256 maturityToInsert = getRepoTokenMaturity(repoToken);
 
             // Insert repoToken before current if its maturity is less than or equal
             if (maturityToInsert < currentMaturity) {
