@@ -6,10 +6,15 @@ on:
         description: 'New strategy address'
         required: true
         default: '0x'
+      strategiesDefaultQueue:
+        description: 'Strategies default queue'
+        required: true
+        default: '0x'
       oldStrategy:
         description: 'Old strategy address'
         required: false
         default: '0x'
+      
 
     
 jobs:
@@ -34,5 +39,6 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           YEARN_VAULT_ADDRESS: ${{ vars.YEARN_VAULT_ADDRESS }}
           NEW_STRATEGY_ADDRESS: ${{ github.event.inputs.newStrategy }}
+          STRATEGIES_DEFAULT_QUEUE: ${{ github.event.inputs.strategiesDefaultQueue }}
           OLD_STRATEGY_ADDRESS: ${{ github.event.inputs.oldStrategy }}
   
