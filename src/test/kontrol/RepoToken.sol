@@ -7,6 +7,7 @@ import "src/interfaces/term/ITermRepoServicer.sol";
 import "src/interfaces/term/ITermRepoToken.sol";
 
 import "src/test/kontrol/Constants.sol";
+import "src/test/kontrol/TermRepoCollateralManager.sol";
 import "src/test/kontrol/TermRepoServicer.sol";
 
 contract RepoToken is ITermRepoToken, Test, KontrolCheats {
@@ -14,6 +15,7 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
     uint256 _redemptionTimestamp;
     uint256 _redemptionValue;
     TermRepoServicer _termRepoServicer;
+    TermRepoCollateralManager _termRepoCollateralManager;
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
@@ -30,6 +32,9 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
 
         _termRepoServicer = new TermRepoServicer();
         _termRepoServicer.initializeSymbolic(address(this));
+
+        _termRepoCollateralManager = new TermRepoCollateralManager();
+        _termRepoCollateralManager.initializeSymbolic();
     }
 
     function decimals() public view returns (uint8) {
@@ -53,7 +58,7 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         redemptionTimestamp = _redemptionTimestamp;
         purchaseToken = kevm.freshAddress();
         termRepoServicer = address(_termRepoServicer);
-        termRepoCollateralManager = kevm.freshAddress();
+        termRepoCollateralManager = address(_termRepoCollateralManager);
     }
 
     function termRepoId() external view returns (bytes32) {
