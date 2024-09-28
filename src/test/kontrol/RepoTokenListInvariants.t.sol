@@ -149,6 +149,28 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
     }
 
     /**
+     * Weaker version of the above invariant that allows matured tokens to have
+     * a balance of 0.
+     *
+     * Note: This is equivalent to the above invariant if the NoMaturedTokens
+     * invariant also holds.
+     */
+    function _establishPositiveBalanceForNonMaturedTokens(Mode mode) internal {
+        address current = _repoTokenList.head;
+
+        while (current != RepoTokenList.NULL_NODE) {
+            uint256 currentMaturity = _getRepoTokenMaturity(current);
+            uint256 repoTokenBalance = _getRepoTokenBalance(current);
+
+            if (block.timestamp < currentMaturity) {
+                _establish(mode, 0 < repoTokenBalance);
+            }
+
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    /**
      * Count the number of nodes in the list.
      *
      * Note that this function guarantees the following postconditions:
@@ -294,6 +316,7 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
         _establishNoDuplicates(Mode.Assume);
+        _establishPositiveBalanceForNonMaturedTokens(Mode.Assume);
 
         // Assume that the call to redeemTermRepoTokens will not revert
         _guaranteeRedeemAlwaysSucceeds();
@@ -310,9 +333,6 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
 
         // Now the following invariants should hold as well
         _establishNoMaturedTokens(Mode.Assert);
-
-        // TODO: This invariant is not necessarily enforced by the function,
-        // leaving it commented out until we decide how to handle it
-        //_establishPositiveBalance(Mode.Assert);
+        _establishPositiveBalance(Mode.Assert);
     }
 }
