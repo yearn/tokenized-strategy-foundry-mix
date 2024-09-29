@@ -26,7 +26,7 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         if (mode == Mode.Assume) {
             vm.assume(condition);
         } else {
-            assertTrue(condition);
+            assert(condition);
         }
     }
 
@@ -102,7 +102,7 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
     /**
      * Assume or assert that there are no duplicate tokens in the list.
      */
-    function _establishNoDuplicates(Mode mode) internal {
+    function _establishNoDuplicateTokens(Mode mode) internal {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -215,9 +215,12 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         kevm.symbolicStorage(address(this));
         _initializeRepoTokenList();
 
+        // Our initialization procedure guarantees this invariant,
+        // so we assert instead of assuming
+        _establishNoDuplicateTokens(Mode.Assert);
+
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicates(Mode.Assume);
         _establishNoMaturedTokens(Mode.Assume);
         _establishPositiveBalance(Mode.Assume);
 
@@ -236,14 +239,14 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
 
 
         // Assert that the size of the list increased by 1
-        assertEq(_countNodesInList(), count + 1);
+        assert(_countNodesInList() == count + 1);
 
         // Assert that the new RepoToken is in the list
-        assertTrue(_repoTokenInList(repoToken));
+        assert(_repoTokenInList(repoToken));
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
-        _establishNoDuplicates(Mode.Assert);
+        _establishNoDuplicateTokens(Mode.Assert);
         _establishNoMaturedTokens(Mode.Assert);
         _establishPositiveBalance(Mode.Assert);
     }
@@ -259,9 +262,12 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         kevm.symbolicStorage(address(this));
         _initializeRepoTokenList();
 
+        // Our initialization procedure guarantees this invariant,
+        // so we assert instead of assuming
+        _establishNoDuplicateTokens(Mode.Assert);
+
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicates(Mode.Assume);
         _establishNoMaturedTokens(Mode.Assume);
         _establishPositiveBalance(Mode.Assume);
 
@@ -275,14 +281,14 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         _repoTokenList.insertSorted(repoToken);
 
         // Assert that the size of the list didn't change
-        assertEq(_countNodesInList(), count);
+        assert(_countNodesInList() == count);
 
         // Assert that the RepoToken is still in the list
-        assertTrue(_repoTokenInList(repoToken));
+        assert(_repoTokenInList(repoToken));
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
-        _establishNoDuplicates(Mode.Assert);
+        _establishNoDuplicateTokens(Mode.Assert);
         _establishNoMaturedTokens(Mode.Assert);
         _establishPositiveBalance(Mode.Assert);
     }
@@ -313,9 +319,13 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
 
+        // Our initialization procedure guarantees this invariant,
+        // so we assert instead of assuming
+        _establishNoDuplicateTokens(Mode.Assert);
+
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicates(Mode.Assume);
+        _establishNoDuplicateTokens(Mode.Assume);
         _establishPositiveBalanceForNonMaturedTokens(Mode.Assume);
 
         // Assume that the call to redeemTermRepoTokens will not revert
@@ -325,11 +335,11 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         _repoTokenList.removeAndRedeemMaturedTokens();
 
         // Assert that the size of the list is less than or equal to before
-        assertLe(_countNodesInList(), count);
+        assert(_countNodesInList() <= count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
-        _establishNoDuplicates(Mode.Assert);
+        _establishNoDuplicateTokens(Mode.Assert);
 
         // Now the following invariants should hold as well
         _establishNoMaturedTokens(Mode.Assert);
