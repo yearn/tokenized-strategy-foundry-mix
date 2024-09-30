@@ -12,16 +12,18 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
-    function initializeSymbolic(bytes32 offerId, address termRepoServicer) public {
+    function initializeSymbolic(address termRepoServicer) public {
         kevm.symbolicStorage(address(this));
-
-        TermAuctionOffer memory offer = _lockedOffers[offerId];
-        offer.amount = freshUInt256();
-        vm.assume(offer.amount < ETH_UPPER_BOUND);
 
         _termRepoServicer = termRepoServicer;
 
         _unlockAlwaysSucceeds = false;
+    }
+
+    function initializeSymbolicLockedOfferFor(bytes32 offerId) public {
+        TermAuctionOffer memory offer = _lockedOffers[offerId];
+        offer.amount = freshUInt256();
+        vm.assume(offer.amount < ETH_UPPER_BOUND);
     }
 
     function guaranteeUnlockAlwaysSucceeds() external {
@@ -53,7 +55,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
     }
 
     function termRepoServicer() external view returns (address) {
-        return kevm.freshAddress();
+        return _termRepoServicer;
     }
 
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {

@@ -40,6 +40,21 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
     }
 
     /**
+     * Deploy & initialize RepoToken and OfferLocker with the same RepoServicer
+     */
+    function _newRepoTokenAndOfferLocker() internal returns (
+        RepoToken repoToken,
+        TermAuctionOfferLocker offerLocker
+    ) {
+        repoToken = new RepoToken();
+        repoToken.initializeSymbolic();
+        (, , address termRepoServicer,) = repoToken.config();
+
+        offerLocker = new TermAuctionOfferLocker();
+        offerLocker.initializeSymbolic(termRepoServicer);
+    }
+
+    /**
      * Initialize _termAuctionList to a TermAuctionList of arbitrary size,
      * comprised of offers with distinct ids.
      */
@@ -48,11 +63,15 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         uint256 count = 0;
 
         while (kevm.freshBool() != 0) {
+            (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
+                _newRepoTokenAndOfferLocker();
+
             // Assign each offer an ID based on Strategy._generateOfferId()
-            TermAuctionOfferLocker offerLocker = new TermAuctionOfferLocker();
             bytes32 current = keccak256(
                 abi.encodePacked(count, address(this), address(offerLocker))
             );
+            // Register offer in offer locker
+            offerLocker.initializeSymbolicLockedOfferFor(current);
 
             if (previous == TermAuctionList.NULL_NODE) {
                 _termAuctionList.head = current;
@@ -65,12 +84,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
             // Etch the code of the auction contract into this address
             vm.etch(auction, _referenceAuction.code);
             TermAuction(auction).initializeSymbolic();
-
-            // Initialize RepoToken and OfferLocker with the same RepoServicer
-            RepoToken repoToken = new RepoToken();
-            repoToken.initializeSymbolic();
-            (, , address termRepoServicer,) = repoToken.config();
-            offerLocker.initializeSymbolic(current, termRepoServicer);
 
             // Build PendingOffer
             PendingOffer storage offer = _termAuctionList.offers[current];
@@ -103,7 +116,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            discountRateAdapter.initializeSymbolicFor(repoToken);
+            discountRateAdapter.initializeSymbolicParamsFor(repoToken);
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -227,12 +240,38 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
     }
 
     /**
+     * Assume that the address doesn't overlap with any preexisting addresses.
+     * This is necessary in order to use cheatcodes on a symbolic address that
+     * change its code or storage.
+     */
+    function _assumeNewAddress(address freshAddress) internal {
+        vm.assume(freshAddress != address(this));
+        vm.assume(freshAddress != address(vm));
+        vm.assume(freshAddress != address(kevm));
+
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            (,, address termRepoServicer, address termRepoCollateralManager) =
+                ITermRepoToken(offer.repoToken).config();
+
+            vm.assume(freshAddress != offer.repoToken);
+            vm.assume(freshAddress != address(offer.termAuction));
+            vm.assume(freshAddress != address(offer.offerLocker));
+            vm.assume(freshAddress != termRepoServicer);
+            vm.assume(freshAddress != termRepoCollateralManager);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
      * Test that insertPending preserves the list invariants when a new offer
      * is added (that was not present in the list before).
      */
     function testInsertPendingNewOffer(
-        bytes32 offerId,
-        PendingOffer memory pendingOffer
+        bytes32 offerId
     ) external {
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
@@ -246,6 +285,35 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         // Save the number of offers in the list before the function is called
         uint256 count = _countOffersInList();
+
+        // Assume that the auction is a fresh address that doesn't overlap with
+        // any others, then initialize it to contain TermAuction code
+        //
+        // NOTE: The auction address needs to remain symbolic, otherwise its
+        // place in the list will be predetermined and the test won't be general
+        address auction = freshAddress();
+        _assumeNewAddress(auction);
+        vm.etch(auction, _referenceAuction.code);
+        TermAuction(auction).initializeSymbolic();
+
+        // Initialize RepoToken and OfferLocker, making sure that the addresses
+        // also don't overlap with the symbolic auction
+        (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
+            _newRepoTokenAndOfferLocker();
+        offerLocker.initializeSymbolicLockedOfferFor(offerId);
+        (,, address termRepoServicer, address termRepoCollateralManager) =
+            repoToken.config();
+        vm.assume(auction != address(repoToken));
+        vm.assume(auction != address(offerLocker));
+        vm.assume(auction != termRepoServicer);
+        vm.assume(auction != termRepoCollateralManager);
+
+        // Build new PendingOffer
+        PendingOffer memory pendingOffer;
+        pendingOffer.repoToken = address(repoToken);
+        pendingOffer.offerAmount = offerLocker.lockedOffer(offerId).amount;
+        pendingOffer.termAuction = ITermAuction(auction);
+        pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
         // Assume that the offer is not already in the list
         vm.assume(!_offerInList(offerId));

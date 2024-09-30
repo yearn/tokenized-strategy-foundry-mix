@@ -15,7 +15,7 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, Test, KontrolCheat
         kevm.symbolicStorage(address(this));
     }
 
-    function initializeSymbolicFor(address repoToken) public {
+    function initializeSymbolicParamsFor(address repoToken) public {
         uint256 repoRedemptionHaircut = freshUInt256();
         vm.assume(repoRedemptionHaircut <= 1e18);
         _repoRedemptionHaircut[repoToken] = repoRedemptionHaircut;
