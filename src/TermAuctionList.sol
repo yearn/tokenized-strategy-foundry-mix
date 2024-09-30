@@ -119,7 +119,7 @@ library TermAuctionList {
             address currentAuction = address(listData.offers[current].termAuction);
             address auctionToInsert = address(pendingOffer.termAuction);
 
-            // Insert repoToken before current if its maturity is less than or equal
+            // Insert offer before current if the auction address to insert is less than current auction address
             if (auctionToInsert < currentAuction) {
                 if (prev == NULL_NODE) {
                     listData.head = offerId;
