@@ -118,7 +118,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         while (current != TermAuctionList.NULL_NODE) {
             if (previous != TermAuctionList.NULL_NODE) {
-                address previousAuction = _getAuction(current);
+                address previousAuction = _getAuction(previous);
                 address currentAuction = _getAuction(current);
                 _establish(mode, previousAuction <= currentAuction);
             }
