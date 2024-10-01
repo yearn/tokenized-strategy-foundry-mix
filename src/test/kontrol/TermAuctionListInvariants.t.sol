@@ -317,6 +317,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
+        vm.assume(0 < offerLocker.lockedOfferAmount(offerId));
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
@@ -325,6 +326,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Now we can etch the auction in, when all other addresses have been created
         this.etch(auction, _referenceAuction);
         TermAuction(auction).initializeSymbolic();
+        vm.assume(!auction.auctionCompleted());
 
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
@@ -345,9 +347,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         // Assert that the new offer is in the list
         assert(_offerInList(offerId));
-
-        // TODO: Remove
-        return;
 
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
