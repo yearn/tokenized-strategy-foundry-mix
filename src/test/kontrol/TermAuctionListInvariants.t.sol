@@ -326,7 +326,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Now we can etch the auction in, when all other addresses have been created
         this.etch(auction, _referenceAuction);
         TermAuction(auction).initializeSymbolic();
-        vm.assume(!auction.auctionCompleted());
+        vm.assume(!TermAuction(auction).auctionCompleted());
 
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
