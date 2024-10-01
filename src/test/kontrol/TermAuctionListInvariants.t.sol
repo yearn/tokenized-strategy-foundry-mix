@@ -297,8 +297,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // place in the list will be predetermined and the test won't be general
         address auction = freshAddress();
         _assumeNewAddress(auction);
-        vm.etch(auction, _referenceAuction.code);
-        TermAuction(auction).initializeSymbolic();
 
         // Initialize RepoToken and OfferLocker, making sure that the addresses
         // also don't overlap with the symbolic auction
@@ -311,6 +309,10 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
         vm.assume(auction != termRepoCollateralManager);
+
+        // Now we can etch the auction in, when all other addresses have been created
+        vm.etch(auction, _referenceAuction.code);
+        TermAuction(auction).initializeSymbolic();
 
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
