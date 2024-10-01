@@ -21,9 +21,11 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
     }
 
     function initializeSymbolicLockedOfferFor(bytes32 offerId) public {
-        TermAuctionOffer memory offer = _lockedOffers[offerId];
+        TermAuctionOffer storage offer = _lockedOffers[offerId];
         offer.amount = freshUInt256();
         vm.assume(offer.amount < ETH_UPPER_BOUND);
+        bool _isRevealed = (kevm.freshBool() != 1);
+        _lockedOffers[offerId].isRevealed = _isRevealed;
     }
 
     function guaranteeUnlockAlwaysSucceeds() external {
@@ -60,6 +62,10 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats 
 
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {
         return _lockedOffers[id];
+    }
+
+    function lockedOfferAmount(bytes32 id) external view returns (uint256) {
+        return _lockedOffers[id].amount;
     }
 
     function lockOffers(

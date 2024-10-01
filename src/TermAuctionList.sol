@@ -13,7 +13,7 @@ struct PendingOffer {
     address repoToken;
     uint256 offerAmount;
     ITermAuction termAuction;
-    ITermAuctionOfferLocker offerLocker;   
+    ITermAuctionOfferLocker offerLocker;
 }
 
 struct TermAuctionListNode {
@@ -33,7 +33,7 @@ struct TermAuctionListData {
 library TermAuctionList {
     using RepoTokenList for RepoTokenListData;
 
-    bytes32 public constant NULL_NODE = bytes32(0);    
+    bytes32 public constant NULL_NODE = bytes32(0);
 
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
@@ -84,8 +84,8 @@ library TermAuctionList {
             while (current != NULL_NODE) {
                 offers[i++] = current;
                 current = _getNext(listData, current);
-            } 
-        }   
+            }
+        }
     }
 
     /**
@@ -94,8 +94,8 @@ library TermAuctionList {
      * @param offerId The ID of the offer to be inserted
      * @param pendingOffer The `PendingOffer` struct containing details of the offer to be inserted
      *
-     * @dev This function inserts a new pending offer while maintaining the list sorted by auction address. 
-     * The function iterates through the list to find the correct position for the new `offerId` and updates the pointers accordingly.     
+     * @dev This function inserts a new pending offer while maintaining the list sorted by auction address.
+     * The function iterates through the list to find the correct position for the new `offerId` and updates the pointers accordingly.
      */
     function insertPending(TermAuctionListData storage listData, bytes32 offerId, PendingOffer memory pendingOffer) internal {
         bytes32 current = listData.head;
@@ -132,7 +132,7 @@ library TermAuctionList {
 
             // Move to the next node
             bytes32 next = _getNext(listData, current);
-            
+
             // If at the end of the list, insert repoToken after current
             if (next == NULL_NODE) {
                 listData.nodes[current].next = offerId;
@@ -158,7 +158,7 @@ library TermAuctionList {
      * the list by clearing out inactive offers and ensuring repoTokens are correctly processed.
      */
     function removeCompleted(
-        TermAuctionListData storage listData, 
+        TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
@@ -172,7 +172,7 @@ library TermAuctionList {
             PendingOffer memory offer = listData.offers[current];
             bytes32 next = _getNext(listData, current);
 
-            uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
+            uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
             bool removeNode;
             bool insertRepoToken;
 
@@ -190,7 +190,7 @@ library TermAuctionList {
 
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
-                    removeNode = true;                  
+                    removeNode = true;
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
                     offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer amount
@@ -202,7 +202,7 @@ library TermAuctionList {
                 if (current == listData.head) {
                     listData.head = next;
                 }
-                
+
                 listData.nodes[prev].next = next;
                 delete listData.nodes[current];
                 delete listData.offers[current];
@@ -210,12 +210,12 @@ library TermAuctionList {
 
             if (insertRepoToken) {
 
-                // Auction still open => include offerAmount in totalValue 
-                // (otherwise locked purchaseToken will be missing from TV)               
-                // Auction completed but not closed => include offer.offerAmount in totalValue 
-                // because the offerLocker will have already removed the offer. 
-                // This applies if the repoToken hasn't been added to the repoTokenList 
-                // (only for new auctions, not reopenings).                 
+                // Auction still open => include offerAmount in totalValue
+                // (otherwise locked purchaseToken will be missing from TV)
+                // Auction completed but not closed => include offer.offerAmount in totalValue
+                // because the offerLocker will have already removed the offer.
+                // This applies if the repoToken hasn't been added to the repoTokenList
+                // (only for new auctions, not reopenings).
                 repoTokenListData.validateAndInsertRepoToken(
                     ITermRepoToken(offer.repoToken), discountRateAdapter, asset
                 );
@@ -239,10 +239,10 @@ library TermAuctionList {
      * @dev This function calculates the present value of offers in the list. If `repoTokenToMatch` is provided,
      * it will filter the calculations to include only the specified repoToken. If `repoTokenToMatch` is not provided,
      * it will aggregate the present value of all repoTokens in the list. This provides flexibility for both aggregate
-     * and specific token evaluations.     
+     * and specific token evaluations.
      */
     function getPresentValue(
-        TermAuctionListData storage listData, 
+        TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
         ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision,
@@ -264,7 +264,7 @@ library TermAuctionList {
                 continue;
             }
 
-            uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;            
+            uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
 
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
@@ -272,15 +272,15 @@ library TermAuctionList {
             if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
                 if (edgeCaseAuction != address(offer.termAuction)) {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                        offer.repoToken, 
+                        offer.repoToken,
                         ITermRepoToken(offer.repoToken).balanceOf(address(this)),
                         purchaseTokenPrecision,
                         discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                     );
                     totalValue += RepoTokenUtils.calculatePresentValue(
-                        repoTokenAmountInBaseAssetPrecision, 
-                        purchaseTokenPrecision, 
-                        RepoTokenList.getRepoTokenMaturity(offer.repoToken), 
+                        repoTokenAmountInBaseAssetPrecision,
+                        purchaseTokenPrecision,
+                        RepoTokenList.getRepoTokenMaturity(offer.repoToken),
                         discountRateAdapter.getDiscountRate(offer.repoToken)
                     );
 
@@ -296,7 +296,7 @@ library TermAuctionList {
 
             // Move to the next token in the list
             current = _getNext(listData, current);
-        }        
+        }
     }
 
     /**
@@ -305,7 +305,7 @@ library TermAuctionList {
      * @param repoTokenListData The repoToken list data
      * @param discountRateAdapter The discount rate adapter
      * @param repoToken The address of the repoToken (optional)
-     * @param newOfferAmount The new offer amount for the specified repoToken 
+     * @param newOfferAmount The new offer amount for the specified repoToken
      * @param purchaseTokenPrecision The precision of the purchase token
      * @return cumulativeWeightedTimeToMaturity The cumulative weighted time to maturity
      * @return cumulativeOfferAmount The cumulative repoToken amount
@@ -314,13 +314,13 @@ library TermAuctionList {
      * @dev This function calculates cumulative data for all offers in the list. The `repoToken` and `newOfferAmount`
      * parameters are optional and provide flexibility to include the newOfferAmount for a specified repoToken in the calculation.
      * If `repoToken` is set to `address(0)` or `newOfferAmount` is `0`, the function calculates the cumulative data
-     * without adjustments. 
+     * without adjustments.
      */
     function getCumulativeOfferData(
         TermAuctionListData storage listData,
         RepoTokenListData storage repoTokenListData,
         ITermDiscountRateAdapter discountRateAdapter,
-        address repoToken, 
+        address repoToken,
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
@@ -339,16 +339,16 @@ library TermAuctionList {
                 found = true;
             } else {
                 // Retrieve the current offer amount from the offer locker
-                offerAmount = offer.offerLocker.lockedOffer(current).amount;
+                offerAmount = offer.offerLocker.lockedOfferAmount(current);
 
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
                 if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
                     // use normalized repoToken amount if repoToken is not in the list
-                    if (edgeCaseAuction != address(offer.termAuction)) {                    
+                    if (edgeCaseAuction != address(offer.termAuction)) {
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                            offer.repoToken, 
+                            offer.repoToken,
                             ITermRepoToken(offer.repoToken).balanceOf(address(this)),
                             purchaseTokenPrecision,
                             discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
@@ -367,12 +367,12 @@ library TermAuctionList {
                 // Calculate weighted time to maturity
                 uint256 weightedTimeToMaturity = RepoTokenList.getRepoTokenWeightedTimeToMaturity(
                     offer.repoToken, offerAmount
-                );            
+                );
 
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeOfferAmount += offerAmount;
             }
-            
+
             // Move to the next token in the list
             current = _getNext(listData, current);
         }
