@@ -31,7 +31,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
     }
-    
+
     /**
      * Return the auction for a given offer in the list.
      */
@@ -245,9 +245,13 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
      * change its code or storage.
      */
     function _assumeNewAddress(address freshAddress) internal {
+        vm.assume(10 <= uint160(freshAddress));
+
         vm.assume(freshAddress != address(this));
         vm.assume(freshAddress != address(vm));
         vm.assume(freshAddress != address(kevm));
+
+        vm.assume(freshAddress != address(_referenceAuction));
 
         bytes32 current = _termAuctionList.head;
 
@@ -335,7 +339,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishOfferAmountMatchesAmountLocked(Mode.Assert);
     }
 
-    
+
     /**
      * Test that insertPending preserves the list invariants when trying to
      * insert an offer that is already in the list.
