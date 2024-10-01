@@ -42,7 +42,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
     /**
      * Deploy & initialize RepoToken and OfferLocker with the same RepoServicer
      */
-    function _newRepoTokenAndOfferLocker() internal returns (
+    function newRepoTokenAndOfferLocker() public returns (
         RepoToken repoToken,
         TermAuctionOfferLocker offerLocker
     ) {
@@ -64,7 +64,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         while (kevm.freshBool() != 0) {
             (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
-                _newRepoTokenAndOfferLocker();
+                this.newRepoTokenAndOfferLocker();
 
             // Assign each offer an ID based on Strategy._generateOfferId()
             bytes32 current = keccak256(
@@ -313,7 +313,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Initialize RepoToken and OfferLocker, making sure that the addresses
         // also don't overlap with the symbolic auction
         (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
-            _newRepoTokenAndOfferLocker();
+            this.newRepoTokenAndOfferLocker();
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
@@ -345,8 +345,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         // Assert that the new offer is in the list
         assert(_offerInList(offerId));
-
-        return;
 
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
