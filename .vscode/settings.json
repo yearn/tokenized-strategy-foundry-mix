@@ -1,9 +1,0 @@
-{
-  "solidity.compileUsingRemoteVersion": "v0.8.23",
-  "solidity.remappings": [
-    "@openzeppelin/=./lib/openzeppelin-contracts/",
-    "forge-std/=lib/forge-std/src/",
-    "@tokenized-strategy/=./lib/tokenized-strategy/src/",
-    "@periphery/=./lib/tokenized-strategy-periphery/src/"
-  ]
-}

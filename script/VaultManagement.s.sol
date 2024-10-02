@@ -45,13 +45,14 @@ contract SetupVaultManagement is Script {
         console.log(address(accountant));
 
         if (isTest) {
+            vault.set_role(admin, roleNum);
+            console.log("set role for admin");
+            console.log(roleNum);
+
             vault.set_accountant(address(accountant));
             console.log("set accountant for vault");
             console.log(address(accountant));
 
-            vault.set_role(admin, roleNum);
-            console.log("set role for admin");
-            console.log(roleNum);
 
             vault.set_deposit_limit(depositLimit);
             console.log("set deposit limit");
