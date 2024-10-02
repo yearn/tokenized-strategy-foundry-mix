@@ -79,7 +79,6 @@ contract DeployStrategy is Script {
             address(eventEmitterImpl),
             abi.encodeWithSelector(TermVaultEventEmitter.initialize.selector, admin, devops)
         );
-        TermVaultEventEmitter eventEmitter = TermVaultEventEmitter(address(eventEmitterProxy));
         console.log("deployed event emitter proxy contract to");
         console.log(address(eventEmitterProxy));
         eventEmitter = TermVaultEventEmitter(address(eventEmitterProxy));
