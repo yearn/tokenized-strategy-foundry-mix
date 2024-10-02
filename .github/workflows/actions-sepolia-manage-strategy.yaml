@@ -32,7 +32,7 @@ jobs:
       - run: forge install
       - run: forge build
       - run: forge tree
-      - run: forge script script/VaultStrategySwitch.s.sol:VaultStrategySwitch --rpc-url $RPC_URL --broadcast --verify --verbosity 4
+      - run: forge script script/VaultStrategySwitch.s.sol:VaultStrategySwitch --rpc-url $RPC_URL --broadcast --gas-price  500000000000 --verify --verbosity 4
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
