@@ -9,7 +9,7 @@ contract TermAuction is ITermAuction, KontrolTest {
     bool _auctionCompleted;
     bool _auctionCancelledForWithdrawal;
 
-    uint256 private constant auctionSlot = 31;
+    uint256 private constant auctionSlot = 27;
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));

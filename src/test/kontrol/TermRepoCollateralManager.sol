@@ -7,7 +7,7 @@ contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
     mapping(address => uint256) _maintenanceCollateralRatios;
     address[] _collateralTokens;
 
-    uint256 private constant collateralTokensSlot = 33;
+    uint256 private constant collateralTokensSlot = 28;
 
     function collateralTokensDataSlot(uint256 i) internal view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(collateralTokensSlot))) + i;

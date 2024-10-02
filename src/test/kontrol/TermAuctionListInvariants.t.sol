@@ -20,8 +20,8 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
     TermAuctionListData _termAuctionList;
     address _referenceAuction;
 
-    uint256 private constant auctionListSlot = 36;
-    uint256 private constant referenceAuctionSlot = 39;
+    uint256 private constant auctionListSlot = 31;
+    uint256 private constant referenceAuctionSlot = 34;
 
     function setUp() public {
         // Make storage of this contract completely symbolic
