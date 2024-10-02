@@ -63,6 +63,10 @@ module TERM-LEMMAS
         requires 0 <=Int A andBool A <Int 2 ^Int (8 *Int lengthBytes(B2)) andBool lengthBytes(B2) <=Int 32
         [simplification, preserves-definedness]
 
+    rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) ( S |Set SetItem (Y) ) requires notBool X ==Int Y [simplification, preserves-definedness]
+    rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) S                      requires         X ==Int Y [simplification, preserves-definedness]
+    rule                     .Set |Set SetItem(X:Int) => SetItem(X)                                                   [simplification, preserves-definedness]
+
 endmodule
 
 module TERM-LEMMAS-SPEC

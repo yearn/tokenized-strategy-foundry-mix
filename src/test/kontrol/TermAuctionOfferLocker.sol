@@ -10,11 +10,18 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
+    uint256 private constant lockedOffersSlot = 32;
+    uint256 private constant repoServicerAndUnlockSlot = 33;
+
+    function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
+    }
+
     function initializeSymbolic(address termRepoServicer) public {
         kevm.symbolicStorage(address(this));
-
+        // Clear slot which holds two contract fields
+        _storeUInt256(address(this), repoServicerAndUnlockSlot, 0);
         _termRepoServicer = termRepoServicer;
-
         _unlockAlwaysSucceeds = false;
     }
 
@@ -22,8 +29,15 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
         TermAuctionOffer storage offer = _lockedOffers[offerId];
         offer.amount = freshUInt256();
         vm.assume(offer.amount < ETH_UPPER_BOUND);
-        bool _isRevealed = (kevm.freshBool() != 1);
-        _lockedOffers[offerId].isRevealed = _isRevealed;
+
+        uint256 _purchaseToken = uint160(kevm.freshAddress());
+        uint256 _isRevealed = uint96(kevm.freshBool());
+        bytes memory offerLastSlotAbi = abi.encodePacked(uint96(_isRevealed), uint160(_purchaseToken));
+        bytes32 offerLastSlot;
+        assembly {
+            offerLastSlot := mload(add(offerLastSlotAbi, 0x20))
+        }
+        _storeBytes32(address(this), lockedOfferSlot(offerId) + 5, offerLastSlot);
     }
 
     function guaranteeUnlockAlwaysSucceeds() external {

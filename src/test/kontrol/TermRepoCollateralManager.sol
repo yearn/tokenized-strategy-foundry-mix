@@ -7,16 +7,17 @@ contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
     mapping(address => uint256) _maintenanceCollateralRatios;
     address[] _collateralTokens;
 
-    function collateralTokensDataSlot(uint256 i) public view returns (uint256) {
-      return uint256(keccak256(abi.encodePacked(uint256(28)))) + i;
+    uint256 private constant collateralTokensSlot = 33;
+
+    function collateralTokensDataSlot(uint256 i) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(collateralTokensSlot))) + i;
     }
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
 
         // For simplicity, choose an arbitrary number of collateral tokens: 3
-        // _collateralTokens: slot 28
-        _storeUInt256(address(this), 28, 3);
+        _storeUInt256(address(this), collateralTokensSlot, 3);
 
         for (uint256 i = 0; i < _collateralTokens.length; ++i) {
             // Generate an arbitrary concrete address for each token

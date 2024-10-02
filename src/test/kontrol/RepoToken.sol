@@ -17,6 +17,9 @@ contract RepoToken is ITermRepoToken, KontrolTest {
     TermRepoServicer _termRepoServicer;
     TermRepoCollateralManager _termRepoCollateralManager;
 
+    uint256 private constant termRepoServicerSlot = 35;
+    uint256 private constant termRepoCollateralManagerSlot = 36;
+
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
 
@@ -30,11 +33,13 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         _redemptionValue = freshUInt256();
         vm.assume(_redemptionValue < ETH_UPPER_BOUND);
 
-        _termRepoServicer = new TermRepoServicer();
-        _termRepoServicer.initializeSymbolic(address(this));
+        TermRepoServicer termRepoServicer = new TermRepoServicer();
+        termRepoServicer.initializeSymbolic(address(this));
+        _storeUInt256(address(this), termRepoServicerSlot, uint256(uint160(address(termRepoServicer))));
 
-        _termRepoCollateralManager = new TermRepoCollateralManager();
-        _termRepoCollateralManager.initializeSymbolic();
+        TermRepoCollateralManager termRepoCollateralManager = new TermRepoCollateralManager();
+        termRepoCollateralManager.initializeSymbolic();
+        _storeUInt256(address(this), termRepoCollateralManagerSlot, uint256(uint160(address(termRepoCollateralManager))));
     }
 
     function decimals() public view returns (uint8) {

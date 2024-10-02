@@ -7,8 +7,12 @@ contract TermRepoServicer is ITermRepoServicer, KontrolTest {
     address _termRepoToken;
     bool _redeemAlwaysSucceeds;
 
+    uint256 private constant repoTokenAndRedeemSlot = 31;
+
     function initializeSymbolic(address termRepoToken) public {
         kevm.symbolicStorage(address(this));
+        // Clear slot which holds two contract fields
+        _storeUInt256(address(this), repoTokenAndRedeemSlot, 0);
         _termRepoToken = termRepoToken;
         _redeemAlwaysSucceeds = false;
     }

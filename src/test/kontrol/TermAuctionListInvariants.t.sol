@@ -20,16 +20,34 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
     TermAuctionListData _termAuctionList;
     address _referenceAuction;
 
+    uint256 private constant auctionListSlot = 36;
+    uint256 private constant referenceAuctionSlot = 39;
+
     function setUp() public {
         // Make storage of this contract completely symbolic
         kevm.symbolicStorage(address(this));
 
-        // We will copy the code of this deployed auction contract into all
-        // auctions in the list
-        _referenceAuction = address(new TermAuction());
+        // We will copy the code of this deployed auction contract
+        // into all auctions in the list
+        _storeUInt256(address(this), referenceAuctionSlot, uint256(uint160(address(new TermAuction()))));
 
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
+    }
+
+    function auctionListOfferSlot(bytes32 offerId) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(auctionListSlot + 2))));
+    }
+
+    /**
+     * Set pending offer using slot manipulation directly
+     */
+    function setPendingOffer(bytes32 offerId, address repoToken, uint256 offerAmount, address auction, address offerLocker) internal {
+        uint256 offerSlot = auctionListOfferSlot(offerId);
+        _storeUInt256(address(this), offerSlot, uint256(uint160(repoToken)));
+        _storeUInt256(address(this), offerSlot + 1, offerAmount);
+        _storeUInt256(address(this), offerSlot + 2, uint256(uint160(auction)));
+        _storeUInt256(address(this), offerSlot + 3, uint256(uint160(offerLocker)));
     }
 
     /**
@@ -86,11 +104,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
             TermAuction(auction).initializeSymbolic();
 
             // Build PendingOffer
-            PendingOffer storage offer = _termAuctionList.offers[current];
-            offer.repoToken = address(repoToken);
-            offer.offerAmount = freshUInt256();
-            offer.termAuction = ITermAuction(auction);
-            offer.offerLocker = offerLocker;
+            setPendingOffer(current, address(repoToken), freshUInt256(), auction, address(offerLocker));
 
             previous = current;
             ++count;
