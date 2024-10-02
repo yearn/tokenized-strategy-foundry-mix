@@ -236,8 +236,8 @@ contract TestUSDCSubmitOffer is Setup {
         bytes32[] memory offers = termStrategy.pendingOffers();
 
         assertEq(offers.length, 2);
-        assertEq(offers[0], offerId2);
-        assertEq(offers[1], offerId1);
+        assertEq(offers[0], offerId1);
+        assertEq(offers[1], offerId2);
     }
 
     function testMultipleOffersFillAndNoFill() public {

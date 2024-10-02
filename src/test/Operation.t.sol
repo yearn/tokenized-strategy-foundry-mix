@@ -108,6 +108,8 @@ contract OperationTest is Setup {
         // Deposit into strategy
         mintAndDepositIntoStrategy(strategy, user, _amount);
 
+        console2.log("total assets", strategy.totalAssets());
+
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
