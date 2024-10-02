@@ -54,7 +54,7 @@ jobs:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}
           VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
-          ACCOUNTANT_FACTORY: $${{ vars.ACCOUNTANT_FACTORY }}
+          ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
           VAULT_NAME: ${{ github.event.inputs.vaultName }}
           VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
           FEE_MANAGER: ${{ vars.FEE_MANAGER }}
