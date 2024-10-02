@@ -71,6 +71,9 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
     }
 
     function testEditOffer() public {
@@ -88,6 +91,8 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);
         // test: totalAssetValue = total liquid balance + pending offer amount
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 4e6);
     }
 
     function testDeleteOffers() public {
@@ -105,6 +110,8 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance);
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance());
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0);
     }
 
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
@@ -145,6 +152,9 @@ contract TestUSDCSubmitOffer is Setup {
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
 
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+
         //console2.log("repoTokenAmounts[0]", repoTokenAmounts[0]);
 
         // test: asset value should equal to initial asset value (liquid + pending offers)
@@ -156,6 +166,9 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(holdings.length, 0);
 
         termStrategy.auctionClosed();
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
 
         // test: asset value should equal to initial asset value (liquid + repo tokens)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -186,7 +199,13 @@ contract TestUSDCSubmitOffer is Setup {
             fillAmount, repoToken1Week, TEST_REPO_TOKEN_RATE
         );
 
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0.5e6);
 
         // test: asset value should equal to initial asset value (liquid + pending offers)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -197,6 +216,9 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(holdings.length, 0);
 
         termStrategy.auctionClosed();
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0.5e6);
 
         // test: asset value should equal to initial asset value (liquid + repo tokens)
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -212,13 +234,48 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(offers.length, 0);
     }
 
-    function testCompleteAuctionCanceled() public {
+    function testAuctionCancelForWithdrawal() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 
-        repoToken1WeekAuction.auctionCanceled();    
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+
+        repoToken1WeekAuction.auctionCancelForWithdrawal();
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+
 
         // test: check value before calling complete auction
         termStrategy.auctionClosed();
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0);
+
+        bytes32[] memory offers = termStrategy.pendingOffers();
+
+        assertEq(offers.length, 0);
+    }
+
+    function testAuctionCancel() public {
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+
+        bytes32[] memory offerIds = new bytes32[](1);
+        offerIds[0] = offerId1;
+
+        repoToken1WeekAuction.auctionCancel(offerIds);
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0);
+
+        // test: check value before calling complete auction
+        termStrategy.auctionClosed();
+
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 0);
 
         bytes32[] memory offers = termStrategy.pendingOffers();
 

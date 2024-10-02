@@ -235,10 +235,10 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(offers.length, 0);
     }
 
-    function testCompleteAuctionCanceled() public {
+    function testAuctionCancelForWithdrawal() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
 
-        repoToken1WeekAuction.auctionCanceled();    
+        repoToken1WeekAuction.auctionCancelForWithdrawal();    
 
         // test: check value before calling complete auction
         termStrategy.auctionClosed();

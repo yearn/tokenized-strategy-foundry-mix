@@ -100,4 +100,9 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
             delete lockedOffers[offerId];
         }
     }
+
+    function unlockOfferPartial(bytes32 offerId, address offeror, uint256 amount) external {
+        delete lockedOffers[offerId];
+        repoLocker.releasePurchaseTokens(offeror, amount);
+    }
 }
