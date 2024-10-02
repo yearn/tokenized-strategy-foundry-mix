@@ -9,6 +9,8 @@ import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {Strategy} from "../Strategy.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {TermDiscountRateAdapter} from "../TermDiscountRateAdapter.sol";
+
 
 contract TestUSDCIntegration is Setup {
     uint256 internal constant TEST_REPO_TOKEN_RATE = 0.05e18;
@@ -221,6 +223,27 @@ contract TestUSDCIntegration is Setup {
         vm.prank(testUser);
         IERC4626(address(termStrategy)).deposit(1e6, testUser);
         vm.stopPrank();
+    }
+
+    function testSetDiscountRateAdapter() public {
+        address testUser = vm.addr(0x11111);  
+
+        TermDiscountRateAdapter invalid =  new TermDiscountRateAdapter(address(0), adminWallet);
+        TermDiscountRateAdapter valid =  new TermDiscountRateAdapter(address(termController), adminWallet);
+
+        vm.prank(testUser);
+        vm.expectRevert("!management");
+        termStrategy.setDiscountRateAdapter(address(valid));
+
+        vm.prank(management);
+        vm.expectRevert();
+        termStrategy.setDiscountRateAdapter(address(invalid));
+
+        vm.prank(management);
+        termStrategy.setDiscountRateAdapter(address(valid));
+        vm.stopPrank();
+
+        assertEq(address(valid), address(termStrategy.discountRateAdapter()));
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(
