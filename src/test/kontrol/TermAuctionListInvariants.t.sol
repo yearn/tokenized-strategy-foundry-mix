@@ -380,6 +380,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         // Assume that the offer is already in the list
         vm.assume(_offerInList(offerId));
+        vm.assume(_termAuctionList.offers[offerId].termAuction == pendingOffer.termAuction);
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);

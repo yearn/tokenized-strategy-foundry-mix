@@ -9,11 +9,6 @@ import "src/RepoTokenList.sol";
 import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/RepoToken.sol";
 
-enum Mode {
-    Assume,
-    Assert
-}
-
 contract RepoTokenListInvariantsTest is KontrolTest {
     using RepoTokenList for RepoTokenListData;
 
