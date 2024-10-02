@@ -10,7 +10,7 @@ import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/TermRepoCollateralManager.sol";
 import "src/test/kontrol/TermRepoServicer.sol";
 
-contract RepoToken is ITermRepoToken, Test, KontrolCheats {
+contract RepoToken is ITermRepoToken, KontrolTest {
     mapping(address => uint256) _balance;
     uint256 _redemptionTimestamp;
     uint256 _redemptionValue;

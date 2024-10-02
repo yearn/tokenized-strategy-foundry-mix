@@ -14,21 +14,10 @@ enum Mode {
     Assert
 }
 
-contract RepoTokenListInvariantsTest is Test, KontrolCheats {
+contract RepoTokenListInvariantsTest is KontrolTest {
     using RepoTokenList for RepoTokenListData;
 
     RepoTokenListData _repoTokenList;
-
-    /**
-     * Either assume or assert a condition, depending on the specified mode.
-     */
-    function _establish(Mode mode, bool condition) internal {
-        if (mode == Mode.Assume) {
-            vm.assume(condition);
-        } else {
-            assert(condition);
-        }
-    }
 
     /**
      * Deploy a new RepoToken with symbolic storage.

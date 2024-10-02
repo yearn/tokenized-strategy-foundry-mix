@@ -1,13 +1,11 @@
 pragma solidity 0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermAuctionOfferLocker.sol";
 
 import "src/test/kontrol/Constants.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats {
+contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     mapping(bytes32 => TermAuctionOffer) _lockedOffers;
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;

@@ -1,11 +1,9 @@
 pragma solidity 0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermRepoCollateralManager.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermRepoCollateralManager is ITermRepoCollateralManager, Test, KontrolCheats {
+contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
     mapping(address => uint256) _maintenanceCollateralRatios;
     address[] _collateralTokens;
 

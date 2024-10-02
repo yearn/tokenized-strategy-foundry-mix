@@ -1,11 +1,9 @@
 pragma solidity ^0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermRepoServicer.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermRepoServicer is ITermRepoServicer, Test, KontrolCheats {
+contract TermRepoServicer is ITermRepoServicer, KontrolTest {
     address _termRepoToken;
     bool _redeemAlwaysSucceeds;
 
