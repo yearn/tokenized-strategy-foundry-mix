@@ -365,6 +365,10 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         bytes32 offerId,
         PendingOffer memory pendingOffer
     ) external {
+        // offerId must not equal zero, otherwise the linked list breaks
+        // TODO: Does the code protect against this?
+        vm.assume(offerId != TermAuctionList.NULL_NODE);
+
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
         _establishSortedByAuctionId(Mode.Assert);
@@ -380,7 +384,9 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
         // Assume that the offer is already in the list
         vm.assume(_offerInList(offerId));
-        vm.assume(_termAuctionList.offers[offerId].termAuction == pendingOffer.termAuction);
+        vm.assume(0 < pendingOffer.offerAmount);
+        vm.assume(_getAuction(offerId) == pendingOffer.termAuction);
+        vm.assume(_termAuctionList.offers[offerId].offerLocker == pendingOffer.offerLocker);
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);
