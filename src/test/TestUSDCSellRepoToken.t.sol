@@ -89,6 +89,10 @@ contract TestUSDCSellRepoToken is Setup {
             address(repoToken1Week), 0.05e18, repoTokenSellAmount
         );
 
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+
+        assertEq(repoTokenHoldingValue, expectedProceeds);
+
         assertEq(mockUSDC.balanceOf(testUser), expectedProceeds);
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - expectedProceeds);
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
