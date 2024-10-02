@@ -8,6 +8,8 @@ import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {Strategy} from "../Strategy.sol";
 
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 contract TestUSDCIntegration is Setup {
     uint256 internal constant TEST_REPO_TOKEN_RATE = 0.05e18;
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
@@ -148,6 +150,77 @@ contract TestUSDCIntegration is Setup {
         assertEq(offers.length, 2);
 
         assertTrue(offers[0] == offerId1 ? address(repoToken1WeekAuction) <= address(repoToken1MonthAuction) : address(repoToken1MonthAuction) <= address(repoToken1WeekAuction));
+    }
+
+    function testRemovingMaturedTokensWithRedemptionAttempt() public {       
+        address testUser = vm.addr(0x11111);  
+        mockUSDC.mint(testUser, 1e18);
+        repoToken1Month.mint(testUser, 1000e18);
+
+        vm.startPrank(testUser);
+        mockUSDC.approve(address(mockYearnVault), type(uint256).max);
+        mockYearnVault.deposit(1e18, testUser);
+        repoToken1Month.approve(address(strategy), type(uint256).max);
+        termStrategy.sellRepoToken(address(repoToken1Month), 1e6);
+        vm.stopPrank();
+
+        address[] memory holdings = termStrategy.repoTokenHoldings();
+        assertEq(holdings.length, 1);
+
+
+        vm.warp(block.timestamp + 5 weeks);
+        termStrategy.auctionClosed();
+
+        holdings = termStrategy.repoTokenHoldings();
+        assertEq(holdings.length, 0);
+        assertEq(repoToken1Month.balanceOf(address(strategy)), 0);
+    }
+
+    function testRepoTokenBlacklist() public {
+        address testUser = vm.addr(0x11111);  
+        vm.prank(testUser);
+        vm.expectRevert("!management");
+        termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
+        vm.stopPrank();
+
+        vm.prank(management);
+        termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
+        vm.stopPrank();
+
+        vm.prank(testUser);  
+        vm.expectRevert(abi.encodeWithSelector(Strategy.RepoTokenBlacklisted.selector, address(repoToken1Week)));      
+        termStrategy.sellRepoToken(address(repoToken1Week), 1e6);
+    }
+
+    function testPauses() public {
+        address testUser = vm.addr(0x11111);  
+        mockUSDC.mint(testUser, 1e18);
+        vm.prank(testUser);
+        vm.expectRevert("!management");
+        termStrategy.pauseDeposit();
+        vm.expectRevert("!management");
+        termStrategy.unpauseDeposit();
+        vm.stopPrank();
+
+        vm.prank(management);
+        termStrategy.pauseDeposit();
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        mockUSDC.approve(address(termStrategy), 1e6);
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(Strategy.DepositPaused.selector));
+        IERC4626(address(termStrategy)).deposit(1e6, testUser);
+        vm.stopPrank();
+
+        vm.prank(management);
+        termStrategy.unpauseDeposit();
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        IERC4626(address(termStrategy)).deposit(1e6, testUser);
+        vm.stopPrank();
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(

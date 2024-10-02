@@ -556,6 +556,10 @@ contract TestUSDCSellRepoToken is Setup {
 
         termController.setOracleRate(repoToken2Week.termRepoId(), 0.05e18); 
 
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(0)));
+        termStrategy.getRepoTokenConcentrationRatio(address(0));
+
+
         uint256 concentrationLimit = termStrategy.getRepoTokenConcentrationRatio(address(repoToken2Week));
 
         _sell1RepoTokenNoMintExpectRevert(
@@ -588,5 +592,11 @@ contract TestUSDCSellRepoToken is Setup {
             2e18,
             "Pausable: paused"
         );
+
+        vm.prank(management);
+        termStrategy.unpauseStrategy();
+        vm.prank(testDepositor);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
     }
 }
