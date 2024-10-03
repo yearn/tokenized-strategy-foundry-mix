@@ -98,7 +98,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
             }
 
             // Create sequential addresses to ensure that list is sorted
-            address auction = address(uint160(1000 + count));
+            address auction = address(uint160(1000 + 2 * count));
             // Etch the code of the auction contract into this address
             this.etch(auction, _referenceAuction);
             TermAuction(auction).initializeSymbolic();
