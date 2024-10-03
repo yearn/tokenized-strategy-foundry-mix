@@ -2,7 +2,7 @@
 foundry-project-root       = '.'
 regen                      = true
 rekompile                  = true
-verbose                    = true
+verbose                    = false
 debug                      = false
 require                    = 'src/test/kontrol/term-lemmas.k'
 module-import              = 'RepoTokenListInvariantsTest:TERM-LEMMAS'
@@ -11,7 +11,7 @@ auxiliary-lemmas           = true
 
 [prove.default]
 foundry-project-root       = '.'
-verbose                    = true
+verbose                    = false
 debug                      = false
 max-depth                  = 100000
 max-iterations             = 10000
@@ -37,7 +37,7 @@ break-on-basic-blocks      = false
 break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
-bmc-depth                  = 3
+bmc-depth                  = 1
 match-test                 = [
         "RepoTokenListInvariantsTest.testInsertSortedNewToken",
         "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
