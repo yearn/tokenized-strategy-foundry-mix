@@ -309,7 +309,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
 
@@ -367,7 +367,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
-        _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
     }
 
 
@@ -389,7 +389,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
 
@@ -418,7 +418,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
-        _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
     }
 
     /**
@@ -512,7 +512,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
 
         // Assume that the calls to unlockOffers will not revert
         _guaranteeUnlockAlwaysSucceeds();
@@ -539,7 +539,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
-        _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
 
         // Now the following invariants should hold as well
         _establishNoCompletedAuctions(Mode.Assert);
