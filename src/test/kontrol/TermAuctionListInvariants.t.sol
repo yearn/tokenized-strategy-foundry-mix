@@ -345,7 +345,9 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
         pendingOffer.repoToken = address(repoToken);
-        pendingOffer.offerAmount = offerLocker.lockedOfferAmount(offerId);
+        uint256 amount = freshUInt256();
+        vm.assume(amount > 0);
+        pendingOffer.offerAmount = amount;
         pendingOffer.termAuction = ITermAuction(auction);
         pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
@@ -399,10 +401,13 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Assume that the offer is already in the list
         vm.assume(_offerInList(offerId));
         PendingOffer memory offer = _termAuctionList.offers[offerId];
+        // Calls to the Strategy.submitAuctionOffer need to ensure that the following 2 assumptions hold before the call
         vm.assume(offer.termAuction == pendingOffer.termAuction);
         vm.assume(offer.repoToken == address(pendingOffer.repoToken));
+        // This is ensured by the _validateAndGetOfferLocker if the above assumptions hold
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
-        vm.assume(offer.offerLocker.lockedOfferAmount(offerId) == pendingOffer.offerAmount);
+        // This is being checked by Strategy.submitAuctionOffer
+        vm.assume(pendingOffer.offerAmount > 0);
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);
