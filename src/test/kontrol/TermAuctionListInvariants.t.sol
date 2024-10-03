@@ -464,28 +464,30 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
-            address repoToken = _termAuctionList.offers[current].repoToken;
-            (
-             uint256 redemptionTimestamp,
-             address purchaseToken,
-             ,
-             address collateralManager
-            ) = ITermRepoToken(repoToken).config();
+            if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
+                address repoToken = _termAuctionList.offers[current].repoToken;
+                (
+                 uint256 redemptionTimestamp,
+                 address purchaseToken,
+                 ,
+                 address collateralManager
+                ) = ITermRepoToken(repoToken).config();
 
-            vm.assume(purchaseToken != asset);
-            vm.assume(redemptionTimestamp < block.timestamp);
+                vm.assume(purchaseToken == asset);
+                vm.assume(redemptionTimestamp >= block.timestamp);
 
-            uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
+                uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
 
-            for (uint256 i; i < numTokens; i++) {
-                address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
-                uint256 minCollateralRatio = freshUInt256();
-                _repoTokenList.collateralTokenParams[currentToken] = minCollateralRatio;
+                for (uint256 i; i < numTokens; i++) {
+                    address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
+                    uint256 minCollateralRatio = freshUInt256();
+                    _repoTokenList.collateralTokenParams[currentToken] = minCollateralRatio;
 
-                vm.assume(minCollateralRatio != 0);
-                vm.assume(
-                    ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
-                );
+                    vm.assume(minCollateralRatio != 0);
+                    vm.assume(
+                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
+                    );
+                }
             }
 
             current = _termAuctionList.nodes[current].next;
