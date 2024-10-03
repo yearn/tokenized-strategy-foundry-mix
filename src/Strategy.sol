@@ -801,15 +801,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
         _redeemRepoTokens(0);
 
-        bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
         uint256 newOfferAmount = purchaseTokenAmount;
         uint256 currentOfferAmount = termAuctionListData
-            .offers[offerId]
+            .offers[idHash]
             .offerAmount;
 
         // Submit the offer and lock it in the auction
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
-        offer.id = currentOfferAmount > 0 ? offerId : idHash;
+        offer.id = idHash;
         offer.offeror = address(this);
         offer.offerPriceHash = offerPriceHash;
         offer.amount = purchaseTokenAmount;
@@ -964,19 +963,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
 
         // Sweep any remaining assets and redeem repoTokens
         _redeemRepoTokens(0);
-    }
-
-    /**
-     * @dev Generate a term offer ID
-     * @param id The term offer ID hash
-     * @param offerLocker The address of the term offer locker
-     * @return The generated term offer ID
-     */
-    function _generateOfferId(
-        bytes32 id,
-        address offerLocker
-    ) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(id, address(this), offerLocker));
     }
 
     /**
