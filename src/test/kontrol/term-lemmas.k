@@ -47,7 +47,17 @@ module TERM-LEMMAS
     rule [keccak-slots-disjoint]:
       keccak ( A ) ==Int keccak ( B ) +Int C => false
       requires notBool 0 ==Int C
-      [simplification, symbolic(A, B), concrete(C), comm]
+      [simplification, concrete(C), comm]
+
+    rule [keccak-slots-disjoint-ml-l]:
+      { keccak ( A ) #Equals keccak ( B ) +Int C } => #Bottom
+      requires notBool 0 ==Int C
+      [simplification, concrete(C)]
+
+    rule [keccak-slots-disjoint-ml-r]:
+      { keccak ( B ) +Int C #Equals keccak ( A ) } => #Bottom
+      requires notBool 0 ==Int C
+      [simplification, concrete(C)]
 
     // 2a. |Int and +Bytes, update to be done in left
     rule [bor-update-to-left-2]:
@@ -66,6 +76,30 @@ module TERM-LEMMAS
     rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) ( S |Set SetItem (Y) ) requires notBool X ==Int Y [simplification, preserves-definedness]
     rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) S                      requires         X ==Int Y [simplification, preserves-definedness]
     rule                     .Set |Set SetItem(X:Int) => SetItem(X)                                                   [simplification, preserves-definedness]
+
+    rule K1 in_keys((K2 |-> _ ) M) => K1 ==Int K2 orBool K1 in_keys(M) [simplification]
+
+    rule [transferFunds-hp-neq]:
+      <k> #transferFunds ACCTFROM ACCTTO VALUE => .K ... </k>
+      <account>
+        <acctID> ACCTFROM </acctID>
+        <balance> ORIGFROM => ORIGFROM -Word VALUE </balance>
+        ...
+      </account>
+      <account>
+        <acctID> ACCTTO </acctID>
+        <balance> ORIGTO => ORIGTO +Word VALUE </balance>
+        ...
+      </account>
+      requires ACCTFROM =/=K ACCTTO andBool VALUE <=Int ORIGFROM
+      [priority(30), preserves-definedness]
+
+    rule [accounts-in-keys]:
+      `AccountCellMap:in_keys`(
+        <acctID> (X:Int) </acctID>,
+        (`_AccountCellMap_`(AccountCellMapItem(<acctID> Y:Int </acctID>, _:AccountCell):AccountCellMap, ACCOUNTS_REST:AccountCellMap)):AccountCellMap
+      ) => X ==Int Y orBool `AccountCellMap:in_keys`(<acctID> (X:Int) </acctID>, ACCOUNTS_REST)
+      [simplification, preserves-definedness]
 
 endmodule
 
