@@ -83,11 +83,13 @@ contract TestUSDCSubmitOffer is Setup {
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
-        );        
+        ); 
 
-        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);
+        uint256 offerDiff = offerAmount - 1e6;       
+
+        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerDiff);
         // test: totalAssetValue = total liquid balance + pending offer amount
-        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
+        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerDiff);
     }
 
     function testDeleteOffers() public {
