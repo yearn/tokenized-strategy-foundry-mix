@@ -309,7 +309,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assume);
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
 
@@ -345,9 +345,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
         pendingOffer.repoToken = address(repoToken);
-        uint256 amount = freshUInt256();
-        vm.assume(amount > 0);
-        pendingOffer.offerAmount = amount;
+        pendingOffer.offerAmount = offerLocker.lockedOfferAmount(offerId);
         pendingOffer.termAuction = ITermAuction(auction);
         pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
@@ -369,7 +367,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assert);
     }
 
 
