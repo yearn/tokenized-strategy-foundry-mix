@@ -16,6 +16,7 @@ contract RepoToken is ITermRepoToken, KontrolTest {
     uint256 _redemptionValue;
     TermRepoServicer _termRepoServicer;
     TermRepoCollateralManager _termRepoCollateralManager;
+    address _purchaseToken;
 
     uint256 private constant termRepoServicerSlot = 30;
     uint256 private constant termRepoCollateralManagerSlot = 31;
@@ -29,6 +30,8 @@ contract RepoToken is ITermRepoToken, KontrolTest {
 
         _redemptionTimestamp = freshUInt256();
         vm.assume(_redemptionTimestamp < TIME_UPPER_BOUND);
+
+        _purchaseToken = kevm.freshAddress();
 
         _redemptionValue = freshUInt256();
         vm.assume(_redemptionValue < ETH_UPPER_BOUND);
@@ -61,7 +64,7 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         address termRepoCollateralManager
     ) {
         redemptionTimestamp = _redemptionTimestamp;
-        purchaseToken = kevm.freshAddress();
+        purchaseToken = _purchaseToken;
         termRepoServicer = address(_termRepoServicer);
         termRepoCollateralManager = address(_termRepoCollateralManager);
     }

@@ -471,7 +471,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
-            if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
+            //if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
                 address repoToken = _termAuctionList.offers[current].repoToken;
                 (
                  uint256 redemptionTimestamp,
@@ -492,10 +492,10 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
                     vm.assume(minCollateralRatio != 0);
                     vm.assume(
-                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
+                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) > minCollateralRatio
                     );
                 }
-            }
+           // }
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -512,6 +512,8 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
+        _assumeNewAddress(asset);
+        vm.assume(asset != address(discountRateAdapter));
 
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
@@ -519,7 +521,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assume, bytes32(0));
 
         // Assume that the calls to unlockOffers will not revert
         _guaranteeUnlockAlwaysSucceeds();
@@ -546,7 +548,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
 
         // Now the following invariants should hold as well
         _establishNoCompletedAuctions(Mode.Assert);
