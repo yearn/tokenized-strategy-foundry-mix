@@ -20,3 +20,9 @@
 [submodule "lib/kontrol-cheatcodes"]
 	path = lib/kontrol-cheatcodes
 	url = https://github.com/runtimeverification/kontrol-cheatcodes
+[submodule "lib/yearn-vaults-v3"]
+	path = lib/yearn-vaults-v3
+	url = https://github.com/yearn/yearn-vaults-v3.git
+[submodule "lib/vault-periphery"]
+	path = lib/vault-periphery
+	url = https://github.com/yearn/vault-periphery.git

@@ -180,7 +180,11 @@ library TermAuctionList {
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
                 removeNode = true;
-                insertRepoToken = true;
+                ITermRepoToken repoToken = ITermRepoToken(offer.repoToken);
+                (uint256 redemptionTimestamp , , ,) = repoToken.config();
+                if (redemptionTimestamp > block.timestamp) {
+                    insertRepoToken = true;
+                }
             } else {
                 if (offerAmount == 0) {
                     // If offer amount is zero, it indicates the auction was canceled or deleted
@@ -211,12 +215,12 @@ library TermAuctionList {
 
             if (insertRepoToken) {
 
-                // Auction still open => include offerAmount in totalValue
-                // (otherwise locked purchaseToken will be missing from TV)
-                // Auction completed but not closed => include offer.offerAmount in totalValue
-                // because the offerLocker will have already removed the offer.
-                // This applies if the repoToken hasn't been added to the repoTokenList
-                // (only for new auctions, not reopenings).
+                // Auction still open => include offerAmount in totalValue 
+                // (otherwise locked purchaseToken will be missing from TV)               
+                // Auction completed but not closed => include offer.offerAmount in totalValue 
+                // because the offerLocker will have already removed the offer. 
+                // This applies if the repoToken hasn't been added to the repoTokenList 
+                // (only for new auctions, not reopenings).  
                 repoTokenListData.validateAndInsertRepoToken(
                     ITermRepoToken(offer.repoToken), discountRateAdapter, asset
                 );
