@@ -408,6 +408,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // This is ensured by the _validateAndGetOfferLocker if the above assumptions hold
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
         // This is being checked by Strategy.submitAuctionOffer
+        vm.assume(pendingOffer.offerAmount > 0);
         vm.assume(pendingOffer.offerAmount == pendingOffer.offerLocker.lockedOfferAmount(offerId));
 
         // Call the function being tested
