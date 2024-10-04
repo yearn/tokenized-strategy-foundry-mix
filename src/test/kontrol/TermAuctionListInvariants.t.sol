@@ -205,13 +205,15 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
      * Assume or assert that the offer amounts recorded in the list are the same
      * as the offer amounts in the offer locker.
      */
-    function _establishOfferAmountMatchesAmountLocked(Mode mode) internal {
+    function _establishOfferAmountMatchesAmountLocked(Mode mode, bytes32 offerId) internal {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
-            PendingOffer storage offer = _termAuctionList.offers[current];
-            uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
-            _establish(mode, offer.offerAmount == offerAmount);
+            if(offerId == 0 || offerId != current) {
+                PendingOffer storage offer = _termAuctionList.offers[current];
+                uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
+                _establish(mode, offer.offerAmount == offerAmount);
+            }
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -309,7 +311,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assume, bytes32(0));
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
 
@@ -367,7 +369,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
-        _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
     }
 
 
@@ -383,21 +385,22 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // TODO: Does the code protect against this?
         vm.assume(offerId != TermAuctionList.NULL_NODE);
 
+        // Save the number of offers in the list before the function is called
+        uint256 count = _countOffersInList();
+
+        // Assume that the offer is already in the list
+        vm.assume(_offerInList(offerId));
+
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
 
         // Assume that the invariants hold before the function is called
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assume);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assume, offerId);
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
 
-        // Save the number of offers in the list before the function is called
-        uint256 count = _countOffersInList();
-
-        // Assume that the offer is already in the list
-        vm.assume(_offerInList(offerId));
         PendingOffer memory offer = _termAuctionList.offers[offerId];
         // Calls to the Strategy.submitAuctionOffer need to ensure that the following 2 assumptions hold before the call
         vm.assume(offer.termAuction == pendingOffer.termAuction);
@@ -405,7 +408,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         // This is ensured by the _validateAndGetOfferLocker if the above assumptions hold
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
         // This is being checked by Strategy.submitAuctionOffer
-        vm.assume(pendingOffer.offerAmount > 0);
+        vm.assume(pendingOffer.offerAmount == pendingOffer.offerLocker.lockedOfferAmount(offerId));
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);
@@ -421,7 +424,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         _establishNoDuplicateOffers(Mode.Assert);
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
-        // _establishOfferAmountMatchesAmountLocked(Mode.Assert);
+        _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
     }
 
     /**
