@@ -82,7 +82,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
+            repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), offerAmount
         );        
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);
@@ -103,13 +103,13 @@ contract TestUSDCSubmitOffer is Setup {
         vm.expectRevert(abi.encodeWithSelector(Strategy.RepoTokenConcentrationTooHigh.selector, address(repoToken1Week)));
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), 60e6
+            repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), 60e6
         );
 
         // 40% concentration should pass
         vm.prank(management);
         offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), 40e6
+            repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), 40e6
         );        
     }
 
@@ -295,7 +295,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), 50e6);
 
-        _submitOffer(idHash1, 100e6);
+        _submitOffer(offerId1, 100e6);
 
         assertEq(termStrategy.totalLiquidBalance(), 0);        
     }
@@ -306,7 +306,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), 0);
 
-        _submitOffer(idHash1, 50e6);
+        _submitOffer(offerId1, 50e6);
 
         assertEq(termStrategy.totalLiquidBalance(), 50e6); 
     }

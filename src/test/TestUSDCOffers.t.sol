@@ -83,17 +83,20 @@ contract TestUSDCSubmitOffer is Setup {
         // TODO: fuzz this
         uint256 offerAmount = 4e6;
 
+        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(repoTokenHoldingValue, 1e6);
+        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
-            repoToken1WeekAuction, address(repoToken1Week), idHash1, bytes32("test price"), offerAmount
+            repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), offerAmount
         ); 
 
-        uint256 offerDiff = offerAmount - 1e6;       
-
-        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerDiff);
-        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - offerAmount);
+        repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 4e6);
-        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerDiff);
+        assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
     }
 
     function testDeleteOffers() public {
@@ -330,7 +333,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), 50e6);
 
-        _submitOffer(idHash1, 100e6);
+        _submitOffer(offerId1, 100e6);
 
         assertEq(termStrategy.totalLiquidBalance(), 0);        
     }
@@ -341,7 +344,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         assertEq(termStrategy.totalLiquidBalance(), 0);
 
-        _submitOffer(idHash1, 50e6);
+        _submitOffer(offerId1, 50e6);
 
         assertEq(termStrategy.totalLiquidBalance(), 50e6); 
     }
