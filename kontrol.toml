@@ -37,11 +37,14 @@ break-on-basic-blocks      = false
 break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
-bmc-depth                  = 1
+bmc-depth                  = 5
 match-test                 = [
         "RepoTokenListInvariantsTest.testInsertSortedNewToken",
         "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
         "RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
+        "TermAuctionListInvariantsTest.testInsertPendingNewOffer",
+        "TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
+        "TermAuctionListInvariantsTest.testRemoveCompleted",
     ]
 ast                        = true
 
