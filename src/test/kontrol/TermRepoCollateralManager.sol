@@ -21,6 +21,7 @@ contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
 
         for (uint256 i = 0; i < _collateralTokens.length; ++i) {
             // Generate an arbitrary concrete address for each token
+            // All repoTokens in the list will share the same colllateral tokens
             address currentToken = address(
                 uint160(uint256(keccak256(abi.encodePacked("collateral", i))))
             );

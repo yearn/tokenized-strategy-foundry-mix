@@ -12,7 +12,7 @@ import "src/test/kontrol/RepoToken.sol";
 contract RepoTokenListInvariantsTest is KontrolTest {
     using RepoTokenList for RepoTokenListData;
 
-    RepoTokenListData _repoTokenList;
+    RepoTokenList _repoTokenList;
 
     /**
      * Deploy a new RepoToken with symbolic storage.

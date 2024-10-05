@@ -471,7 +471,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
-            //if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
+            if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
                 address repoToken = _termAuctionList.offers[current].repoToken;
                 (
                  uint256 redemptionTimestamp,
@@ -487,15 +487,14 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
 
                 for (uint256 i; i < numTokens; i++) {
                     address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
-                    uint256 minCollateralRatio = freshUInt256();
-                    _repoTokenList.collateralTokenParams[currentToken] = minCollateralRatio;
+                    uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[currentToken];
 
                     vm.assume(minCollateralRatio != 0);
                     vm.assume(
-                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) > minCollateralRatio
+                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio
                     );
                 }
-           // }
+            }
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -512,8 +511,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
-        _assumeNewAddress(asset);
-        vm.assume(asset != address(discountRateAdapter));
 
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
