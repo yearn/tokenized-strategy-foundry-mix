@@ -204,14 +204,15 @@ library TermAuctionList {
 
             if (removeNode) {
                 // Update the list to remove the current node
+                delete listData.nodes[current];
+                delete listData.offers[current];
                 if (current == listData.head) {
                     listData.head = next;
                 }
-
-                listData.nodes[prev].next = next;
-                delete listData.nodes[current];
-                delete listData.offers[current];
-                current = prev;
+                else {
+                    listData.nodes[prev].next = next;
+                    current = prev;
+                }
             }
 
             if (insertRepoToken) {

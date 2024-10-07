@@ -14,14 +14,15 @@ import "src/test/kontrol/TermAuction.sol";
 import "src/test/kontrol/TermAuctionOfferLocker.sol";
 import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
-contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
+contract TermAuctionListInvariantsTest is KontrolTest {
     using TermAuctionList for TermAuctionListData;
 
     TermAuctionListData _termAuctionList;
     address _referenceAuction;
+    RepoTokenListData _repoTokenList;
 
-    uint256 private constant auctionListSlot = 31;
-    uint256 private constant referenceAuctionSlot = 34;
+    uint256 private constant auctionListSlot = 27;
+    uint256 private constant referenceAuctionSlot = 30;
 
     function setUp() public {
         // Make storage of this contract completely symbolic

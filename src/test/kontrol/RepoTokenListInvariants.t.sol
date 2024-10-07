@@ -14,6 +14,14 @@ contract RepoTokenListInvariantsTest is KontrolTest {
 
     RepoTokenListData _repoTokenList;
 
+    function setUp() public {
+        // Make storage of this contract completely symbolic
+        kevm.symbolicStorage(address(this));
+
+        // Initialize RepoTokenList of arbitrary size
+        _initializeRepoTokenList();
+    }
+
     /**
      * Deploy a new RepoToken with symbolic storage.
      */
@@ -195,10 +203,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
      * is added (that was not present in the list before).
      */
     function testInsertSortedNewToken() external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
         _establishNoDuplicateTokens(Mode.Assert);
@@ -242,10 +246,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
     function testInsertSortedDuplicateToken(
         address repoToken
     ) external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
         _establishNoDuplicateTokens(Mode.Assert);
@@ -296,10 +296,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
      * Test that removeAndRedeemMaturedTokens preserves the list invariants.
      */
     function testRemoveAndRedeemMaturedTokens() external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
 
