@@ -44,6 +44,8 @@ contract TestUSDCSubmitOffer is Setup {
         // start with some initial funds
         mockUSDC.mint(address(strategy), 100e6);
 
+        assertEq(termStrategy.liquidReserveRatio(), 1e18);
+
         initialState.totalAssetValue = termStrategy.totalAssetValue();
         initialState.totalLiquidBalance = termStrategy.totalLiquidBalance();
     }
@@ -72,6 +74,8 @@ contract TestUSDCSubmitOffer is Setup {
         // test: totalAssetValue = total liquid balance + pending offer amount
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
 
+        assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
+
         uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 1e6);
     }
@@ -87,6 +91,7 @@ contract TestUSDCSubmitOffer is Setup {
         uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 1e6);
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+        assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
 
         vm.prank(management);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
@@ -97,6 +102,7 @@ contract TestUSDCSubmitOffer is Setup {
         repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 4e6);
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + offerAmount);
+        assertEq(termStrategy.liquidReserveRatio(), 0.96e18);
     }
 
     function testDeleteOffers() public {
@@ -116,6 +122,8 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance());
         uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 0);
+        assertEq(termStrategy.liquidReserveRatio(), 1e18);
+
     }
 
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
@@ -155,6 +163,7 @@ contract TestUSDCSubmitOffer is Setup {
         );
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+        assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
 
         uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 1e6);
@@ -170,6 +179,7 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(holdings.length, 0);
 
         termStrategy.auctionClosed();
+        assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
 
         repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 1e6);
@@ -190,6 +200,7 @@ contract TestUSDCSubmitOffer is Setup {
 
     function testCompleteAuctionSuccessPartial() public {
         bytes32 offerId1 = _submitOffer(bytes32("offer id 1"), 1e6);
+        assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
         uint256 fillAmount = 0.5e6;
 
         bytes32[] memory offerIds = new bytes32[](1);
@@ -207,6 +218,8 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(repoTokenHoldingValue, 1e6);
 
         repoToken1WeekAuction.auctionSuccess(offerIds, fillAmounts, repoTokenAmounts);
+
+        assertEq(termStrategy.liquidReserveRatio(), 0.995e18);
 
         repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 0.5e6);
