@@ -7,6 +7,8 @@ import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {Strategy} from "../Strategy.sol";
+import {RepoTokenList} from "../RepoTokenList.sol";
+
 
 contract TestUSDCSubmitOffer is Setup {
     uint256 internal constant TEST_REPO_TOKEN_RATE = 0.05e18;
@@ -15,6 +17,8 @@ contract TestUSDCSubmitOffer is Setup {
     ERC20Mock internal mockCollateral; 
     MockTermRepoToken internal repoToken1Week;
     MockTermAuction internal repoToken1WeekAuction;
+    MockTermRepoToken internal repoToken100Week;
+    MockTermAuction internal repoToken100WeekAuction;
     Strategy internal termStrategy;
     StrategySnapshot internal initialState;
 
@@ -26,12 +30,16 @@ contract TestUSDCSubmitOffer is Setup {
 
         repoToken1Week = new MockTermRepoToken(
             bytes32("test repo token 1"), address(mockUSDC), address(mockCollateral), 1e18, 1 weeks
-        );        
+        );   
+        repoToken100Week = new MockTermRepoToken(
+            bytes32("test repo token 100"), address(mockUSDC), address(mockCollateral), 1e18, 100 weeks
+        );       
         termController.setOracleRate(MockTermRepoToken(repoToken1Week).termRepoId(), TEST_REPO_TOKEN_RATE);
 
         termStrategy = Strategy(address(strategy));
 
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
+        repoToken100WeekAuction = new MockTermAuction(repoToken100Week);
 
         vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
@@ -88,7 +96,40 @@ contract TestUSDCSubmitOffer is Setup {
         termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  51e6
         );        
+    }
 
+    function testSubmitOfferToInvalidAuction() public {       
+        vm.startPrank(management);    
+        termController.markNotTermDeployed(address(repoToken1WeekAuction));
+        vm.expectRevert(abi.encodeWithSelector(Strategy.InvalidTermAuction.selector, address(repoToken1WeekAuction)));
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  1e6
+        );        
+    }
+
+    function testSubmitOfferToAuctionWithInvalidRepoToken() public {       
+        vm.startPrank(management);    
+        termController.markNotTermDeployed(address(repoToken1Week));
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  1e6
+        );        
+    }
+
+    function testSubmitOfferWithoutEnoughLiquidity() public {
+        vm.prank(management);        
+        vm.expectRevert(abi.encodeWithSelector(Strategy.InsufficientLiquidBalance.selector, 100e6, 101e6));
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  101e6
+        );        
+    }
+
+    function testSubmitOfferWithExcessiveWeightedTimeMaturity() public {
+        vm.prank(management);        
+        vm.expectRevert(abi.encodeWithSelector(Strategy.TimeToMaturityAboveThreshold.selector));
+        termStrategy.submitAuctionOffer(
+            repoToken100WeekAuction, address(repoToken100Week), bytes32("offer id hash 1"), bytes32("test price"),  10e6
+        );  
     }
 
     function testEditOffer() public {
