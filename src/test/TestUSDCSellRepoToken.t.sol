@@ -112,6 +112,34 @@ contract TestUSDCSellRepoToken is Setup {
   //      assertEq(weightedTimeToMaturity, expectedWeightedTimeToMaturity);
     }
 
+    function testSellInvalidRepoToken() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 100e6);
+        _initState();
+
+        // TODO: fuzz this
+        uint256 repoTokenSellAmount = 1e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+        termController.markNotTermDeployed(address(repoToken1Week));
+
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+    }
+
     // Test with different precisions
     function testCalculateRepoTokenPresentValue() public {
         //      0.05      0.075     0.1687

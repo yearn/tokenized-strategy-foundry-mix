@@ -10,6 +10,8 @@ import {Strategy} from "../Strategy.sol";
 
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TermDiscountRateAdapter} from "../TermDiscountRateAdapter.sol";
+import {RepoTokenList} from "../RepoTokenList.sol";
+
 
 
 contract TestUSDCIntegration is Setup {
@@ -177,6 +179,19 @@ contract TestUSDCIntegration is Setup {
         assertEq(holdings.length, 0);
         assertEq(repoToken1Month.balanceOf(address(strategy)), 0);
     }
+
+    function testSimulateTransactionWithInvalidToken() public {
+        address testUser = vm.addr(0x11111);  
+
+        vm.prank(management);
+        termController.markNotTermDeployed(address(repoToken1Week));
+        vm.stopPrank();
+
+        vm.prank(testUser);  
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.simulateTransaction(address(repoToken1Week), 1e6);
+    }
+
 
     function testRepoTokenBlacklist() public {
         address testUser = vm.addr(0x11111);  

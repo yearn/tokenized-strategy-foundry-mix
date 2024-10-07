@@ -80,6 +80,17 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(repoTokenHoldingValue, 1e6);
     }
 
+    function testSubmitOfferBelowLiquidReserveRatio() public {   
+        vm.startPrank(management);    
+        termStrategy.setRequiredReserveRatio(0.5e18);
+
+        vm.expectRevert(abi.encodeWithSelector(Strategy.BalanceBelowRequiredReserveRatio.selector));
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  51e6
+        );        
+
+    }
+
     function testEditOffer() public {
         bytes32 idHash1 = bytes32("offer id hash 1");
         bytes32 offerId1 = _submitOffer(idHash1, 1e6);
