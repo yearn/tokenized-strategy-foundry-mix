@@ -471,7 +471,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
-            if (_termAuctionList.offers[current].termAuction.auctionCompleted()) {
                 address repoToken = _termAuctionList.offers[current].repoToken;
                 (
                  uint256 redemptionTimestamp,
@@ -481,7 +480,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
                 ) = ITermRepoToken(repoToken).config();
 
                 vm.assume(purchaseToken == asset);
-                vm.assume(redemptionTimestamp >= block.timestamp);
 
                 uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
 
@@ -494,7 +492,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListInvariantsTest {
                         ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio
                     );
                 }
-            }
 
             current = _termAuctionList.nodes[current].next;
         }
