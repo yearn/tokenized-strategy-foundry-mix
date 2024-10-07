@@ -288,6 +288,7 @@ library RepoTokenList {
      * @param listData The list data
      * @param repoToken The repoToken to validate
      * @param asset The address of the base asset
+     * @return isRepoTokenValid Whether the repoToken is valid
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken 
      * 
      * @dev Ensures the repoToken is deployed, matches the purchase token, is not matured, and meets collateral requirements.
@@ -297,7 +298,7 @@ library RepoTokenList {
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
         address asset
-    ) internal view returns (uint256 redemptionTimestamp) {
+    ) internal view returns (bool isRepoTokenValid, uint256 redemptionTimestamp) {
         // Retrieve repo token configuration
         address purchaseToken;
         address collateralManager;
@@ -305,12 +306,12 @@ library RepoTokenList {
 
         // Validate purchase token
         if (purchaseToken != asset) {
-            revert InvalidRepoToken(address(repoToken));
+            return (false, redemptionTimestamp);
         }
 
         // Check if repo token has matured
         if (redemptionTimestamp < block.timestamp) {
-            revert InvalidRepoToken(address(repoToken));
+             return (false, redemptionTimestamp);
         }
 
         // Validate collateral token ratios
@@ -320,13 +321,14 @@ library RepoTokenList {
             uint256 minCollateralRatio = listData.collateralTokenParams[currentToken];
 
             if (minCollateralRatio == 0) {
-                revert InvalidRepoToken(address(repoToken));
+                 return (false, redemptionTimestamp);
             } else if (
                 ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
             ) {
-                revert InvalidRepoToken(address(repoToken));
+                 return (false, redemptionTimestamp);
             }
         }
+        return (true, redemptionTimestamp);
     }
 
     /**
@@ -362,8 +364,12 @@ library RepoTokenList {
         } else {
             discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
-            redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
+            bool isRepoTokenValid;
 
+            (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
+            if (!isRepoTokenValid) {
+                revert InvalidRepoToken(address(repoToken));
+            }
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
         }
