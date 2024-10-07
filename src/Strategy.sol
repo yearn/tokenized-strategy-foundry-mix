@@ -349,17 +349,22 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
-            uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
+            (bool isRepoTokenValid, uint256 redemptionTimestamp) = repoTokenListData.validateRepoToken(
                 ITermRepoToken(repoToken),
                 address(asset)
             );
+
+            if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+            }
             
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
             repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                 repoToken,
                 amount,
                 PURCHASE_TOKEN_PRECISION,
-                discountRateAdapter.repoRedemptionHaircut(repoToken)
+                repoRedemptionHaircut
             );
             proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
