@@ -180,14 +180,25 @@ library TermAuctionList {
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
                 removeNode = true;
-                (insertRepoToken, ) = repoTokenListData.validateRepoToken(ITermRepoToken(offer.repoToken), asset);
+                // Auction still open => include offerAmount in totalValue 
+                // (otherwise locked purchaseToken will be missing from TV)               
+                // Auction completed but not closed => include offer.offerAmount in totalValue 
+                // because the offerLocker will have already removed the offer. 
+                // This applies if the repoToken hasn't been added to the repoTokenList 
+                // (only for new auctions, not reopenings).  
+                repoTokenListData.validateAndInsertRepoToken(
+                    ITermRepoToken(offer.repoToken), discountRateAdapter, asset
+                );
             } else {
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
-                    removeNode = true;
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
-                    offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer amount
+                    try offer.offerLocker.unlockOffers(offerIds) { // unlocking offer in this scenario withdraws offer amount
+                        removeNode = true;
+                    } catch {
+                        removeNode = false;
+                    }
                 } else {
                     if (offerAmount == 0) {
                     // If offer amount is zero, it indicates the auction was canceled or deleted
@@ -207,19 +218,6 @@ library TermAuctionList {
                     listData.nodes[prev].next = next;
                     current = prev;
                 }
-            }
-
-            if (insertRepoToken) {
-
-                // Auction still open => include offerAmount in totalValue 
-                // (otherwise locked purchaseToken will be missing from TV)               
-                // Auction completed but not closed => include offer.offerAmount in totalValue 
-                // because the offerLocker will have already removed the offer. 
-                // This applies if the repoToken hasn't been added to the repoTokenList 
-                // (only for new auctions, not reopenings).  
-                repoTokenListData.validateAndInsertRepoToken(
-                    ITermRepoToken(offer.repoToken), discountRateAdapter, asset
-                );
             }
 
             // Move to the next node

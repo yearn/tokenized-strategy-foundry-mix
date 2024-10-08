@@ -337,6 +337,7 @@ library RepoTokenList {
      * @param repoToken The repoToken to validate and insert
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
+     * @return validRepoToken Whether the repoToken is valid
      * @return discountRate The discount rate to be applied to the validated repoToken 
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken     
      */
@@ -345,14 +346,14 @@ library RepoTokenList {
         ITermRepoToken repoToken,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
-    ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
+    ) internal returns (bool validRepoToken, uint256 discountRate, uint256 redemptionTimestamp) {
         discountRate = listData.discountRates[address(repoToken)];
         if (discountRate != INVALID_AUCTION_RATE) {
             (redemptionTimestamp, , ,) = repoToken.config();
 
             // skip matured repoTokens
             if (redemptionTimestamp < block.timestamp) {
-                revert InvalidRepoToken(address(repoToken));
+                return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
             }
 
             uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
@@ -368,11 +369,13 @@ library RepoTokenList {
 
             (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
             if (!isRepoTokenValid) {
-                revert InvalidRepoToken(address(repoToken));
+                return (false, discountRate, redemptionTimestamp);
             }
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
         }
+
+        return (true, discountRate, redemptionTimestamp);
     }
 
     /**
