@@ -999,12 +999,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
-        (, uint256 redemptionTimestamp) = repoTokenListData
+        (bool isRepoTokenValid , , uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
                 discountRateAdapter,
                 address(asset)
             );
+
+        if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
 
         // Sweep assets and redeem repoTokens, if needed
         _redeemRepoTokens(0);
