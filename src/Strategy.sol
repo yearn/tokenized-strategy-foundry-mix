@@ -349,17 +349,22 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
-            uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
+            (bool isRepoTokenValid, uint256 redemptionTimestamp) = repoTokenListData.validateRepoToken(
                 ITermRepoToken(repoToken),
                 address(asset)
             );
+
+            if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+            }
             
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
             repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                 repoToken,
                 amount,
                 PURCHASE_TOKEN_PRECISION,
-                discountRateAdapter.repoRedemptionHaircut(repoToken)
+                repoRedemptionHaircut
             );
             proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
@@ -994,12 +999,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
-        (, uint256 redemptionTimestamp) = repoTokenListData
+        (bool isRepoTokenValid , , uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
                 discountRateAdapter,
                 address(asset)
             );
+
+        if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
 
         // Sweep assets and redeem repoTokens, if needed
         _redeemRepoTokens(0);
