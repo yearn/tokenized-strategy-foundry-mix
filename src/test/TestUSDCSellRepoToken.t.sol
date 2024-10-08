@@ -117,7 +117,6 @@ contract TestUSDCSellRepoToken is Setup {
         mockUSDC.mint(address(strategy), 100e6);
         _initState();
 
-        // TODO: fuzz this
         uint256 repoTokenSellAmount = 1e18;
 
         address testUser = vm.addr(0x11111);
@@ -137,6 +136,59 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(testUser);
         vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+    }
+
+    function testSellRepoTokenInvalidLiquidBalance() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 5e6);
+        _initState();
+
+        uint256 repoTokenSellAmount = 5.1e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.00001e18);
+
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(Strategy.InsufficientLiquidBalance.selector, 5e6, 5.1e6));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+    }
+
+    function testSellRepoTokenBalanceBelowRequireReserveRatio() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 5e6);
+        _initState();
+
+        uint256 repoTokenSellAmount = 2.7e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+
+        vm.startPrank(management);
+        termStrategy.setRequiredReserveRatio(0.5e18);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(Strategy.BalanceBelowRequiredReserveRatio.selector));
         termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
     }
 

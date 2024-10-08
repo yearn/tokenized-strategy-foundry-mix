@@ -23,6 +23,7 @@ contract TestUSDCIntegration is Setup {
     ERC20Mock internal mockCollateral; 
     MockTermRepoToken internal repoToken1Week;
     MockTermRepoToken internal repoToken1Month;
+    MockTermRepoToken internal repoTokenMatured;
     MockTermAuction internal repoToken1WeekAuction;
     MockTermAuction internal repoToken1MonthAuction;
     Strategy internal termStrategy;
@@ -40,6 +41,10 @@ contract TestUSDCIntegration is Setup {
         repoToken1Month = new MockTermRepoToken(
             bytes32("test repo token 2"), address(mockUSDC), address(mockCollateral), 1e18, 4 weeks
         );    
+        repoTokenMatured = new MockTermRepoToken(
+            bytes32("test repo token 3"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp - 1
+        );
+
         termController.setOracleRate(MockTermRepoToken(repoToken1Week).termRepoId(), TEST_REPO_TOKEN_RATE);
         termController.setOracleRate(MockTermRepoToken(repoToken1Month).termRepoId(), TEST_REPO_TOKEN_RATE);
 
@@ -180,7 +185,7 @@ contract TestUSDCIntegration is Setup {
         assertEq(repoToken1Month.balanceOf(address(strategy)), 0);
     }
 
-    function testSimulateTransactionWithInvalidToken() public {
+    function testSimulateTransactionWithNonTermDeployedToken() public {
         address testUser = vm.addr(0x11111);  
 
         vm.prank(management);
@@ -190,6 +195,45 @@ contract TestUSDCIntegration is Setup {
         vm.prank(testUser);  
         vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
         termStrategy.simulateTransaction(address(repoToken1Week), 1e6);
+    }
+
+    function testSimulateTransactionWithInvalidToken() public {
+        address testUser = vm.addr(0x11111);  
+
+        vm.prank(testUser);  
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoTokenMatured)));
+        termStrategy.simulateTransaction(address(repoTokenMatured), 1e6);
+    }
+
+    function testSimulateTransactionWithValidToken() public {
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e6);
+
+        vm.startPrank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+        termStrategy.sellRepoToken(address(repoToken1Week), 25e18);
+        vm.stopPrank();
+
+        uint256 repoTokenSellAmount = 25e18;
+
+        termController.setOracleRate(repoToken1Month.termRepoId(), 0.05e6);
+
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.startPrank(testUser);  
+        repoToken1Month.mint(testUser, 1000e18);
+        repoToken1Month.approve(address(strategy), type(uint256).max);
+        (uint256 simulatedWeightedMaturity, uint256 simulatedRepoTokenConcentrationRatio, uint256 simulatedLiquidityRatio) = termStrategy.simulateTransaction(address(repoToken1Month), repoTokenSellAmount);
+        assertApproxEq(simulatedWeightedMaturity, 1.25 weeks, 1);
+        assertEq(simulatedRepoTokenConcentrationRatio, 0.25e18);
+        assertEq(simulatedLiquidityRatio, 0.5e18);
+        vm.stopPrank();
     }
 
 

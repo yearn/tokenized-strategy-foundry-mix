@@ -175,7 +175,22 @@ contract TestUSDCSubmitOffer is Setup {
         uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
         assertEq(repoTokenHoldingValue, 0);
         assertEq(termStrategy.liquidReserveRatio(), 1e18);
+    }
 
+    function testDeleteOffersFromInvalidAuction() public {
+        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6);
+
+        bytes32[] memory offerIds = new bytes32[](1);
+
+        offerIds[0] = offerId1;
+
+        vm.expectRevert("!management");
+        termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
+
+        vm.startPrank(management);
+        termController.markNotTermDeployed(address(repoToken1WeekAuction));
+        vm.expectRevert(abi.encodeWithSelector(Strategy.InvalidTermAuction.selector, address(repoToken1WeekAuction)));
+        termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
     }
 
     uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
