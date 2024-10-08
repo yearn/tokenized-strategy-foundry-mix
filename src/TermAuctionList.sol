@@ -180,11 +180,7 @@ library TermAuctionList {
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
                 removeNode = true;
-                ITermRepoToken repoToken = ITermRepoToken(offer.repoToken);
-                (uint256 redemptionTimestamp , , ,) = repoToken.config();
-                if (redemptionTimestamp > block.timestamp) {
-                    insertRepoToken = true;
-                }
+                (insertRepoToken, ) = repoTokenListData.validateRepoToken(ITermRepoToken(offer.repoToken), asset);
             } else {
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
