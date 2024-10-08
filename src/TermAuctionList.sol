@@ -186,19 +186,17 @@ library TermAuctionList {
                     insertRepoToken = true;
                 }
             } else {
-                if (offerAmount == 0) {
-                    // If offer amount is zero, it indicates the auction was canceled or deleted
-                    removeNode = true;
-                } else {
-                    // Otherwise, do nothing if the offer is still pending
-                }
-
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
                     removeNode = true;
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
                     offer.offerLocker.unlockOffers(offerIds); // unlocking offer in this scenario withdraws offer amount
+                } else {
+                    if (offerAmount == 0) {
+                    // If offer amount is zero, it indicates the auction was canceled or deleted
+                    removeNode = true;
+                    }
                 }
             }
 
