@@ -7,6 +7,7 @@ import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
 import {MockTermRepoToken} from "./MockTermRepoToken.sol";
 
 contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
+    error OfferUnlockingFailed();
 
     address public purchaseToken;
     address public termRepoServicer;

@@ -2,6 +2,7 @@ pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/ERC20Mock.sol";
+import {MockTermAuctionOfferLocker} from "./mocks/MockTermAuctionOfferLocker.sol";
 import {MockTermRepoToken} from "./mocks/MockTermRepoToken.sol";
 import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
@@ -11,7 +12,7 @@ import {Strategy} from "../Strategy.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {TermDiscountRateAdapter} from "../TermDiscountRateAdapter.sol";
 import {RepoTokenList} from "../RepoTokenList.sol";
-
+import "../TermAuctionList.sol";
 
 
 contract TestUSDCIntegration is Setup {
@@ -23,9 +24,11 @@ contract TestUSDCIntegration is Setup {
     ERC20Mock internal mockCollateral; 
     MockTermRepoToken internal repoToken1Week;
     MockTermRepoToken internal repoToken1Month;
+    MockTermRepoToken internal repoToken1Year;
     MockTermRepoToken internal repoTokenMatured;
     MockTermAuction internal repoToken1WeekAuction;
     MockTermAuction internal repoToken1MonthAuction;
+    MockTermAuction internal repoToken1YearAuction;
     Strategy internal termStrategy;
     StrategySnapshot internal initialState;
 
@@ -41,6 +44,9 @@ contract TestUSDCIntegration is Setup {
         repoToken1Month = new MockTermRepoToken(
             bytes32("test repo token 2"), address(mockUSDC), address(mockCollateral), 1e18, 4 weeks
         );    
+        repoToken1Year = new MockTermRepoToken(
+            bytes32("test repo token 4"), address(mockUSDC), address(mockCollateral), 1e18, 48 weeks
+        ); 
         repoTokenMatured = new MockTermRepoToken(
             bytes32("test repo token 3"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp - 1
         );
@@ -53,6 +59,7 @@ contract TestUSDCIntegration is Setup {
 
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
         repoToken1MonthAuction = new MockTermAuction(repoToken1Month);
+        repoToken1YearAuction = new MockTermAuction(repoToken1Year);
 
         vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
@@ -150,15 +157,35 @@ contract TestUSDCIntegration is Setup {
         mockYearnVault.withdraw(1e18, testUser, testUser);
         vm.stopPrank();
 
-        bytes32 offerId1 = _submitOffer(bytes32("offer id hash 1"), 1e6, repoToken1WeekAuction, repoToken1Week);
+        _submitOffer(bytes32("offer id hash 4"), 1e6, repoToken1YearAuction, repoToken1Year);
 
-        bytes32 offerId2 = _submitOffer(bytes32("offer id hash 2"), 1e6, repoToken1MonthAuction, repoToken1Month);
+        _submitOffer(bytes32("offer id hash 1"), 1e6, repoToken1WeekAuction, repoToken1Week);
+
+        _submitOffer(bytes32("offer id hash 2"), 1e6, repoToken1MonthAuction, repoToken1Month);
 
         bytes32[] memory offers = termStrategy.pendingOffers();
 
-        assertEq(offers.length, 2);
+        bool isSorted = true;
 
-        assertTrue(offers[0] == offerId1 ? address(repoToken1WeekAuction) <= address(repoToken1MonthAuction) : address(repoToken1MonthAuction) <= address(repoToken1WeekAuction));
+        bytes32 offer1;
+        bytes32 offer2;
+        address termAuction1;
+        address termAuction2;
+
+        for (uint256 i = 0; i < offers.length - 1; i++) {
+            bytes32 offerSlot1 = keccak256(abi.encode(offers[i], 7));
+            bytes32 offerSlot2 = keccak256(abi.encode(offers[i+1], 7));
+            offer1 = vm.load(address(termStrategy), offerSlot1);
+            offer2 = vm.load(address(termStrategy), offerSlot2);
+            termAuction1 = address(uint160(uint256(offer1) >> 64));
+            termAuction2 = address(uint160(uint256(offer2) >> 64));
+
+            if (termAuction1 > termAuction2) {
+                isSorted=false;
+                break;
+            }
+        }
+        assertTrue(isSorted);
     }
 
     function testRemovingMaturedTokensWithRedemptionAttempt() public {       
@@ -236,6 +263,42 @@ contract TestUSDCIntegration is Setup {
         vm.stopPrank();
     }
 
+    function testSuccessfulUnlockedOfferFromCancelledAuction() public {
+        address testUser = vm.addr(0x11111);
+
+        vm.prank(management);
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer 1"), bytes32("test price"), 1e6
+        ); 
+
+        repoToken1WeekAuction.auctionCancelForWithdrawal();       
+
+        vm.startPrank(testUser);
+        repoToken1Month.mint(testUser, 1000e18);
+        repoToken1Month.approve(address(strategy), type(uint256).max);
+        termStrategy.sellRepoToken(address(repoToken1Month), 1e6);
+        bytes32[] memory pendingOffers = termStrategy.pendingOffers();
+        assertEq(0, pendingOffers.length);
+    }
+
+    function testFailedUnlockedOfferFromCancelledAuction() public {
+        address testUser = vm.addr(0x11111);
+
+        vm.prank(management);
+        bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer 1"), bytes32("test price"), 1e6
+        ); 
+
+        repoToken1WeekAuction.auctionCancelForWithdrawal();       
+
+        vm.startPrank(testUser);
+        repoToken1Month.mint(testUser, 1000e18);
+        repoToken1Month.approve(address(strategy), type(uint256).max);
+        vm.mockCall(repoToken1WeekAuction.termAuctionOfferLocker(), abi.encodeWithSelector(MockTermAuctionOfferLocker.unlockOffers.selector, offerIds), abi.encodeWithSelector(MockTermAuctionOfferLocker.OfferUnlockingFailed.selector));
+        termStrategy.sellRepoToken(address(repoToken1Month), 1e6);
+        bytes32[] memory pendingOffers = termStrategy.pendingOffers();
+        assertEq(1, pendingOffers.length);
+    }
 
     function testRepoTokenBlacklist() public {
         address testUser = vm.addr(0x11111);  
