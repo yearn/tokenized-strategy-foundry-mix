@@ -212,7 +212,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         while (current != TermAuctionList.NULL_NODE) {
             if(offerId == 0 || offerId != current) {
                 PendingOffer storage offer = _termAuctionList.offers[current];
-                uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
+                uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
                 _establish(mode, offer.offerAmount == offerAmount);
             }
 
@@ -334,7 +334,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
-        vm.assume(0 < offerLocker.lockedOfferAmount(offerId));
+        vm.assume(0 < offerLocker.lockedOffer(offerId).amount);
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
@@ -348,7 +348,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
         pendingOffer.repoToken = address(repoToken);
-        pendingOffer.offerAmount = offerLocker.lockedOfferAmount(offerId);
+        pendingOffer.offerAmount = offerLocker.lockedOffer(offerId).amount;
         pendingOffer.termAuction = ITermAuction(auction);
         pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
@@ -410,7 +410,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
         // This is being checked by Strategy.submitAuctionOffer
         vm.assume(pendingOffer.offerAmount > 0);
-        vm.assume(pendingOffer.offerAmount == pendingOffer.offerLocker.lockedOfferAmount(offerId));
+        vm.assume(pendingOffer.offerAmount == pendingOffer.offerLocker.lockedOffer(offerId).amount);
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);

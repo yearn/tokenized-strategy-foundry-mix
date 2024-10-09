@@ -50,8 +50,6 @@ interface ITermAuctionOfferLocker {
 
     function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory);
 
-    function lockedOfferAmount(bytes32 id) external view returns (uint256);
-
     /// @param offerSubmissions An array of offer submissions
     /// @return A bytes32 array of unique on chain offer ids.
     function lockOffers(

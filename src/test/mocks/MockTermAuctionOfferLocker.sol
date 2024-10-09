@@ -48,10 +48,6 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         return lockedOffers[id];
     }
 
-    function lockedOfferAmount(bytes32 id) external view returns (uint256) {
-        return lockedOffers[id].amount;
-    }
-
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external returns (bytes32[] memory offerIds) {
