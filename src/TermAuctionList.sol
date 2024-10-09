@@ -173,7 +173,7 @@ library TermAuctionList {
             PendingOffer memory offer = listData.offers[current];
             bytes32 next = _getNext(listData, current);
 
-            uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
+            uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
             bool removeNode;
             bool insertRepoToken;
 
@@ -263,7 +263,7 @@ library TermAuctionList {
                 continue;
             }
 
-            uint256 offerAmount = offer.offerLocker.lockedOfferAmount(current);
+            uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
 
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
@@ -338,7 +338,7 @@ library TermAuctionList {
                 found = true;
             } else {
                 // Retrieve the current offer amount from the offer locker
-                offerAmount = offer.offerLocker.lockedOfferAmount(current);
+                offerAmount = offer.offerLocker.lockedOffer(current).amount;
 
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
