@@ -35,7 +35,7 @@ contract VaultStrategySwitch is Script {
             try vault.update_debt(oldStrategy, 0){
                 console.log("updated debt for old strategy to 0");
 
-            } catch {
+            } catch (bytes memory lowLevelData) {
 
             }
             console.log(oldStrategy);
