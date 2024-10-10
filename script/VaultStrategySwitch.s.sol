@@ -32,8 +32,6 @@ contract VaultStrategySwitch is Script {
 
 
         if (oldStrategy != address(0)) {
-            vault.update_debt(oldStrategy, 0);
-            console.log("updated debt for old strategy to 0");
             console.log(oldStrategy);
 
             vault.revoke_strategy(oldStrategy);
