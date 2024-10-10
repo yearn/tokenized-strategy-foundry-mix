@@ -58,8 +58,8 @@ jobs:
           TERM_CONTROLLER_ADDRESS: ${{ vars.TERM_CONTROLLER_ADDRESS }}
           DISCOUNT_RATE_ADAPTER_ADDRESS: ${{ vars.DISCOUNT_RATE_ADAPTER_ADDRESS }}
           DISCOUNT_RATE_MARKUP: ${{ github.event.inputs.discountRateMarkup }}
-          COLLATERAL_TOKEN_ADDR: ${{ github.event.inputs.COLLATERAL_TOKEN_ADDR }}
-          MIN_COLLATERAL_RATIO: ${{ github.event.inputs.MIN_COLLATERAL_RATIO }}
+          COLLATERAL_TOKEN_ADDR: ${{ github.event.inputs.collateralTokenAddress }}
+          MIN_COLLATERAL_RATIO: ${{ github.event.inputs.minCollateralRatio }}
           TIME_TO_MATURITY_THRESHOLD: ${{ github.event.inputs.timeToMaturityThreshold }}
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
