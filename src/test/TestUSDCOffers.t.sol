@@ -7,6 +7,7 @@ import {MockTermAuction} from "./mocks/MockTermAuction.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
 import {Strategy} from "../Strategy.sol";
+import {RepoTokenList} from "../RepoTokenList.sol";
 
 contract TestUSDCSubmitOffer is Setup {
     uint256 internal constant TEST_REPO_TOKEN_RATE = 0.05e18;
@@ -71,6 +72,16 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - 1e6);
         // test: totalAssetValue = total liquid balance + pending offer amount
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
+    }
+
+    function testSubmitOfferFailsIfMinCollatRatioisZero() public {       
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0);
+
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.submitAuctionOffer(
+            repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"), 1e6
+        ); 
     }
 
     function testEditOffer() public {
