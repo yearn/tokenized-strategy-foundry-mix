@@ -752,10 +752,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
 
         // Validate purchase token, min collateral ratio and insert the repoToken if necessary
-        repoTokenListData.validateRepoToken(
+        (bool isValid, ) = repoTokenListData.validateRepoToken(
             ITermRepoToken(repoToken),
             address(asset)
         );
+
+        if (!isValid) {
+            revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
 
         // Prepare and submit the offer
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
