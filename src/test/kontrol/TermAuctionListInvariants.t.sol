@@ -547,6 +547,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
+        _establishRepoTokensValidate(Mode.Assert, asset);
 
         // Now the following invariants should hold as well
         _establishNoCompletedAuctions(Mode.Assert);
