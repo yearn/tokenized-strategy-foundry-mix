@@ -287,6 +287,39 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         }
     }
 
+        function _establishRepoTokenValidate(Mode mode, address repoToken, address asset) internal view {
+        (
+         uint256 redemptionTimestamp,
+         address purchaseToken,
+         ,
+         address collateralManager
+        ) = ITermRepoToken(repoToken).config();
+
+        _establish(mode, purchaseToken == asset);
+        _establish(mode, block.timestamp <= redemptionTimestamp);
+
+        uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
+
+        for (uint256 i; i < numTokens; i++) {
+            address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
+            uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[currentToken];
+
+            _establish(mode, minCollateralRatio != 0);
+            _establish(mode, ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio);
+        }
+    }
+
+    function _establishRepoTokensValidate(Mode mode, address asset) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            _establishRepoTokenValidate(mode, repoToken, asset);  
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
     /**
      * Etch the code at a given address to a given address in an external call,
      * reducing memory consumption in the caller function
@@ -299,9 +332,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
      * Test that insertPending preserves the list invariants when a new offer
      * is added (that was not present in the list before).
      */
-    function testInsertPendingNewOffer(
-        bytes32 offerId
-    ) external {
+    function testInsertPendingNewOffer(bytes32 offerId, address asset) external {
         // offerId must not equal zero, otherwise the linked list breaks
         // TODO: Does the code protect against this?
         vm.assume(offerId != TermAuctionList.NULL_NODE);
@@ -315,6 +346,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, bytes32(0));
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
+        _establishRepoTokensValidate(Mode.Assume, asset);
 
         // Save the number of offers in the list before the function is called
         uint256 count = _countOffersInList();
@@ -334,11 +366,13 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
+        _establishRepoTokenValidate(Mode.Assume, address(repoToken), asset);
         vm.assume(0 < offerLocker.lockedOffer(offerId).amount);
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
         vm.assume(auction != termRepoCollateralManager);
+        vm.assume(auction != asset);
 
         // Now we can etch the auction in, when all other addresses have been created
         this.etch(auction, _referenceAuction);
@@ -371,6 +405,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
+        _establishRepoTokensValidate(Mode.Assert, asset);
     }
 
 
@@ -380,7 +415,8 @@ contract TermAuctionListInvariantsTest is KontrolTest {
      */
     function testInsertPendingDuplicateOffer(
         bytes32 offerId,
-        PendingOffer memory pendingOffer
+        PendingOffer memory pendingOffer,
+        address asset
     ) external {
         // offerId must not equal zero, otherwise the linked list breaks
         // TODO: Does the code protect against this?
@@ -401,6 +437,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, offerId);
         _establishNoCompletedAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
+        _establishRepoTokensValidate(Mode.Assume, asset);
 
         PendingOffer memory offer = _termAuctionList.offers[offerId];
         // Calls to the Strategy.submitAuctionOffer need to ensure that the following 2 assumptions hold before the call
@@ -427,6 +464,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishNoCompletedAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
+        _establishRepoTokensValidate(Mode.Assert, asset);
     }
 
     /**
@@ -464,41 +502,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
     }
 
     /**
-     * Assume that all RepoTokens in the PendingOffers pass the checks performed
-     * in validateRepoToken, to ensure the function won't revert if they need to
-     * be inserted in the RepoTokenList.
-     */
-    function _assumeRepoTokensValidate(address asset) internal {
-        bytes32 current = _termAuctionList.head;
-
-        while (current != TermAuctionList.NULL_NODE) {
-                address repoToken = _termAuctionList.offers[current].repoToken;
-                (
-                 uint256 redemptionTimestamp,
-                 address purchaseToken,
-                 ,
-                 address collateralManager
-                ) = ITermRepoToken(repoToken).config();
-
-                vm.assume(purchaseToken == asset);
-
-                uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
-
-                for (uint256 i; i < numTokens; i++) {
-                    address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
-                    uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[currentToken];
-
-                    vm.assume(minCollateralRatio != 0);
-                    vm.assume(
-                        ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio
-                    );
-                }
-
-            current = _termAuctionList.nodes[current].next;
-        }
-    }
-
-    /**
      * Test that removeCompleted preserves the list invariants.
      */
     function testRemoveCompleted(address asset) external {
@@ -525,7 +528,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _assumeNoDiscountRatesSet();
 
         // Assume that the RepoTokens in PendingOffers pass validation
-        _assumeRepoTokensValidate(asset);
+        _establishRepoTokensValidate(Mode.Assume, asset);
 
         // Save the number of tokens in the list before the function is called
         uint256 count = _countOffersInList();
