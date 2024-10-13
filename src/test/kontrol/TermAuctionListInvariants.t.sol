@@ -177,12 +177,13 @@ contract TermAuctionListInvariantsTest is KontrolTest {
     /**
      * Assume or assert that there are no completed auctions in the list.
      */
-    function _establishNoCompletedAuctions(Mode mode) internal {
+    function _establishNoCompletedOrCancelledAuctions(Mode mode) internal {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
             PendingOffer storage offer = _termAuctionList.offers[current];
             _establish(mode, !offer.termAuction.auctionCompleted());
+            _establish(mode, !offer.termAuction.auctionCancelledForWithdrawal());
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -344,7 +345,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Assume that the invariants hold before the function is called
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, bytes32(0));
-        _establishNoCompletedAuctions(Mode.Assume);
+        _establishNoCompletedOrCancelledAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
         _establishRepoTokensValidate(Mode.Assume, asset);
 
@@ -378,6 +379,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         this.etch(auction, _referenceAuction);
         TermAuction(auction).initializeSymbolic();
         vm.assume(!TermAuction(auction).auctionCompleted());
+        vm.assume(!TermAuction(auction).auctionCancelledForWithdrawal());
 
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
@@ -402,7 +404,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
-        _establishNoCompletedAuctions(Mode.Assert);
+        _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
         _establishRepoTokensValidate(Mode.Assert, asset);
@@ -435,7 +437,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Assume that the invariants hold before the function is called
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, offerId);
-        _establishNoCompletedAuctions(Mode.Assume);
+        _establishNoCompletedOrCancelledAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
         _establishRepoTokensValidate(Mode.Assume, asset);
 
@@ -461,7 +463,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
-        _establishNoCompletedAuctions(Mode.Assert);
+        _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
         _establishRepoTokensValidate(Mode.Assert, asset);
@@ -550,7 +552,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishRepoTokensValidate(Mode.Assert, asset);
 
         // Now the following invariants should hold as well
-        _establishNoCompletedAuctions(Mode.Assert);
+        _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
     }
 }
