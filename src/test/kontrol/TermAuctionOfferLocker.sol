@@ -76,10 +76,6 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
         return _lockedOffers[id];
     }
 
-    function lockedOfferAmount(bytes32 id) external view returns (uint256) {
-        return _lockedOffers[id].amount;
-    }
-
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external returns (bytes32[] memory) {

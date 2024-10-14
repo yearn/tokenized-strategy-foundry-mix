@@ -305,7 +305,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
 
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicateTokens(Mode.Assume);
         _establishPositiveBalanceForNonMaturedTokens(Mode.Assume);
 
         // Assume that the call to redeemTermRepoTokens will not revert
