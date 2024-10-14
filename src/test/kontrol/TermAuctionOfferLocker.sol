@@ -10,8 +10,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
-    uint256 private constant lockedOffersSlot = 27;
-    uint256 private constant repoServicerAndUnlockSlot = 28;
+    uint256 private lockedOffersSlot;
 
     function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
@@ -20,6 +19,11 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     function initializeSymbolic(address termRepoServicer) public {
         kevm.symbolicStorage(address(this));
         // Clear slot which holds two contract fields
+        uint256 repoServicerAndUnlockSlot;
+        assembly {
+            repoServicerAndUnlockSlot := _termRepoServicer.slot
+            sstore(lockedOffersSlot.slot, _lockedOffers.slot)
+        }
         _storeUInt256(address(this), repoServicerAndUnlockSlot, 0);
         _termRepoServicer = termRepoServicer;
         _unlockAlwaysSucceeds = false;

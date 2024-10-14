@@ -21,8 +21,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
     address _referenceAuction;
     RepoTokenListData _repoTokenList;
 
-    uint256 private constant auctionListSlot = 27;
-    uint256 private constant referenceAuctionSlot = 30;
+    uint256 private auctionListSlot;
 
     function setUp() public {
         // Make storage of this contract completely symbolic
@@ -30,6 +29,11 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // We will copy the code of this deployed auction contract
         // into all auctions in the list
+        uint256 referenceAuctionSlot;
+        assembly {
+            referenceAuctionSlot := _referenceAuction.slot
+            sstore(auctionListSlot.slot, _termAuctionList.slot)
+        }
         _storeUInt256(address(this), referenceAuctionSlot, uint256(uint160(address(new TermAuction()))));
 
         // Initialize TermAuctionList of arbitrary size
