@@ -16,7 +16,7 @@ contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
 
-        // For simplicity, choose an arbitrary number of collateral tokens: 3
+        // For simplicity, choose an arbitrary number of collateral tokens: 2
         _storeUInt256(address(this), collateralTokensSlot, 2);
 
         for (uint256 i = 0; i < _collateralTokens.length; ++i) {
