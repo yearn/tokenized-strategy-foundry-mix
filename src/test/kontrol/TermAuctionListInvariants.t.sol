@@ -16,6 +16,7 @@ import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
 contract TermAuctionListInvariantsTest is KontrolTest {
     using TermAuctionList for TermAuctionListData;
+    using RepoTokenList for RepoTokenListData;
 
     TermAuctionListData _termAuctionList;
     address _referenceAuction;
@@ -35,6 +36,9 @@ contract TermAuctionListInvariantsTest is KontrolTest {
             sstore(auctionListSlot.slot, _termAuctionList.slot)
         }
         _storeUInt256(address(this), referenceAuctionSlot, uint256(uint160(address(new TermAuction()))));
+
+        // For simplicity, assume that the RepoTokenList is empty
+        _repoTokenList.head = RepoTokenList.NULL_NODE;
 
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
@@ -292,7 +296,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         }
     }
 
-        function _establishRepoTokenValidate(Mode mode, address repoToken, address asset) internal view {
+    function _assumeRepoTokenValidate(address repoToken, address asset, bool timestamp) internal view {
         (
          uint256 redemptionTimestamp,
          address purchaseToken,
@@ -300,8 +304,10 @@ contract TermAuctionListInvariantsTest is KontrolTest {
          address collateralManager
         ) = ITermRepoToken(repoToken).config();
 
-        _establish(mode, purchaseToken == asset);
-        _establish(mode, block.timestamp <= redemptionTimestamp);
+        vm.assume(purchaseToken == asset);
+        if(timestamp) {
+            vm.assume(block.timestamp <= redemptionTimestamp);
+        }
 
         uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
 
@@ -309,17 +315,29 @@ contract TermAuctionListInvariantsTest is KontrolTest {
             address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
             uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[currentToken];
 
-            _establish(mode, minCollateralRatio != 0);
-            _establish(mode, ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio);
+            vm.assume(minCollateralRatio != 0);
+            vm.assume(ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio);
         }
     }
 
-    function _establishRepoTokensValidate(Mode mode, address asset) internal view {
+    function _assumeRepoTokensValidate(address asset, bool timestamp) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            _establishRepoTokenValidate(mode, repoToken, asset);  
+            _assumeRepoTokenValidate(repoToken, asset, timestamp);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function _assertRepoTokensValidate(address asset) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            (bool isRepoTokenValid, ) = _repoTokenList.validateRepoToken(ITermRepoToken(repoToken), asset);
+            assert(isRepoTokenValid);
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -351,7 +369,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, bytes32(0));
         _establishNoCompletedOrCancelledAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
-        _establishRepoTokensValidate(Mode.Assume, asset);
+        _assumeRepoTokensValidate(asset, true);
 
         // Save the number of offers in the list before the function is called
         uint256 count = _countOffersInList();
@@ -371,7 +389,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
-        _establishRepoTokenValidate(Mode.Assume, address(repoToken), asset);
+        _assumeRepoTokenValidate(address(repoToken), asset, true);
         vm.assume(0 < offerLocker.lockedOffer(offerId).amount);
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
@@ -411,7 +429,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
-        _establishRepoTokensValidate(Mode.Assert, asset);
+        _assertRepoTokensValidate(asset);
     }
 
 
@@ -443,7 +461,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishOfferAmountMatchesAmountLocked(Mode.Assume, offerId);
         _establishNoCompletedOrCancelledAuctions(Mode.Assume);
         _establishPositiveOfferAmounts(Mode.Assume);
-        _establishRepoTokensValidate(Mode.Assume, asset);
+        _assumeRepoTokensValidate(asset, true);
 
         PendingOffer memory offer = _termAuctionList.offers[offerId];
         // Calls to the Strategy.submitAuctionOffer need to ensure that the following 2 assumptions hold before the call
@@ -470,7 +488,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
-        _establishRepoTokensValidate(Mode.Assert, asset);
+        _assertRepoTokensValidate(asset);
     }
 
     /**
@@ -511,9 +529,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
      * Test that removeCompleted preserves the list invariants.
      */
     function testRemoveCompleted(address asset) external {
-        // For simplicity, assume that the RepoTokenList is empty
-        _repoTokenList.head = RepoTokenList.NULL_NODE;
-
         // Initialize a DiscountRateAdapter with symbolic storage
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
@@ -534,7 +549,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _assumeNoDiscountRatesSet();
 
         // Assume that the RepoTokens in PendingOffers pass validation
-        _establishRepoTokensValidate(Mode.Assume, asset);
+        _assumeRepoTokensValidate(asset, false);
 
         // Save the number of tokens in the list before the function is called
         uint256 count = _countOffersInList();
@@ -553,7 +568,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         _establishSortedByAuctionId(Mode.Assert);
         _establishNoDuplicateOffers(Mode.Assert);
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
-        _establishRepoTokensValidate(Mode.Assert, asset);
 
         // Now the following invariants should hold as well
         _establishNoCompletedOrCancelledAuctions(Mode.Assert);
