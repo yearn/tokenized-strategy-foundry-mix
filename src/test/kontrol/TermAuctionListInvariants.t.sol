@@ -296,7 +296,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         }
     }
 
-    function _assumeRepoTokenValidate(address repoToken, address asset, bool timestamp) internal view {
+    function _assumeRepoTokenValidate(address repoToken, address asset, bool assumeTimestamp) internal view {
         (
          uint256 redemptionTimestamp,
          address purchaseToken,
@@ -305,7 +305,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         ) = ITermRepoToken(repoToken).config();
 
         vm.assume(purchaseToken == asset);
-        if(timestamp) {
+        if(assumeTimestamp) {
             vm.assume(block.timestamp <= redemptionTimestamp);
         }
 
@@ -320,12 +320,18 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         }
     }
 
-    function _assumeRepoTokensValidate(address asset, bool timestamp) internal view {
+    function _assumeRepoTokensValidate(address asset, bool assumeTimestamp) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            _assumeRepoTokenValidate(repoToken, asset, timestamp);
+            if(assumeTimestamp) {
+                _assumeRepoTokenValidate(repoToken, asset, true);
+            }
+            else {
+                bool auctionCompleted = _termAuctionList.offers[current].termAuction.auctionCompleted();
+                _assumeRepoTokenValidate(repoToken, asset, !auctionCompleted);
+            }
 
             current = _termAuctionList.nodes[current].next;
         }
@@ -572,5 +578,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         // Now the following invariants should hold as well
         _establishNoCompletedOrCancelledAuctions(Mode.Assert);
         _establishPositiveOfferAmounts(Mode.Assert);
+        _assertRepoTokensValidate(asset);
     }
 }
