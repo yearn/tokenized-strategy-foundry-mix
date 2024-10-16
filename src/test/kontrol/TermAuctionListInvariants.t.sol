@@ -349,6 +349,57 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         }
     }
 
+    function _termAuctionListToArray(uint256 length) internal view returns (bytes32[] memory offerIds) {
+        bytes32 current = _termAuctionList.head;
+        uint256 i;
+        offerIds = new bytes32[](length);
+
+        while (current != TermAuctionList.NULL_NODE) {
+            offerIds[i++] = current;
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function _establishInsertListPreservation(bytes32 newOfferId, bytes32[] memory offerIds, uint256 offerIdsCount) internal view {
+        bytes32 current = _termAuctionList.head;
+        uint256 i = 0;
+
+        if(newOfferId != bytes32(0)) {
+
+            while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+                if(current != offerIds[i]) {
+                    assert (current == newOfferId);
+                    current = _termAuctionList.nodes[current].next;
+                    break;
+                }
+                i++;
+                current = _termAuctionList.nodes[current].next;
+            }
+
+            if (current != TermAuctionList.NULL_NODE && i == offerIdsCount) {
+                assert (current == newOfferId);
+            }
+        }
+
+        while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+            assert(current == offerIds[i++]);
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function _establishRemoveListPreservation(bytes32[] memory offerIds, uint256 offerIdsCount) internal view {
+        bytes32 current = _termAuctionList.head;
+        uint256 i = 0;
+
+        while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+            if(current == offerIds[i++]) {
+                current = _termAuctionList.nodes[current].next;
+            }
+        }
+
+        assert(current == TermAuctionList.NULL_NODE);
+    }
+
     /**
      * Etch the code at a given address to a given address in an external call,
      * reducing memory consumption in the caller function
@@ -363,7 +414,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
      */
     function testInsertPendingNewOffer(bytes32 offerId, address asset) external {
         // offerId must not equal zero, otherwise the linked list breaks
-        // TODO: Does the code protect against this?
         vm.assume(offerId != TermAuctionList.NULL_NODE);
 
         // Our initialization procedure guarantees these invariants,
@@ -379,6 +429,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Save the number of offers in the list before the function is called
         uint256 count = _countOffersInList();
+        bytes32[] memory offers = _termAuctionListToArray(count);
 
         // Assume that the auction is a fresh address that doesn't overlap with
         // any others, then initialize it to contain TermAuction code
@@ -427,7 +478,8 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         assert(_countOffersInList() == count + 1);
 
         // Assert that the new offer is in the list
-        assert(_offerInList(offerId));
+        //assert(_offerInList(offerId));
+        _establishInsertListPreservation(offerId, offers, count);
 
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
@@ -454,6 +506,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Save the number of offers in the list before the function is called
         uint256 count = _countOffersInList();
+        bytes32[] memory offers = _termAuctionListToArray(count);
 
         // Assume that the offer is already in the list
         vm.assume(_offerInList(offerId));
@@ -486,7 +539,8 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         assert(_countOffersInList() == count);
 
         // Assert that the new offer is in the list
-        assert(_offerInList(offerId));
+        //assert(_offerInList(offerId));
+        _establishInsertListPreservation(bytes32(0), offers, count);
 
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
@@ -559,6 +613,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Save the number of tokens in the list before the function is called
         uint256 count = _countOffersInList();
+        bytes32[] memory offers = _termAuctionListToArray(count);
 
         // Call the function being tested
         _termAuctionList.removeCompleted(
@@ -569,6 +624,8 @@ contract TermAuctionListInvariantsTest is KontrolTest {
 
         // Assert that the size of the list is less than or equal to before
         assert(_countOffersInList() <= count);
+
+        _establishRemoveListPreservation(offers, count);
 
         // Assert that the invariants are preserved
         _establishSortedByAuctionId(Mode.Assert);
