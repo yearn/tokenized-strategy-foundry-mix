@@ -48,6 +48,11 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(auctionListSlot + 2))));
     }
 
+    /* FIXME: The 27 and the offset of the amount are hardcoded for now */
+    function lockedOfferAmount(address offerLocker, bytes32 offerId) internal view returns (uint256) {
+        return _loadUInt256(offerLocker, uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(27)))) + 4);
+    }
+
     /**
      * Set pending offer using slot manipulation directly
      */
@@ -221,7 +226,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         while (current != TermAuctionList.NULL_NODE) {
             if(offerId == 0 || offerId != current) {
                 PendingOffer storage offer = _termAuctionList.offers[current];
-                uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
+                uint256 offerAmount = lockedOfferAmount(address(offer.offerLocker), current);
                 _establish(mode, offer.offerAmount == offerAmount);
             }
 
@@ -447,7 +452,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         (,, address termRepoServicer, address termRepoCollateralManager) =
             repoToken.config();
         _assumeRepoTokenValidate(address(repoToken), asset, true);
-        vm.assume(0 < offerLocker.lockedOffer(offerId).amount);
+        vm.assume(0 < lockedOfferAmount(address(offerLocker), offerId));
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
@@ -463,7 +468,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
         pendingOffer.repoToken = address(repoToken);
-        pendingOffer.offerAmount = offerLocker.lockedOffer(offerId).amount;
+        pendingOffer.offerAmount = lockedOfferAmount(address(offerLocker), offerId);
         pendingOffer.termAuction = ITermAuction(auction);
         pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
@@ -530,7 +535,7 @@ contract TermAuctionListInvariantsTest is KontrolTest {
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
         // This is being checked by Strategy.submitAuctionOffer
         vm.assume(pendingOffer.offerAmount > 0);
-        vm.assume(pendingOffer.offerAmount == pendingOffer.offerLocker.lockedOffer(offerId).amount);
+        vm.assume(pendingOffer.offerAmount == lockedOfferAmount(address(pendingOffer.offerLocker), offerId));
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);
