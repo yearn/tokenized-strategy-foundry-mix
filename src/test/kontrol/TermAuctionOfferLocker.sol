@@ -10,7 +10,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
-    uint256 private lockedOffersSlot;
+    uint256 public lockedOffersSlot;
 
     function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
@@ -42,6 +42,10 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
             offerLastSlot := mload(add(offerLastSlotAbi, 0x20))
         }
         _storeBytes32(address(this), lockedOfferSlot(offerId) + 5, offerLastSlot);
+    }
+
+    function lockedOfferAmount(bytes32 id) public view returns (uint256) {
+        return _lockedOffers[id].amount;
     }
 
     function guaranteeUnlockAlwaysSucceeds() external {
