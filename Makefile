@@ -33,5 +33,16 @@ coverage :; forge coverage --fork-url ${FORK_URL}
 coverage-report :; forge coverage --report lcov --fork-url ${FORK_URL}
 coverage-debug :; forge coverage --report debug --fork-url ${FORK_URL}
 
+coverage-html:
+	@echo "Running coverage..."
+	forge coverage --report lcov --fork-url ${FORK_URL}
+	@if [ "`uname`" = "Darwin" ]; then \
+		lcov --ignore-errors inconsistent --remove lcov.info 'src/test/**' --output-file lcov.info; \
+		genhtml --ignore-errors inconsistent -o coverage-report lcov.info; \
+	else \
+		lcov --remove lcov.info 'src/test/**' --output-file lcov.info; \
+		genhtml -o coverage-report lcov.info; \
+	fi
+	@echo "Coverage report generated at coverage-report/index.html"
 
 clean  :; forge clean

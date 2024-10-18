@@ -1,0 +1,58 @@
+name: coverage
+
+on:
+  push:
+    branches:
+    - master
+    - develop
+  pull_request:
+
+env:
+  FOUNDRY_PROFILE: ci
+  ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+
+jobs:
+  coverage:
+    strategy:
+      fail-fast: true
+
+    name: Foundry project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install lcov
+        run: sudo apt-get -y install lcov
+
+      - name: Run generate html report
+        run: make coverage-html
+
+      - name: Generate summary report
+        run: |
+          lcov --summary lcov.info > coverage-report/summary.md
+          sed -i '1d' coverage-report/summary.md
+          sed -i '/Message summary:/,$d' coverage-report/summary.md
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CoverageReport # Artifact name
+          path: coverage-report # Directory containing files to upload
+
+      - name: Add comment to PR
+        if: github.event_name == 'pull_request' && env.GH_TOKEN != ''
+        run: gh pr comment $PR_NUMBER --body-file coverage-report/summary.md
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          PR_NUMBER: ${{ github.event.number }}
+
+      - name: Publish coverage in build summary
+        run: cat coverage-report/summary.md >> $GITHUB_STEP_SUMMARY
+        shell: bash
