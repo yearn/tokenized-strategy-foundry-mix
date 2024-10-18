@@ -9,6 +9,7 @@ on:
 
 env:
   FOUNDRY_PROFILE: ci
+  ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
 
 jobs:
   coverage:
@@ -27,24 +28,11 @@ jobs:
         with:
           version: nightly
 
-      - name: Run Forge build # replace it with download-artifact
-        run: |
-          forge build
-        id: build
-
-      - name: Run Forge coverage
-        run: |
-          forge coverage --report lcov -vvv --fork-url ${{ secrets.ETH_RPC_URL }}
-        id: coverage
-
       - name: Install lcov
         run: sudo apt-get -y install lcov
 
-      - name: Remove test files from coverage data
-        run: lcov --remove lcov.info 'src/test/**' --output-file lcov.info
-
-      - name: Generate coverage report
-        run: genhtml -o coverage-report lcov.info
+      - name: Run generate html report
+        run: make coverage-html
 
       - name: Generate summary report
         run: |
