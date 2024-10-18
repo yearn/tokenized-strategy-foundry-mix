@@ -10,7 +10,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
-    uint256 public lockedOffersSlot;
+    uint256 private lockedOffersSlot;
 
     function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
