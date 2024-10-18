@@ -14,22 +14,16 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {ERC4626Mock} from "@openzeppelin/contracts/mocks/ERC4626Mock.sol";
 
 import {TokenizedStrategy} from "@tokenized-strategy/TokenizedStrategy.sol";
-import {MockFactory} from "@tokenized-strategy/test/mocks/MockFactory.sol";
+import {MockFeesFactory} from "../mocks/MockFeesFactory.sol";
 import {TermVaultEventEmitter} from "../../TermVaultEventEmitter.sol";
 import {MockTermAuction} from "../mocks/MockTermAuction.sol";
+import {MockUSDC} from "../mocks/MockUSDC.sol";
+
 import {MockTermAuctionOfferLocker} from "../mocks/MockTermAuctionOfferLocker.sol";
 import {MockTermController} from "../mocks/MockTermController.sol";
 import {MockTermRepoCollateralManager} from "../mocks/MockTermRepoCollateralManager.sol";
 import {MockTermRepoServicer} from "../mocks/MockTermRepoServicer.sol";
 import {MockTermRepoToken} from "../mocks/MockTermRepoToken.sol";
-
-interface IFactory {
-    function governance() external view returns (address);
-
-    function set_protocol_fee_bps(uint16) external;
-
-    function set_protocol_fee_recipient(address) external;
-}
 
 contract Setup is ExtendedTest, IEvents {
     struct StrategySnapshot {
@@ -50,10 +44,6 @@ contract Setup is ExtendedTest, IEvents {
     address public performanceFeeRecipient = address(3);
     address public adminWallet = address(111);
     address public devopsWallet = address(222);
-    address public oracleWallet = address(333);
-
-    // Address of the real deployed Factory
-    address public factory;
 
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
@@ -66,7 +56,7 @@ contract Setup is ExtendedTest, IEvents {
     // Default profit max unlock time is set for 10 days
     uint256 public profitMaxUnlockTime = 10 days;
 
-    MockFactory internal mockFactory;
+    MockFeesFactory internal mockFactory;
 
     // Term finance mocks
     MockTermController internal termController;
@@ -78,8 +68,9 @@ contract Setup is ExtendedTest, IEvents {
 
     function setUp() public virtual {
         _setTokenAddrs();
+        ERC20 mockUSDC = new MockUSDC();
 
-        _setUp(ERC20(tokenAddrs["DAI"]));
+        _setUp(ERC20(ERC20(address(mockUSDC))));
     }
 
     function _setUp(ERC20 _underlying) internal {
@@ -89,14 +80,14 @@ contract Setup is ExtendedTest, IEvents {
         // Set decimals
         decimals = asset.decimals();
 
-        mockFactory = new MockFactory(0, address(0));
+        mockFactory = new MockFeesFactory(0, adminWallet);
 
         // Factory from mainnet, tokenized strategy needs to be hardcoded to 0xBB51273D6c746910C7C06fe718f30c936170feD0
         tokenizedStrategy = new TokenizedStrategy(address(mockFactory));
         vm.etch(0xBB51273D6c746910C7C06fe718f30c936170feD0, address(tokenizedStrategy).code);
 
         termController = new MockTermController();
-        discountRateAdapter = new TermDiscountRateAdapter(address(termController), oracleWallet);
+        discountRateAdapter = new TermDiscountRateAdapter(address(termController), adminWallet);
         termVaultEventEmitterImpl = new TermVaultEventEmitter();
         termVaultEventEmitter = TermVaultEventEmitter(address(new ERC1967Proxy(address(termVaultEventEmitterImpl), "")));
         mockYearnVault = new ERC4626Mock(address(asset));
@@ -110,7 +101,7 @@ contract Setup is ExtendedTest, IEvents {
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
-        vm.label(factory, "factory");
+        vm.label(address(mockFactory), "mockFactory");
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
@@ -196,14 +187,14 @@ contract Setup is ExtendedTest, IEvents {
     }
 
     function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
-        address gov = IFactory(factory).governance();
+        address gov = mockFactory.governance();
 
         // Need to make sure there is a protocol fee recipient to set the fee.
         vm.prank(gov);
-        IFactory(factory).set_protocol_fee_recipient(gov);
+        mockFactory.setRecipient(gov);
 
         vm.prank(gov);
-        IFactory(factory).set_protocol_fee_bps(_protocolFee);
+        mockFactory.setFee(_protocolFee);
 
         vm.prank(management);
         strategy.setPerformanceFee(_performanceFee);

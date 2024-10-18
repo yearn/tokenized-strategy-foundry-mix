@@ -10,9 +10,14 @@ struct TermAuctionResults {
 
 contract MockTermController is ITermController {
     mapping(bytes32 => TermAuctionResults) internal auctionResults;
+    mapping(address => bool) internal notTermDeployedContracts;
 
     function isTermDeployed(address contractAddress) external view returns (bool) {
-        return true;
+        return !notTermDeployedContracts[contractAddress];
+    }
+
+    function markNotTermDeployed(address contractAddress) external {
+        notTermDeployedContracts[contractAddress] = true;
     }
 
     function getProtocolReserveAddress() external view returns (address) {
