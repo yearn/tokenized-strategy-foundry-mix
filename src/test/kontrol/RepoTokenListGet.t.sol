@@ -64,7 +64,7 @@ contract RepoTokenGetTest is RepoTokenListInvariantsTest {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
-            discountRateAdapter.initializeSymbolicFor(current);
+            discountRateAdapter.initializeSymbolicParamsFor(current);
 
             current = _repoTokenList.nodes[current].next;
         }

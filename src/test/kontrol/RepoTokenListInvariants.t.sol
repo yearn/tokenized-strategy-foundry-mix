@@ -8,11 +8,10 @@ import "src/RepoTokenList.sol";
 
 import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/RepoToken.sol";
+import "src/test/kontrol/ListTestUtils.t.sol";
 
-contract RepoTokenListInvariantsTest is KontrolTest {
+contract RepoTokenListInvariantsTest is RepoTokenListTest {
     using RepoTokenList for RepoTokenListData;
-
-    RepoTokenListData _repoTokenList;
 
     function setUp() public {
         // Make storage of this contract completely symbolic
@@ -20,146 +19,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
 
         // Initialize RepoTokenList of arbitrary size
         _initializeRepoTokenList();
-    }
-
-    /**
-     * Deploy a new RepoToken with symbolic storage.
-     */
-    function _newRepoToken() internal returns (address) {
-        RepoToken repoToken = new RepoToken();
-        repoToken.initializeSymbolic();
-
-        return address(repoToken);
-    }
-
-    /**
-     * Return the maturity timestamp of the given RepoToken.
-     */
-    function _getRepoTokenMaturity(address repoToken) internal returns (uint256 redemptionTimestamp) {
-        (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
-    }
-
-    /**
-     * Return the this contract's balance in the given RepoToken.
-     */
-    function _getRepoTokenBalance(address repoToken) internal returns (uint256) {
-        return ITermRepoToken(repoToken).balanceOf(address(this));
-    }
-
-    /**
-     * Initialize _repoTokenList to a RepoTokenList of arbitrary size, where all
-     * items are distinct RepoTokens with symbolic storage.
-     */
-    function _initializeRepoTokenList() internal {
-        address previous = RepoTokenList.NULL_NODE;
-
-        while (kevm.freshBool() != 0) {
-            address current = _newRepoToken();
-
-            if (previous == RepoTokenList.NULL_NODE) {
-                _repoTokenList.head = current;
-            } else {
-                _repoTokenList.nodes[previous].next = current;
-            }
-
-            previous = current;
-        }
-
-        if (previous == RepoTokenList.NULL_NODE) {
-            _repoTokenList.head = RepoTokenList.NULL_NODE;
-        } else {
-            _repoTokenList.nodes[previous].next = RepoTokenList.NULL_NODE;
-        }
-    }
-
-    /**
-     * Assume or assert that the tokens in the list are sorted by maturity.
-     */
-    function _establishSortedByMaturity(Mode mode) internal {
-        address previous = RepoTokenList.NULL_NODE;
-        address current = _repoTokenList.head;
-
-        while (current != RepoTokenList.NULL_NODE) {
-            if (previous != RepoTokenList.NULL_NODE) {
-                uint256 previousMaturity = _getRepoTokenMaturity(previous);
-                uint256 currentMaturity = _getRepoTokenMaturity(current);
-                _establish(mode, previousMaturity <= currentMaturity);
-            }
-
-            previous = current;
-            current = _repoTokenList.nodes[current].next;
-        }
-    }
-
-    /**
-     * Assume or assert that there are no duplicate tokens in the list.
-     */
-    function _establishNoDuplicateTokens(Mode mode) internal {
-        address current = _repoTokenList.head;
-
-        while (current != RepoTokenList.NULL_NODE) {
-            address other = _repoTokenList.nodes[current].next;
-
-            while (other != RepoTokenList.NULL_NODE) {
-                _establish(mode, current != other);
-                other = _repoTokenList.nodes[other].next;
-            }
-
-            current = _repoTokenList.nodes[current].next;
-        }
-    }
-
-    /**
-     * Assume or assert that there are no tokens in the list have matured
-     * (i.e. all token maturities are greater than the current timestamp).
-     */
-    function _establishNoMaturedTokens(Mode mode) internal {
-        address current = _repoTokenList.head;
-
-        while (current != RepoTokenList.NULL_NODE) {
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
-
-            _establish(mode, block.timestamp < currentMaturity);
-
-            current = _repoTokenList.nodes[current].next;
-        }
-    }
-
-    /**
-     * Assume or assert that all tokens in the list have balance > 0.
-     */
-    function _establishPositiveBalance(Mode mode) internal {
-        address current = _repoTokenList.head;
-
-        while (current != RepoTokenList.NULL_NODE) {
-            uint256 repoTokenBalance = _getRepoTokenBalance(current);
-
-            _establish(mode, 0 < repoTokenBalance);
-
-            current = _repoTokenList.nodes[current].next;
-        }
-    }
-
-    /**
-     * Weaker version of the above invariant that allows matured tokens to have
-     * a balance of 0.
-     *
-     * Note: This is equivalent to the above invariant if the NoMaturedTokens
-     * invariant also holds.
-     */
-    function _establishPositiveBalanceForNonMaturedTokens(Mode mode) internal {
-        address current = _repoTokenList.head;
-
-        while (current != RepoTokenList.NULL_NODE) {
-            uint256 currentMaturity = _getRepoTokenMaturity(current);
-            uint256 repoTokenBalance = _getRepoTokenBalance(current);
-
-            if (block.timestamp < currentMaturity) {
-                _establish(mode, 0 < repoTokenBalance);
-            }
-
-            current = _repoTokenList.nodes[current].next;
-        }
     }
 
     /**

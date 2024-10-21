@@ -42,6 +42,7 @@ bmc-depth                  = 3
 match-test                 = [
         "RepoTokenListInvariantsTest.setUp",
         "TermAuctionListInvariantsTest.setUp",
+        "TermAuctionListGetTest.setUp",
     ]
 ast                        = true
 
@@ -81,6 +82,8 @@ match-test                 = [
         "TermAuctionListInvariantsTest.testInsertPendingNewOffer",
         "TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
         "TermAuctionListInvariantsTest.testRemoveCompleted",
+        "TermAuctionListGetTest.testGetCumulativeDataEmpty",
+        "TermAuctionListGetTest.testGetPresentValueEmpty",
     ]
 ast                        = true
 

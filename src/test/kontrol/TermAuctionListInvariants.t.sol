@@ -14,135 +14,18 @@ import "src/test/kontrol/TermAuction.sol";
 import "src/test/kontrol/TermAuctionOfferLocker.sol";
 import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
-contract TermAuctionListInvariantsTest is KontrolTest {
+contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest {
     using TermAuctionList for TermAuctionListData;
     using RepoTokenList for RepoTokenListData;
-
-    TermAuctionListData _termAuctionList;
-    address _referenceAuction;
-    RepoTokenListData _repoTokenList;
-
-    uint256 private auctionListSlot;
 
     function setUp() public {
         // Make storage of this contract completely symbolic
         kevm.symbolicStorage(address(this));
 
-        // We will copy the code of this deployed auction contract
-        // into all auctions in the list
-        uint256 referenceAuctionSlot;
-        assembly {
-            referenceAuctionSlot := _referenceAuction.slot
-            sstore(auctionListSlot.slot, _termAuctionList.slot)
-        }
-        _storeUInt256(address(this), referenceAuctionSlot, uint256(uint160(address(new TermAuction()))));
-
-        // For simplicity, assume that the RepoTokenList is empty
-        _repoTokenList.head = RepoTokenList.NULL_NODE;
+        setReferenceAuction();
 
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
-    }
-
-    function auctionListOfferSlot(bytes32 offerId) internal view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(auctionListSlot + 2))));
-    }
-
-    /**
-     * Set pending offer using slot manipulation directly
-     */
-    function setPendingOffer(bytes32 offerId, address repoToken, uint256 offerAmount, address auction, address offerLocker) internal {
-        uint256 offerSlot = auctionListOfferSlot(offerId);
-        _storeUInt256(address(this), offerSlot, uint256(uint160(repoToken)));
-        _storeUInt256(address(this), offerSlot + 1, offerAmount);
-        _storeUInt256(address(this), offerSlot + 2, uint256(uint160(auction)));
-        _storeUInt256(address(this), offerSlot + 3, uint256(uint160(offerLocker)));
-    }
-
-    /**
-     * Return the auction for a given offer in the list.
-     */
-    function _getAuction(bytes32 offerId) internal returns(address) {
-        return address(_termAuctionList.offers[offerId].termAuction);
-    }
-
-    /**
-     * Deploy & initialize RepoToken and OfferLocker with the same RepoServicer
-     */
-    function newRepoTokenAndOfferLocker() public returns (
-        RepoToken repoToken,
-        TermAuctionOfferLocker offerLocker
-    ) {
-        repoToken = new RepoToken();
-        repoToken.initializeSymbolic();
-        (, , address termRepoServicer,) = repoToken.config();
-
-        offerLocker = new TermAuctionOfferLocker();
-        offerLocker.initializeSymbolic(termRepoServicer);
-    }
-
-    /**
-     * Initialize _termAuctionList to a TermAuctionList of arbitrary size,
-     * comprised of offers with distinct ids.
-     */
-    function _initializeTermAuctionList() internal {
-        bytes32 previous = TermAuctionList.NULL_NODE;
-        uint256 count = 0;
-
-        while (kevm.freshBool() != 0) {
-            (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
-                this.newRepoTokenAndOfferLocker();
-
-            // Assign each offer an ID based on Strategy._generateOfferId()
-            bytes32 current = keccak256(
-                abi.encodePacked(count, address(this), address(offerLocker))
-            );
-            // Register offer in offer locker
-            offerLocker.initializeSymbolicLockedOfferFor(current);
-
-            if (previous == TermAuctionList.NULL_NODE) {
-                _termAuctionList.head = current;
-            } else {
-                _termAuctionList.nodes[previous].next = current;
-            }
-
-            // Create sequential addresses to ensure that list is sorted
-            address auction = address(uint160(1000 + 2 * count));
-            // Etch the code of the auction contract into this address
-            this.etch(auction, _referenceAuction);
-            TermAuction(auction).initializeSymbolic();
-
-            // Build PendingOffer
-            setPendingOffer(current, address(repoToken), freshUInt256(), auction, address(offerLocker));
-
-            previous = current;
-            ++count;
-        }
-
-        if (previous == TermAuctionList.NULL_NODE) {
-            _termAuctionList.head = TermAuctionList.NULL_NODE;
-        } else {
-            _termAuctionList.nodes[previous].next = TermAuctionList.NULL_NODE;
-        }
-    }
-
-    /**
-     * Initialize the TermDiscountRateAdapter to a symbolic state, ensuring that
-     * it has a symbolic discount rate for every token in the PendingOffers.
-     */
-    function _initializeDiscountRateAdapter(
-        TermDiscountRateAdapter discountRateAdapter
-    ) internal {
-        discountRateAdapter.initializeSymbolic();
-
-        bytes32 current = _termAuctionList.head;
-
-        while (current != TermAuctionList.NULL_NODE) {
-            address repoToken = _termAuctionList.offers[current].repoToken;
-            discountRateAdapter.initializeSymbolicParamsFor(repoToken);
-
-            current = _termAuctionList.nodes[current].next;
-        }
     }
 
     /**
@@ -401,14 +284,6 @@ contract TermAuctionListInvariantsTest is KontrolTest {
     }
 
     /**
-     * Etch the code at a given address to a given address in an external call,
-     * reducing memory consumption in the caller function
-     */
-    function etch(address dest, address src) public {
-      vm.etch(dest, src.code);
-    }
-
-    /**
      * Test that insertPending preserves the list invariants when a new offer
      * is added (that was not present in the list before).
      */
@@ -589,6 +464,8 @@ contract TermAuctionListInvariantsTest is KontrolTest {
      * Test that removeCompleted preserves the list invariants.
      */
     function testRemoveCompleted(address asset) external {
+        // For simplicity, assume that the RepoTokenList is empty
+        _repoTokenList.head = RepoTokenList.NULL_NODE;
         // Initialize a DiscountRateAdapter with symbolic storage
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();

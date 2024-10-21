@@ -1,9 +1,22 @@
 pragma solidity 0.8.23;
 
-import "src/test/kontrol/TermAuctionListInvariants.t.sol";
+import "src/test/kontrol/TermAuction.sol";
+import "src/test/kontrol/ListTestUtils.t.sol";
 
-contract TermAuctionListGetTest is TermAuctionListInvariantsTest {
+contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
     using TermAuctionList for TermAuctionListData;
+    using RepoTokenList for RepoTokenListData;
+
+    function setUp() public {
+        // Make storage of this contract completely symbolic
+        kevm.symbolicStorage(address(this));
+        // Initialize RepoTokenList of arbitrary size
+        _initializeRepoTokenList();
+        setReferenceAuction();
+
+        // Initialize TermAuctionList of arbitrary size
+        _initializeTermAuctionList();
+    }
 
     function _initializeTermAuctionListEmpty() internal {
         _termAuctionList.head = TermAuctionList.NULL_NODE;
