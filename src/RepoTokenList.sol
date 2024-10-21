@@ -288,6 +288,7 @@ library RepoTokenList {
      * @param listData The list data
      * @param repoToken The repoToken to validate
      * @param asset The address of the base asset
+     * @return isRepoTokenValid Whether the repoToken is valid
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken 
      * 
      * @dev Ensures the repoToken is deployed, matches the purchase token, is not matured, and meets collateral requirements.
@@ -297,7 +298,7 @@ library RepoTokenList {
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
         address asset
-    ) internal view returns (uint256 redemptionTimestamp) {
+    ) internal view returns (bool isRepoTokenValid, uint256 redemptionTimestamp) {
         // Retrieve repo token configuration
         address purchaseToken;
         address collateralManager;
@@ -305,12 +306,12 @@ library RepoTokenList {
 
         // Validate purchase token
         if (purchaseToken != asset) {
-            revert InvalidRepoToken(address(repoToken));
+            return (false, redemptionTimestamp);
         }
 
         // Check if repo token has matured
         if (redemptionTimestamp < block.timestamp) {
-            revert InvalidRepoToken(address(repoToken));
+             return (false, redemptionTimestamp);
         }
 
         // Validate collateral token ratios
@@ -320,13 +321,14 @@ library RepoTokenList {
             uint256 minCollateralRatio = listData.collateralTokenParams[currentToken];
 
             if (minCollateralRatio == 0) {
-                revert InvalidRepoToken(address(repoToken));
+                 return (false, redemptionTimestamp);
             } else if (
                 ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
             ) {
-                revert InvalidRepoToken(address(repoToken));
+                 return (false, redemptionTimestamp);
             }
         }
+        return (true, redemptionTimestamp);
     }
 
     /**
@@ -335,6 +337,7 @@ library RepoTokenList {
      * @param repoToken The repoToken to validate and insert
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
+     * @return validRepoToken Whether the repoToken is valid
      * @return discountRate The discount rate to be applied to the validated repoToken 
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken     
      */
@@ -343,14 +346,14 @@ library RepoTokenList {
         ITermRepoToken repoToken,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
-    ) internal returns (uint256 discountRate, uint256 redemptionTimestamp) {
+    ) internal returns (bool validRepoToken, uint256 discountRate, uint256 redemptionTimestamp) {
         discountRate = listData.discountRates[address(repoToken)];
         if (discountRate != INVALID_AUCTION_RATE) {
             (redemptionTimestamp, , ,) = repoToken.config();
 
             // skip matured repoTokens
             if (redemptionTimestamp < block.timestamp) {
-                revert InvalidRepoToken(address(repoToken));
+                return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
             }
 
             uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
@@ -362,11 +365,17 @@ library RepoTokenList {
         } else {
             discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
 
-            redemptionTimestamp = validateRepoToken(listData, repoToken, asset);
+            bool isRepoTokenValid;
 
+            (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
+            if (!isRepoTokenValid) {
+                return (false, discountRate, redemptionTimestamp);
+            }
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
         }
+
+        return (true, discountRate, redemptionTimestamp);
     }
 
     /**

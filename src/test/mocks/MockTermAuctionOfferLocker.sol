@@ -14,11 +14,11 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
     MockTermRepoLocker internal repoLocker;
     ITermAuction internal auction;
     mapping(bytes32 => TermAuctionOffer) internal lockedOffers;
-    
+
     constructor(
-        ITermAuction _auction, 
-        address _repoLocker, 
-        address _repoServicer, 
+        ITermAuction _auction,
+        address _repoLocker,
+        address _repoServicer,
         address _purchaseToken
     ) {
         auction = _auction;
@@ -77,7 +77,7 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
                 offer.purchaseToken = submission.purchaseToken;
 
                 repoLocker.lockPurchaseTokens(msg.sender, offer.amount);
-            }            
+            }
             lockedOffers[offer.id] = offer;
             offerIds[i] = offer.id;
         }

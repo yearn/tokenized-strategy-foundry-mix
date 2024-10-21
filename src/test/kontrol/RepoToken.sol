@@ -10,12 +10,13 @@ import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/TermRepoCollateralManager.sol";
 import "src/test/kontrol/TermRepoServicer.sol";
 
-contract RepoToken is ITermRepoToken, Test, KontrolCheats {
+contract RepoToken is ITermRepoToken, KontrolTest {
     mapping(address => uint256) _balance;
     uint256 _redemptionTimestamp;
     uint256 _redemptionValue;
     TermRepoServicer _termRepoServicer;
     TermRepoCollateralManager _termRepoCollateralManager;
+    address _purchaseToken;
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
@@ -27,14 +28,24 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         _redemptionTimestamp = freshUInt256();
         vm.assume(_redemptionTimestamp < TIME_UPPER_BOUND);
 
+        _purchaseToken = kevm.freshAddress();
+
         _redemptionValue = freshUInt256();
         vm.assume(_redemptionValue < ETH_UPPER_BOUND);
 
-        _termRepoServicer = new TermRepoServicer();
-        _termRepoServicer.initializeSymbolic(address(this));
+        TermRepoServicer termRepoServicer = new TermRepoServicer();
+        termRepoServicer.initializeSymbolic(address(this));
+        uint256 termRepoServicerSlot;
+        uint256 termRepoCollateralManagerSlot;
+        assembly {
+            termRepoServicerSlot := _termRepoServicer.slot
+            termRepoCollateralManagerSlot := _termRepoCollateralManager.slot
+        }
+        _storeUInt256(address(this), termRepoServicerSlot, uint256(uint160(address(termRepoServicer))));
 
-        _termRepoCollateralManager = new TermRepoCollateralManager();
-        _termRepoCollateralManager.initializeSymbolic();
+        TermRepoCollateralManager termRepoCollateralManager = new TermRepoCollateralManager();
+        termRepoCollateralManager.initializeSymbolic();
+        _storeUInt256(address(this), termRepoCollateralManagerSlot, uint256(uint160(address(termRepoCollateralManager))));
     }
 
     function decimals() public view returns (uint8) {
@@ -56,7 +67,7 @@ contract RepoToken is ITermRepoToken, Test, KontrolCheats {
         address termRepoCollateralManager
     ) {
         redemptionTimestamp = _redemptionTimestamp;
-        purchaseToken = kevm.freshAddress();
+        purchaseToken = _purchaseToken;
         termRepoServicer = address(_termRepoServicer);
         termRepoCollateralManager = address(_termRepoCollateralManager);
     }

@@ -1,29 +1,51 @@
 pragma solidity 0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermAuctionOfferLocker.sol";
 
 import "src/test/kontrol/Constants.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermAuctionOfferLocker is ITermAuctionOfferLocker, Test, KontrolCheats {
+contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     mapping(bytes32 => TermAuctionOffer) _lockedOffers;
     address _termRepoServicer;
     bool _unlockAlwaysSucceeds;
 
+    uint256 private lockedOffersSlot;
+
+    function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
+    }
+
     function initializeSymbolic(address termRepoServicer) public {
         kevm.symbolicStorage(address(this));
-
+        // Clear slot which holds two contract fields
+        uint256 repoServicerAndUnlockSlot;
+        assembly {
+            repoServicerAndUnlockSlot := _termRepoServicer.slot
+            sstore(lockedOffersSlot.slot, _lockedOffers.slot)
+        }
+        _storeUInt256(address(this), repoServicerAndUnlockSlot, 0);
         _termRepoServicer = termRepoServicer;
-
         _unlockAlwaysSucceeds = false;
     }
 
     function initializeSymbolicLockedOfferFor(bytes32 offerId) public {
-        TermAuctionOffer memory offer = _lockedOffers[offerId];
+        TermAuctionOffer storage offer = _lockedOffers[offerId];
         offer.amount = freshUInt256();
         vm.assume(offer.amount < ETH_UPPER_BOUND);
+
+        uint256 _purchaseToken = uint160(kevm.freshAddress());
+        uint256 _isRevealed = uint96(kevm.freshBool());
+        bytes memory offerLastSlotAbi = abi.encodePacked(uint96(_isRevealed), uint160(_purchaseToken));
+        bytes32 offerLastSlot;
+        assembly {
+            offerLastSlot := mload(add(offerLastSlotAbi, 0x20))
+        }
+        _storeBytes32(address(this), lockedOfferSlot(offerId) + 5, offerLastSlot);
+    }
+
+    function lockedOfferAmount(bytes32 id) public view returns (uint256) {
+        return _lockedOffers[id].amount;
     }
 
     function guaranteeUnlockAlwaysSucceeds() external {

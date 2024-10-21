@@ -349,17 +349,22 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
                 revert RepoTokenList.InvalidRepoToken(repoToken);
             }
 
-            uint256 redemptionTimestamp = repoTokenListData.validateRepoToken(
+            (bool isRepoTokenValid, uint256 redemptionTimestamp) = repoTokenListData.validateRepoToken(
                 ITermRepoToken(repoToken),
                 address(asset)
             );
+
+            if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+            }
             
             uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
             repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                 repoToken,
                 amount,
                 PURCHASE_TOKEN_PRECISION,
-                discountRateAdapter.repoRedemptionHaircut(repoToken)
+                repoRedemptionHaircut
             );
             proceeds = RepoTokenUtils.calculatePresentValue(
                 repoTokenAmountInBaseAssetPrecision,
@@ -747,10 +752,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
 
         // Validate purchase token, min collateral ratio and insert the repoToken if necessary
-        repoTokenListData.validateRepoToken(
+        (bool isValid, ) = repoTokenListData.validateRepoToken(
             ITermRepoToken(repoToken),
             address(asset)
         );
+
+        if (!isValid) {
+            revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
 
         // Prepare and submit the offer
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
@@ -801,15 +810,14 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         // Sweep assets, redeem matured repoTokens and ensure liquid balances up to date
         _redeemRepoTokens(0);
 
-        bytes32 offerId = _generateOfferId(idHash, address(offerLocker));
         uint256 newOfferAmount = purchaseTokenAmount;
         uint256 currentOfferAmount = termAuctionListData
-            .offers[offerId]
+            .offers[idHash]
             .offerAmount;
 
         // Submit the offer and lock it in the auction
         ITermAuctionOfferLocker.TermAuctionOfferSubmission memory offer;
-        offer.id = currentOfferAmount > 0 ? offerId : idHash;
+        offer.id = idHash;
         offer.offeror = address(this);
         offer.offerPriceHash = offerPriceHash;
         offer.amount = purchaseTokenAmount;
@@ -967,19 +975,6 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @dev Generate a term offer ID
-     * @param id The term offer ID hash
-     * @param offerLocker The address of the term offer locker
-     * @return The generated term offer ID
-     */
-    function _generateOfferId(
-        bytes32 id,
-        address offerLocker
-    ) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(id, address(this), offerLocker));
-    }
-
-    /**
      * @notice Required for post-processing after auction clos
      */
     function auctionClosed() external {
@@ -1008,12 +1003,16 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
-        (, uint256 redemptionTimestamp) = repoTokenListData
+        (bool isRepoTokenValid , , uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
                 discountRateAdapter,
                 address(asset)
             );
+
+        if (!isRepoTokenValid) {
+                revert RepoTokenList.InvalidRepoToken(repoToken);
+        }
 
         // Sweep assets and redeem repoTokens, if needed
         _redeemRepoTokens(0);

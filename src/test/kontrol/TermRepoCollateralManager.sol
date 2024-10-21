@@ -1,27 +1,36 @@
 pragma solidity 0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermRepoCollateralManager.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermRepoCollateralManager is ITermRepoCollateralManager, Test, KontrolCheats {
+contract TermRepoCollateralManager is ITermRepoCollateralManager, KontrolTest {
     mapping(address => uint256) _maintenanceCollateralRatios;
     address[] _collateralTokens;
+
+    uint256 private collateralTokensSlot;
+
+    function collateralTokensDataSlot(uint256 i) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(collateralTokensSlot))) + i;
+    }
 
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
 
-        // For simplicity, choose an arbitrary number of collateral tokens
-        vm.assume(_collateralTokens.length == 3);
+        assembly {
+            sstore(collateralTokensSlot.slot, _collateralTokens.slot)
+        }
+
+        // For simplicity, choose an arbitrary number of collateral tokens: 2
+        _storeUInt256(address(this), collateralTokensSlot, 2);
 
         for (uint256 i = 0; i < _collateralTokens.length; ++i) {
             // Generate an arbitrary concrete address for each token
+            // All repoTokens in the list will share the same colllateral tokens
             address currentToken = address(
                 uint160(uint256(keccak256(abi.encodePacked("collateral", i))))
             );
 
-            _collateralTokens[i] = currentToken;
+            _storeUInt256(address(this), collateralTokensDataSlot(i), uint256(uint160(currentToken)));
             _maintenanceCollateralRatios[currentToken] = freshUInt256();
         }
     }

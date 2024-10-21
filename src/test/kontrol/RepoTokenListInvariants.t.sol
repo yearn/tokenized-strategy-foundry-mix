@@ -9,25 +9,17 @@ import "src/RepoTokenList.sol";
 import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/RepoToken.sol";
 
-enum Mode {
-    Assume,
-    Assert
-}
-
-contract RepoTokenListInvariantsTest is Test, KontrolCheats {
+contract RepoTokenListInvariantsTest is KontrolTest {
     using RepoTokenList for RepoTokenListData;
 
     RepoTokenListData _repoTokenList;
 
-    /**
-     * Either assume or assert a condition, depending on the specified mode.
-     */
-    function _establish(Mode mode, bool condition) internal {
-        if (mode == Mode.Assume) {
-            vm.assume(condition);
-        } else {
-            assert(condition);
-        }
+    function setUp() public {
+        // Make storage of this contract completely symbolic
+        kevm.symbolicStorage(address(this));
+
+        // Initialize RepoTokenList of arbitrary size
+        _initializeRepoTokenList();
     }
 
     /**
@@ -206,15 +198,62 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         return false;
     }
 
+    function _repoTokensListToArray(uint256 length) internal view returns (address[] memory repoTokens) {
+        address current = _repoTokenList.head;
+        uint256 i;
+        repoTokens = new address[](length);
+
+        while (current != RepoTokenList.NULL_NODE) {
+            repoTokens[i++] = current;
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    function _establishInsertListPreservation(address insertedRepoToken, address[] memory repoTokens, uint256 repoTokensCount) internal view {
+        address current = _repoTokenList.head;
+        uint256 i = 0;
+
+        if(insertedRepoToken != address(0)) {
+
+            while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+                if(current != repoTokens[i]) {
+                    assert (current == insertedRepoToken);
+                    current = _repoTokenList.nodes[current].next;
+                    break;
+                }
+                i++;
+                current = _repoTokenList.nodes[current].next;
+            }
+
+            if (current != RepoTokenList.NULL_NODE && i == repoTokensCount) {
+                assert (current == insertedRepoToken);
+            }
+        }
+
+        while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+            assert(current == repoTokens[i++]);
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    function _establishRemoveListPreservation(address[] memory repoTokens, uint256 repoTokensCount) internal view {
+        address current = _repoTokenList.head;
+        uint256 i = 0;
+
+        while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+            if(current == repoTokens[i++]) {
+                current = _repoTokenList.nodes[current].next;
+            }
+        }
+
+        assert(current == RepoTokenList.NULL_NODE);
+    }
+
     /**
      * Test that insertSorted preserves the list invariants when a new RepoToken
      * is added (that was not present in the list before).
      */
     function testInsertSortedNewToken() external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
         _establishNoDuplicateTokens(Mode.Assert);
@@ -226,6 +265,8 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
 
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
+
+        address[] memory repoTokens = _repoTokensListToArray(count);
 
         // Generate a new RepoToken with symbolic storage
         address repoToken = _newRepoToken();
@@ -242,7 +283,9 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         assert(_countNodesInList() == count + 1);
 
         // Assert that the new RepoToken is in the list
-        assert(_repoTokenInList(repoToken));
+        //assert(_repoTokenInList(repoToken));
+
+        _establishInsertListPreservation(repoToken, repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
@@ -258,10 +301,6 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
     function testInsertSortedDuplicateToken(
         address repoToken
     ) external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
         _establishNoDuplicateTokens(Mode.Assert);
@@ -274,6 +313,8 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
 
+        address[] memory repoTokens = _repoTokensListToArray(count);
+
         // Assume that the RepoToken is already in the list
         vm.assume(_repoTokenInList(repoToken));
 
@@ -284,7 +325,9 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
         assert(_countNodesInList() == count);
 
         // Assert that the RepoToken is still in the list
-        assert(_repoTokenInList(repoToken));
+        //assert(_repoTokenInList(repoToken));
+
+        _establishInsertListPreservation(address(0), repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
@@ -312,12 +355,9 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
      * Test that removeAndRedeemMaturedTokens preserves the list invariants.
      */
     function testRemoveAndRedeemMaturedTokens() external {
-        // Initialize RepoTokenList of arbitrary size
-        kevm.symbolicStorage(address(this));
-        _initializeRepoTokenList();
-
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
+        address[] memory repoTokens = _repoTokensListToArray(count);
 
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
@@ -325,7 +365,6 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
 
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicateTokens(Mode.Assume);
         _establishPositiveBalanceForNonMaturedTokens(Mode.Assume);
 
         // Assume that the call to redeemTermRepoTokens will not revert
@@ -336,6 +375,8 @@ contract RepoTokenListInvariantsTest is Test, KontrolCheats {
 
         // Assert that the size of the list is less than or equal to before
         assert(_countNodesInList() <= count);
+
+        _establishRemoveListPreservation(repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);

@@ -1,13 +1,11 @@
 pragma solidity 0.8.23;
 
-import "forge-std/Test.sol";
-import "kontrol-cheatcodes/KontrolCheats.sol";
-
 import "src/interfaces/term/ITermDiscountRateAdapter.sol";
 
 import "src/test/kontrol/Constants.sol";
+import "src/test/kontrol/KontrolTest.sol";
 
-contract TermDiscountRateAdapter is ITermDiscountRateAdapter, Test, KontrolCheats {
+contract TermDiscountRateAdapter is ITermDiscountRateAdapter, KontrolTest {
     mapping(address => uint256) _repoRedemptionHaircut;
     mapping(address => uint256) _discountRate;
 

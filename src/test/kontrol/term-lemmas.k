@@ -1,5 +1,6 @@
 requires "evm.md"
 requires "foundry.md"
+// requires "keccak.md"
 
 module TERM-LEMMAS
     imports EVM
@@ -7,6 +8,7 @@ module TERM-LEMMAS
     imports INT-SYMBOLIC
     imports MAP-SYMBOLIC
     imports SET-SYMBOLIC
+    // imports KECCAK-LEMMAS
 
     syntax StepSort ::= Int
                       | Bool
@@ -41,6 +43,63 @@ module TERM-LEMMAS
       chop ( Y -Int X:Int ) ==Int 0 => X ==Int Y
       requires #rangeUInt(256, X) andBool #rangeUInt(256, Y)
       [simplification, concrete(Y), comm]
+
+    rule [keccak-slots-disjoint]:
+      keccak ( A ) ==Int keccak ( B ) +Int C => false
+      requires notBool 0 ==Int C
+      [simplification, concrete(C), comm]
+
+    rule [keccak-slots-disjoint-ml-l]:
+      { keccak ( A ) #Equals keccak ( B ) +Int C } => #Bottom
+      requires notBool 0 ==Int C
+      [simplification, concrete(C)]
+
+    rule [keccak-slots-disjoint-ml-r]:
+      { keccak ( B ) +Int C #Equals keccak ( A ) } => #Bottom
+      requires notBool 0 ==Int C
+      [simplification, concrete(C)]
+
+    // 2a. |Int and +Bytes, update to be done in left
+    rule [bor-update-to-left-2]:
+      #asWord ( B1 +Bytes B2 ) |Int A =>
+        #asWord ( #buf ( 32 -Int lengthBytes(B2), (A /Int (2 ^Int (8 *Int lengthBytes(B2)))) |Int #asWord ( B1 ) ) +Bytes B2 )
+        requires #rangeUInt(256, A) andBool A modInt (2 ^Int (8 *Int lengthBytes(B2))) ==Int 0 andBool lengthBytes(B1 +Bytes B2) <=Int 32
+        [simplification, preserves-definedness]
+
+    // 2b. |Int of +Bytes, update to be done in right
+    rule [bor-update-to-right-2]:
+      #asWord ( B1 +Bytes B2 ) |Int A =>
+        #asWord ( B1 +Bytes #buf ( lengthBytes(B2), A |Int #asWord ( B2 ) ) )
+        requires 0 <=Int A andBool A <Int 2 ^Int (8 *Int lengthBytes(B2)) andBool lengthBytes(B2) <=Int 32
+        [simplification, preserves-definedness]
+
+    rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) ( S |Set SetItem (Y) ) requires notBool X ==Int Y [simplification, preserves-definedness]
+    rule ( SetItem(X:Int) S:Set ) |Set SetItem(Y:Int) => SetItem(X) S                      requires         X ==Int Y [simplification, preserves-definedness]
+    rule                     .Set |Set SetItem(X:Int) => SetItem(X)                                                   [simplification, preserves-definedness]
+
+    rule K1 in_keys((K2 |-> _ ) M) => K1 ==Int K2 orBool K1 in_keys(M) [simplification]
+
+    rule [transferFunds-hp-neq]:
+      <k> #transferFunds ACCTFROM ACCTTO VALUE => .K ... </k>
+      <account>
+        <acctID> ACCTFROM </acctID>
+        <balance> ORIGFROM => ORIGFROM -Word VALUE </balance>
+        ...
+      </account>
+      <account>
+        <acctID> ACCTTO </acctID>
+        <balance> ORIGTO => ORIGTO +Word VALUE </balance>
+        ...
+      </account>
+      requires ACCTFROM =/=K ACCTTO andBool VALUE <=Int ORIGFROM
+      [priority(30), preserves-definedness]
+
+    rule [accounts-in-keys]:
+      `AccountCellMap:in_keys`(
+        <acctID> (X:Int) </acctID>,
+        (`_AccountCellMap_`(AccountCellMapItem(<acctID> Y:Int </acctID>, _:AccountCell):AccountCellMap, ACCOUNTS_REST:AccountCellMap)):AccountCellMap
+      ) => X ==Int Y orBool `AccountCellMap:in_keys`(<acctID> (X:Int) </acctID>, ACCOUNTS_REST)
+      [simplification, preserves-definedness]
 
 endmodule
 
@@ -175,7 +234,7 @@ module TERM-LEMMAS-SPEC
 
     claim [keccak-comparison-1]: <k> runLemma ( ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) ==Int ( keccak ( #buf ( 32 , WORD1:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) ) => doneLemma ( false ) ... </k>
 
-    claim [keccak-comparison]: <k> runLemma ( ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) ==Int ( keccak ( #buf ( 32 , WORD1:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) ) => doneLemma ( false ) ... </k>
+    claim [keccak-comparison-2]: <k> runLemma ( ( keccak ( #buf ( 32 , WORD:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) ==Int ( keccak ( #buf ( 32 , WORD1:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) ) => doneLemma ( false ) ... </k>
 
     claim [chop-check]: <k> runLemma ( chop ( ( VV2_purchaseTokenPrecision_114b9705:Int *Int WORD8:Int *Int WORD10:Int /Int 1000000000000000000000000000000000000 ) *Int ( WORD11:Int -Int TIMESTAMP_CELL:Int ) +Int ( VV2_purchaseTokenPrecision_114b9705:Int *Int WORD1:Int *Int WORD3:Int /Int 1000000000000000000000000000000000000 ) *Int ( WORD4:Int -Int TIMESTAMP_CELL:Int ) ) ) => doneLemma ( true ) ... </k>
     requires 0 <=Int VV2_purchaseTokenPrecision_114b9705 andBool VV2_purchaseTokenPrecision_114b9705 <Int 18
@@ -187,5 +246,12 @@ module TERM-LEMMAS-SPEC
      andBool 0 <=Int WORD8 andBool WORD8 <Int 2 ^Int 95
      andBool 0 <=Int WORD10 andBool WORD10 <Int 2 ^Int 95
      andBool 0 <=Int WORD11 andBool WORD11 <Int 34359738368
+
+    claim [keccak-comparison-3]: <k> runLemma ( #lookup ( STORAGE:Map [ 34 <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map , 34 ) ) , 0 , 12 ) +Bytes b"V\x15\xde\xb7\x98\xbb>M\xfa\x019\xdf\xa1\xb3\xd43\xcc#\xb7/" ) ] [ maxUInt5 <- VV0_offerId_114b9705:Int ] [ keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) <- 0 ] [ keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map , keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) ) ) , 0 , 12 ) +Bytes b".#M\xaeu\xc7\x93\xf6z5\x08\x9c\x9d\x99$^\x1cXG\x0b" ) ] [ ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 1 ) <- #lookup ( STORAGE3:Map , ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1b" ) +Int 4 ) ) ] [ ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map [ 34 <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map , 34 ) ) , 0 , 12 ) +Bytes b"V\x15\xde\xb7\x98\xbb>M\xfa\x019\xdf\xa1\xb3\xd43\xcc#\xb7/" ) ] [ maxUInt5 <- VV0_offerId_114b9705:Int ] [ keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) <- 0 ] , ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) ) ) , 0 , 12 ) +Bytes #buf ( 20 , WORD:Int ) ) ] [ ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map [ 34 <- #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map , 34 ) ) , 0 , 12 ) +Bytes b"V\x15\xde\xb7\x98\xbb>M\xfa\x019\xdf\xa1\xb3\xd43\xcc#\xb7/" ) ] [ maxUInt5 <- VV0_offerId_114b9705:Int ] [ keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) <- 0 ] , ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 3 ) ) ) , 0 , 12 ) +Bytes b"\xf6(I\xf9\xa0\xb5\xbf)\x13\xb3\x96\t\x8f|p\x19\xb5\x1a\x82\n" ) ] , keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00 " ) ) )
+                                  => doneLemma ( 0 ) ... </k>
+
+    claim [slot-update-10]: <k> runLemma ( #asWord ( #range ( #buf ( 32 , ( #asWord ( #range ( #buf ( 32 , #lookup ( STORAGE:Map , ( keccak ( #buf ( 32 , VV0_offerId_114b9705:Int ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!" ) +Int 2 ) ) ) , 0 , 12 ) +Bytes b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" ) |Int WORD:Int ) ) , 12 , 20 ) )  )
+                                => doneLemma ( WORD:Int ) ... </k>
+                                requires #rangeUInt(160, WORD)
 
 endmodule
