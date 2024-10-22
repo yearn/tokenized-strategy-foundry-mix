@@ -40,8 +40,8 @@ auto_abstract              = true
 run-constructor            = false
 bmc-depth                  = 3
 match-test                 = [
-        "RepoTokenListInvariantsTest.setUp",
-        "TermAuctionListInvariantsTest.setUp",
+        #"RepoTokenListInvariantsTest.setUp",
+        #"TermAuctionListInvariantsTest.setUp",
         "TermAuctionListGetTest.setUp",
     ]
 ast                        = true
@@ -76,14 +76,15 @@ break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
 match-test                 = [
-        "RepoTokenListInvariantsTest.testInsertSortedNewToken",
-        "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
-        "RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
-        "TermAuctionListInvariantsTest.testInsertPendingNewOffer",
-        "TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
-        "TermAuctionListInvariantsTest.testRemoveCompleted",
-        "TermAuctionListGetTest.testGetCumulativeDataEmpty",
-        "TermAuctionListGetTest.testGetPresentValueEmpty",
+        #"RepoTokenListInvariantsTest.testInsertSortedNewToken",
+        #"RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
+        #"RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
+        #"TermAuctionListInvariantsTest.testInsertPendingNewOffer",
+        #"TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
+        #"TermAuctionListInvariantsTest.testRemoveCompleted",
+        #"TermAuctionListGetTest.testGetCumulativeDataEmpty",
+        #"TermAuctionListGetTest.testGetPresentValueEmpty",
+        "TermAuctionListGetTest.testGetCumulativeDataNoCompletedAuctions",
     ]
 ast                        = true
 

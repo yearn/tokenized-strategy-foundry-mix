@@ -295,5 +295,21 @@ contract TermAuctionListTest is KontrolTest {
         }
     }
 
+     /**
+     * Assume that all RepoTokens in the PendingOffers have no discount rate
+     * set in the RepoTokenList.
+     */
+    function _assumeNoDiscountRatesSet() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            uint256 discountRate = _repoTokenList.discountRates[repoToken];
+            vm.assume(discountRate == RepoTokenList.INVALID_AUCTION_RATE);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
 }
 

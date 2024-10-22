@@ -12,8 +12,8 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         kevm.symbolicStorage(address(this));
         // Initialize RepoTokenList of arbitrary size
         //_initializeRepoTokenList();
-        setReferenceAuction();
 
+        setReferenceAuction();
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
     }
@@ -82,7 +82,39 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         }
     }
 
-    function getCumulativeOfferDataNoCompletedAuctions(
+    /**
+     * Assume or assert that all auctions in the list are completed.
+     */
+    function _establishCompletedAuctions(Mode mode) internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            _establish(mode, offer.termAuction.auctionCompleted());
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that there are no tokens in the list have matured
+     * (i.e. all token maturities are greater than the current timestamp).
+     */
+    function _establishNoMaturedTokens(Mode mode) internal {
+        address current = _termAuctionList.head;
+
+        while (current != RepoTokenList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 currentMaturity = _getRepoTokenMaturity(offer.repoToken);
+
+            _establish(mode, block.timestamp < currentMaturity);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+
+    function getCumulativeOfferTimeAndAmount(
         RepoTokenListData storage repoTokenListData,
         ITermDiscountRateAdapter discountRateAdapter,
         address repoToken,
@@ -144,7 +176,55 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             uint256 cumulativeWeightedTimeToMaturityNoCompletedAuctions,
             uint256 cumulativeOfferAmountNoCompletedAuctions,
             bool foundNoCompletedAuctions
-        ) = getCumulativeOfferDataNoCompletedAuctions(
+        ) = getCumulativeOfferTimeAndAmount(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityNoCompletedAuctions);
+        assert(cumulativeOfferAmount == cumulativeOfferAmountNoCompletedAuctions);
+        assert(found == foundNoCompletedAuctions);
+
+    }
+
+    /* If there are no completed auctions in the list then getCumulativeOfferData should return the sum 
+       of the amount in the lockedOffer for all offers
+    */
+    function testGetCumulativeDataCompletedAuctions(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) external {
+        // Initialize a DiscountRateAdapter with symbolic storage
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+        _initializeDiscountRateAdapter(discountRateAdapter);
+
+        _establishCompletedAuctions(Mode.Assume);
+
+        vm.assume(newOfferAmount < ETH_UPPER_BOUND);
+        vm.assume(purchaseTokenPrecision <= 18);
+
+        (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        ) = _termAuctionList.getCumulativeOfferData(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityNoCompletedAuctions,
+            uint256 cumulativeOfferAmountNoCompletedAuctions,
+            bool foundNoCompletedAuctions
+        ) = getCumulativeOfferTimeAndAmount(
             _repoTokenList,
             ITermDiscountRateAdapter(address(discountRateAdapter)),
             repoToken,
