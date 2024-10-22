@@ -409,7 +409,7 @@ library RepoTokenList {
 
             uint256 currentMaturity = getRepoTokenMaturity(current);
 
-            // Insert repoToken before current if its maturity is less than or equal
+            // Insert repoToken before current if its maturity is less than current maturity
             if (maturityToInsert < currentMaturity) {
                 if (prev == NULL_NODE) {
                     listData.head = repoToken;
