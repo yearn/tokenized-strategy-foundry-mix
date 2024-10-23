@@ -175,7 +175,6 @@ library TermAuctionList {
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
             bool removeNode;
-            bool insertRepoToken;
 
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
@@ -343,7 +342,7 @@ library TermAuctionList {
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-                if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
+                if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
                     // use normalized repoToken amount if repoToken is not in the list
                     if (edgeCaseAuction != address(offer.termAuction)) {
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
