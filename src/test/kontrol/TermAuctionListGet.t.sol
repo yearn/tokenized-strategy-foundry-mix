@@ -3,6 +3,8 @@ pragma solidity 0.8.23;
 import "src/test/kontrol/TermAuction.sol";
 import "src/test/kontrol/ListTestUtils.t.sol";
 
+
+
 contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
     using TermAuctionList for TermAuctionListData;
     using RepoTokenList for RepoTokenListData;
@@ -96,6 +98,142 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         }
     }
 
+    /**
+     * There are no matured tokens in the offers list
+     */
+    function _assumeNonMaturedRepoTokens() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            (uint256 currentMaturity, , ,) = ITermRepoToken(_termAuctionList.offers[current].repoToken).config();
+            vm.assume(currentMaturity > block.timestamp);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that the offer amounts in the offer locker for completed auctions is 0
+     * and for non-completed auctions is greater than 0
+     */
+    function _assumeOfferAmountLocked() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 offerAmount = TermAuctionOfferLocker(address(offer.offerLocker)).lockedOfferAmount(current);
+            if (offer.termAuction.auctionCompleted()) {
+                vm.assume(offerAmount == 0);
+            }
+            else {
+                vm.assume(offerAmount > 0);
+            }
+    
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+
+    /**
+     * Assume or assert that the offer amounts in the offer locker for each offer in the list
+     * is equal to 0
+     */
+    function _establishOfferAmountLockedZero(Mode mode) internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 offerAmount = TermAuctionOfferLocker(address(offer.offerLocker)).lockedOfferAmount(current);
+            _establish(mode, offer.offerAmount == 0);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function filterCompletedAuctionsGetCumulativeOfferData() internal returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
+        bytes32 current = _termAuctionList.head;
+        bytes32 prev = current;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 next = _termAuctionList.nodes[current].next;
+
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 offerAmount = TermAuctionOfferLocker(address(offer.offerLocker)).lockedOfferAmount(current);
+            if (!offer.termAuction.auctionCompleted()) {
+                cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(offer.repoToken, offerAmount);
+                cumulativeOfferAmount += offerAmount;
+
+                // Update the list to remove the current node
+                delete _termAuctionList.nodes[current];
+                delete _termAuctionList.offers[current];
+                if (current == _termAuctionList.head) {
+                    _termAuctionList.head = next;
+                }
+                else {
+                    _termAuctionList.nodes[prev].next = next;
+                    current = prev;
+                }
+            }
+            prev = current;
+            current = next;
+        }
+    }
+
+
+    function filterDiscountRateSet() internal {
+        bytes32 current = _termAuctionList.head;
+        bytes32 prev = current;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 next = _termAuctionList.nodes[current].next;
+
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            uint256 discountRate = _repoTokenList.discountRates[repoToken];
+
+            if (discountRate != RepoTokenList.INVALID_AUCTION_RATE) {
+                // Update the list to remove the current node
+                delete _termAuctionList.nodes[current];
+                delete _termAuctionList.offers[current];
+                if (current == _termAuctionList.head) {
+                    _termAuctionList.head = next;
+                }
+                else {
+                    _termAuctionList.nodes[prev].next = next;
+                    current = prev;
+                }
+            }
+            prev = current;
+            current = next;
+        }
+    }
+
+    function filterRepeatedAuctions() internal {
+        bytes32 current = _termAuctionList.head;
+        bytes32 prev = current;
+        address prevAuction = address(0);
+        
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 next = _termAuctionList.nodes[current].next;
+
+            address offerAuction = address(_termAuctionList.offers[current].termAuction);
+            if (offerAuction == prevAuction) {
+                // Update the list to remove the current node
+                delete _termAuctionList.nodes[current];
+                delete _termAuctionList.offers[current];
+                if (current == _termAuctionList.head) {
+                    _termAuctionList.head = next;
+                }
+                else {
+                    _termAuctionList.nodes[prev].next = next;
+                    current = prev;
+                }
+            }
+            prevAuction = offerAuction;
+            prev = current;
+            current = next;
+        }
+    }
+
 
     function getCumulativeOfferTimeAndAmount(
         RepoTokenListData storage repoTokenListData,
@@ -125,11 +263,34 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         }
     }
 
-    function getGroupedOfferTimeAndAmount(
-        RepoTokenListData storage repoTokenListData,
+    function _getCumulativeOfferDataCompletedAuctions(
         ITermDiscountRateAdapter discountRateAdapter,
-        address repoToken,
-        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
+        
+        bytes32 current = _termAuctionList.head;
+
+        address previous = address(0);
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                                    offer.repoToken,
+                                    ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                                    purchaseTokenPrecision,
+                                    discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
+                                );
+            if (offerAmount > 0) {
+                cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(offer.repoToken, offerAmount);
+                cumulativeOfferAmount += offerAmount;
+            }
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function getGroupedOfferTimeAndAmount(
+        ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
         
@@ -148,8 +309,10 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
                             purchaseTokenPrecision,
                             discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                 );
-                cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(offer.repoToken, offerAmount);
-                cumulativeOfferAmount += offerAmount;
+                if (offerAmount > 0) {
+                    cumulativeWeightedTimeToMaturity += RepoTokenList.getRepoTokenWeightedTimeToMaturity(offer.repoToken, offerAmount);
+                    cumulativeOfferAmount += offerAmount;
+                }
             }
             
             previous = address(offer.termAuction);
@@ -235,6 +398,7 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         _initializeDiscountRateAdapter(discountRateAdapter);
 
         _establishCompletedAuctions(Mode.Assume);
+        _assumeOfferAmountLocked();
         _assumeNoDiscountRatesSet();
 
         // Consider only the case where we are not trying to match a token
@@ -259,10 +423,7 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             uint256 cumulativeOfferAmountCompletedAuctions,
             bool foundCompletedAuctions
         ) = getGroupedOfferTimeAndAmount(
-            _repoTokenList,
             ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            newOfferAmount,
             purchaseTokenPrecision
         );
 
@@ -272,7 +433,21 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
 
     }
 
-    function testGetCumulativeData(
+    function _assumeRedemptionValueAndBalancePositive() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
+            uint256 repoTokenBalance = ITermRepoToken(repoToken).balanceOf(address(this));
+            vm.assume(0 < redemptionValue);
+            vm.assume(0 < repoTokenBalance);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function testGetCumulativeOfferData(
         address repoToken,
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
@@ -282,14 +457,15 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
 
-        // Assume relevant invariants
-        _establishNoMaturedTokens(Mode.Assume);
-        _establishPositiveBalance(Mode.Assume);
+        _assumeNonMaturedRepoTokens();
+        _assumeOfferAmountLocked();
+        _assumeRedemptionValueAndBalancePositive();
 
         // Consider only the case where we are not trying to match a token
         vm.assume(repoToken == address(0));
         vm.assume(newOfferAmount < ETH_UPPER_BOUND);
         vm.assume(purchaseTokenPrecision <= 18);
+        vm.assume(purchaseTokenPrecision > 0);
 
         (
             uint256 cumulativeWeightedTimeToMaturity,
@@ -303,10 +479,80 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             purchaseTokenPrecision
         );
 
-        // TODO: Add checks that calculation is correct
+        (
+            uint256 cumulativeWeightedTimeToMaturityIncompletedAuctions,
+            uint256 cumulativeOfferAmountIncompletedAuctions
+        ) = filterCompletedAuctionsGetCumulativeOfferData();
+
+        filterDiscountRateSet();
+        filterRepeatedAuctions();
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
+            uint256 cumulativeOfferAmountCompletedAuctions
+        ) = _getCumulativeOfferDataCompletedAuctions(discountRateAdapter, purchaseTokenPrecision);
+
+        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityIncompletedAuctions + cumulativeWeightedTimeToMaturityCompletedAuctions);
+        assert(cumulativeOfferAmount == cumulativeOfferAmountIncompletedAuctions + cumulativeOfferAmountCompletedAuctions);
     }
 
-    function testGetPresentValue(
+    function filterCompletedAuctionsGetTotalValue() internal returns (uint256 totalValue) {
+        bytes32 current = _termAuctionList.head;
+        bytes32 prev = current;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 next = _termAuctionList.nodes[current].next;
+
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 offerAmount = TermAuctionOfferLocker(address(offer.offerLocker)).lockedOfferAmount(current);
+            if (!offer.termAuction.auctionCompleted()) {
+                totalValue += offerAmount;
+
+                // Update the list to remove the current node
+                delete _termAuctionList.nodes[current];
+                delete _termAuctionList.offers[current];
+                if (current == _termAuctionList.head) {
+                    _termAuctionList.head = next;
+                }
+                else {
+                    _termAuctionList.nodes[prev].next = next;
+                    current = prev;
+                }
+            }
+            prev = current;
+            current = next;
+        }
+    }
+
+    function _getTotalValueCompletedAuctions(
+        ITermDiscountRateAdapter discountRateAdapter,
+        uint256 purchaseTokenPrecision
+    ) internal view returns (uint256 totalValue) {
+        
+        bytes32 current = _termAuctionList.head;
+
+        address previous = address(0);
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
+                        offer.repoToken,
+                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
+                        purchaseTokenPrecision,
+                        discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
+                    );
+            totalValue += RepoTokenUtils.calculatePresentValue(
+                repoTokenAmountInBaseAssetPrecision,
+                purchaseTokenPrecision,
+                RepoTokenList.getRepoTokenMaturity(offer.repoToken),
+                discountRateAdapter.getDiscountRate(offer.repoToken)
+            );
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function testGetPresentTotalValue(
         uint256 purchaseTokenPrecision,
         address repoTokenToMatch
     ) external {
@@ -314,10 +560,6 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
-
-        // Assume relevant invariants
-        _establishNoMaturedTokens(Mode.Assume);
-        _establishPositiveBalance(Mode.Assume);
 
         // Consider only the case where we are not trying to match a token
         vm.assume(repoTokenToMatch == address(0));
@@ -330,6 +572,13 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             repoTokenToMatch
         );
 
-        // TODO: Add checks that calculation is correct
+        uint256 totalValueNonCompletedAuctions = filterCompletedAuctionsGetTotalValue();
+
+        filterDiscountRateSet();
+        filterRepeatedAuctions();
+
+        uint256 totalValueCompletedAuctions = _getTotalValueCompletedAuctions(ITermDiscountRateAdapter(address(discountRateAdapter)), purchaseTokenPrecision);
+
+        assert(totalPresentValue == totalValueNonCompletedAuctions + totalValueCompletedAuctions);
     }
 }

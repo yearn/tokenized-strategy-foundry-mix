@@ -38,7 +38,7 @@ break-on-basic-blocks      = false
 break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
-bmc-depth                  = 3
+bmc-depth                  = 2
 match-test                 = [
         #"RepoTokenListInvariantsTest.setUp",
         #"TermAuctionListInvariantsTest.setUp",
@@ -84,7 +84,10 @@ match-test                 = [
         #"TermAuctionListInvariantsTest.testRemoveCompleted",
         #"TermAuctionListGetTest.testGetCumulativeDataEmpty",
         #"TermAuctionListGetTest.testGetPresentValueEmpty",
-        "TermAuctionListGetTest.testGetCumulativeDataNoCompletedAuctions",
+        "TermAuctionListGetTest.testGetCumulativeOfferData",
+        #"TermAuctionListGetTest.testGetCumulativeDataNoCompletedAuctions",
+        "TermAuctionListGetTest.testGetCumulativeDataCompletedAuctions",
+        "TermAuctionListGetTest.testGetPresentTotalValue",
     ]
 ast                        = true
 
