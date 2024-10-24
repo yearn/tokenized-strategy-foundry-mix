@@ -125,9 +125,9 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             if (offer.termAuction.auctionCompleted()) {
                 vm.assume(offerAmount == 0);
             }
-            else {
-                vm.assume(offerAmount > 0);
-            }
+            //else {
+            //    vm.assume(offerAmount > 0);
+            //}
     
             current = _termAuctionList.nodes[current].next;
         }
@@ -269,8 +269,6 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
     ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
         
         bytes32 current = _termAuctionList.head;
-
-        address previous = address(0);
 
         while (current != TermAuctionList.NULL_NODE) {
             PendingOffer storage offer = _termAuctionList.offers[current];
@@ -531,8 +529,6 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
         
         bytes32 current = _termAuctionList.head;
 
-        address previous = address(0);
-
         while (current != TermAuctionList.NULL_NODE) {
             PendingOffer storage offer = _termAuctionList.offers[current];
             uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
@@ -561,9 +557,12 @@ contract TermAuctionListGetTest is RepoTokenListTest, TermAuctionListTest {
             new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
 
+        _assumeOfferAmountLocked();
+
         // Consider only the case where we are not trying to match a token
         vm.assume(repoTokenToMatch == address(0));
         vm.assume(purchaseTokenPrecision <= 18);
+        vm.assume(purchaseTokenPrecision > 0);
 
         uint256 totalPresentValue = _termAuctionList.getPresentValue(
             _repoTokenList,
