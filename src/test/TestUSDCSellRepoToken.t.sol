@@ -89,6 +89,10 @@ contract TestUSDCSellRepoToken is Setup {
             address(repoToken1Week), 0.05e18, repoTokenSellAmount
         );
 
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+
+        assertEq(repoTokenHoldingValue, expectedProceeds);
+
         assertEq(mockUSDC.balanceOf(testUser), expectedProceeds);
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - expectedProceeds);
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
@@ -106,6 +110,86 @@ contract TestUSDCSellRepoToken is Setup {
             cumulativeWeightedTimeToMaturity / (repoTokenBalanceInBaseAssetPrecision + termStrategy.totalLiquidBalance());
 
   //      assertEq(weightedTimeToMaturity, expectedWeightedTimeToMaturity);
+    }
+
+    function testSellInvalidRepoToken() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 100e6);
+        _initState();
+
+        uint256 repoTokenSellAmount = 1e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+        termController.markNotTermDeployed(address(repoToken1Week));
+
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+    }
+
+    function testSellRepoTokenInvalidLiquidBalance() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 5e6);
+        _initState();
+
+        uint256 repoTokenSellAmount = 5.1e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.00001e18);
+
+        vm.startPrank(management);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(Strategy.InsufficientLiquidBalance.selector, 5e6, 5.1e6));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+    }
+
+    function testSellRepoTokenBalanceBelowRequireReserveRatio() public {
+        // start with some initial funds
+        mockUSDC.mint(address(strategy), 5e6);
+        _initState();
+
+        uint256 repoTokenSellAmount = 2.7e18;
+
+        address testUser = vm.addr(0x11111);
+
+        repoToken1Week.mint(testUser, 1000e18);
+
+        vm.prank(testUser);
+        repoToken1Week.approve(address(strategy), type(uint256).max);
+
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+
+        vm.startPrank(management);
+        termStrategy.setRequiredReserveRatio(0.5e18);
+        termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
+        termStrategy.setTimeToMaturityThreshold(3 weeks);
+        vm.stopPrank();
+
+        vm.prank(testUser);
+        vm.expectRevert(abi.encodeWithSelector(Strategy.BalanceBelowRequiredReserveRatio.selector));
+        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
     }
 
     // Test with different precisions
@@ -552,6 +636,10 @@ contract TestUSDCSellRepoToken is Setup {
 
         termController.setOracleRate(repoToken2Week.termRepoId(), 0.05e18); 
 
+        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(0)));
+        termStrategy.getRepoTokenConcentrationRatio(address(0));
+
+
         uint256 concentrationLimit = termStrategy.getRepoTokenConcentrationRatio(address(repoToken2Week));
 
         _sell1RepoTokenNoMintExpectRevert(
@@ -584,5 +672,11 @@ contract TestUSDCSellRepoToken is Setup {
             2e18,
             "Pausable: paused"
         );
+
+        vm.prank(management);
+        termStrategy.unpauseStrategy();
+        vm.prank(testDepositor);
+        IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
+        vm.stopPrank();
     }
 }
