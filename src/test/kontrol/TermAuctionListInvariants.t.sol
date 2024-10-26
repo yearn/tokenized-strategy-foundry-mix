@@ -11,6 +11,7 @@ import "src/test/kontrol/Constants.sol";
 import "src/test/kontrol/RepoToken.sol";
 import "src/test/kontrol/RepoTokenListInvariants.t.sol";
 import "src/test/kontrol/TermAuction.sol";
+import "src/test/kontrol/TermAuctionListTest.t.sol";
 import "src/test/kontrol/TermAuctionOfferLocker.sol";
 import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
@@ -22,7 +23,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         // Make storage of this contract completely symbolic
         kevm.symbolicStorage(address(this));
 
-        setReferenceAuction();
+        _setReferenceAuction();
 
         // Initialize TermAuctionList of arbitrary size
         _initializeTermAuctionList();
@@ -469,7 +470,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         // Initialize a DiscountRateAdapter with symbolic storage
         TermDiscountRateAdapter discountRateAdapter =
             new TermDiscountRateAdapter();
-        _initializeDiscountRateAdapter(discountRateAdapter);
+        _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         // Our initialization procedure guarantees these invariants,
         // so we assert instead of assuming
@@ -514,4 +515,257 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         _establishPositiveOfferAmounts(Mode.Assert);
         _assertRepoTokensValidate(asset);
     }
+
+    function testGetCumulativeDataEmpty(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) external {
+        _initializeTermAuctionListEmpty();
+
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+
+        (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        ) = _termAuctionList.getCumulativeOfferData(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        assert(cumulativeWeightedTimeToMaturity == 0);
+        assert(cumulativeOfferAmount == 0);
+        assert(found == false);
+    }
+
+    function testGetPresentValueEmpty(
+        uint256 purchaseTokenPrecision,
+        address repoTokenToMatch
+    ) external {
+        _initializeTermAuctionListEmpty();
+
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+
+        uint256 totalPresentValue = _termAuctionList.getPresentValue(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            purchaseTokenPrecision,
+            repoTokenToMatch
+        );
+
+        assert(totalPresentValue == 0);
+    }
+
+    /* If there are no completed auctions in the list then getCumulativeOfferData should return the sum 
+       of the amount in the lockedOffer for all offers
+    */
+    function testGetCumulativeDataNoCompletedAuctions(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) external {
+        // Initialize a DiscountRateAdapter with symbolic storage
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+        _initializeDiscountRateAdapterOffers(discountRateAdapter);
+
+        _establishNoCompletedAuctions(Mode.Assume);
+        _assumeOfferAmountLocked();
+
+        vm.assume(newOfferAmount < ETH_UPPER_BOUND);
+        vm.assume(purchaseTokenPrecision <= 18);
+
+        (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        ) = _termAuctionList.getCumulativeOfferData(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityNoCompletedAuctions,
+            uint256 cumulativeOfferAmountNoCompletedAuctions,
+            bool foundNoCompletedAuctions
+        ) = _getCumulativeOfferTimeAndAmount(
+            repoToken,
+            newOfferAmount        );
+
+        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityNoCompletedAuctions);
+        assert(cumulativeOfferAmount == cumulativeOfferAmountNoCompletedAuctions);
+        assert(found == foundNoCompletedAuctions);
+
+    }
+
+    /* If there are no completed auctions in the list then getCumulativeOfferData should return the sum 
+       of the amount in the lockedOffer for all offers
+    */
+    function testGetCumulativeDataCompletedAuctions(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) external {
+        // Initialize a DiscountRateAdapter with symbolic storage
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+        _initializeDiscountRateAdapterOffers(discountRateAdapter);
+
+        _establishCompletedAuctions(Mode.Assume);
+        _assumeOfferAmountLocked();
+        _assumeNoDiscountRatesSet();
+        _assumeRedemptionValueAndBalancePositive();
+
+        // Consider only the case where we are not trying to match a token
+        vm.assume(repoToken == address(0));
+        vm.assume(newOfferAmount < ETH_UPPER_BOUND);
+        vm.assume(purchaseTokenPrecision <= 18);
+
+        (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        ) = _termAuctionList.getCumulativeOfferData(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
+            uint256 cumulativeOfferAmountCompletedAuctions,
+            bool foundCompletedAuctions
+        ) = _getGroupedOfferTimeAndAmount(
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            purchaseTokenPrecision
+        );
+
+        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityCompletedAuctions);
+        assert(cumulativeOfferAmount == cumulativeOfferAmountCompletedAuctions);
+        assert(found == foundCompletedAuctions);
+
+    }
+
+    function _filterDiscountRateSet() internal {
+        bytes32 current = _termAuctionList.head;
+        bytes32 prev = current;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 next = _termAuctionList.nodes[current].next;
+
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            uint256 discountRate = _repoTokenList.discountRates[repoToken];
+
+            if (discountRate != RepoTokenList.INVALID_AUCTION_RATE) {
+                // Update the list to remove the current node
+                delete _termAuctionList.nodes[current];
+                delete _termAuctionList.offers[current];
+                if (current == _termAuctionList.head) {
+                    _termAuctionList.head = next;
+                }
+                else {
+                    _termAuctionList.nodes[prev].next = next;
+                    current = prev;
+                }
+            }
+            prev = current;
+            current = next;
+        }
+    }
+
+    function testGetCumulativeOfferData(
+        address repoToken,
+        uint256 newOfferAmount,
+        uint256 purchaseTokenPrecision
+    ) external {
+        // Initialize a DiscountRateAdapter with symbolic storage
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+        _initializeDiscountRateAdapterOffers(discountRateAdapter);
+
+        _assumeNonMaturedRepoTokens();
+        _assumeOfferAmountLocked();
+        _assumeRedemptionValueAndBalancePositive();
+
+        // Consider only the case where we are not trying to match a token
+        vm.assume(repoToken == address(0));
+        vm.assume(newOfferAmount < ETH_UPPER_BOUND);
+        vm.assume(purchaseTokenPrecision <= 18);
+        vm.assume(purchaseTokenPrecision > 0);
+
+        (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        ) = _termAuctionList.getCumulativeOfferData(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            repoToken,
+            newOfferAmount,
+            purchaseTokenPrecision
+        );
+
+        assert(!found);
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityIncompletedAuctions,
+            uint256 cumulativeOfferAmountIncompletedAuctions
+        ) = _filterCompletedAuctionsGetCumulativeOfferData();
+
+        _filterDiscountRateSet();
+        _filterRepeatedAuctions();
+
+        (
+            uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
+            uint256 cumulativeOfferAmountCompletedAuctions
+        ) = _getCumulativeOfferDataCompletedAuctions(discountRateAdapter, purchaseTokenPrecision);
+
+        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityIncompletedAuctions + cumulativeWeightedTimeToMaturityCompletedAuctions);
+        assert(cumulativeOfferAmount == cumulativeOfferAmountIncompletedAuctions + cumulativeOfferAmountCompletedAuctions);
+    }
+
+    function testGetPresentTotalValue(
+        uint256 purchaseTokenPrecision,
+        address repoTokenToMatch
+    ) external {
+        // Initialize a DiscountRateAdapter with symbolic storage
+        TermDiscountRateAdapter discountRateAdapter =
+            new TermDiscountRateAdapter();
+        _initializeDiscountRateAdapterOffers(discountRateAdapter);
+
+        _assumeOfferAmountLocked();
+
+        // Consider only the case where we are not trying to match a token
+        vm.assume(repoTokenToMatch == address(0));
+        vm.assume(purchaseTokenPrecision <= 18);
+        vm.assume(purchaseTokenPrecision > 0);
+
+        uint256 totalPresentValue = _termAuctionList.getPresentValue(
+            _repoTokenList,
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            purchaseTokenPrecision,
+            repoTokenToMatch
+        );
+
+        uint256 totalValueNonCompletedAuctions = _filterCompletedAuctionsGetTotalValue();
+
+        _filterDiscountRateSet();
+        _filterRepeatedAuctions();
+
+        uint256 totalValueCompletedAuctions = _getTotalValueCompletedAuctions(ITermDiscountRateAdapter(address(discountRateAdapter)), purchaseTokenPrecision);
+
+        assert(totalPresentValue == totalValueNonCompletedAuctions + totalValueCompletedAuctions);
+    }
+
 }

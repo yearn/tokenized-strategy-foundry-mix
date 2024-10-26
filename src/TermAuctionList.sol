@@ -267,7 +267,7 @@ library TermAuctionList {
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
+            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
                 if (edgeCaseAuction != address(offer.termAuction)) {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken,

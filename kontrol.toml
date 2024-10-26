@@ -40,9 +40,8 @@ auto_abstract              = true
 run-constructor            = false
 bmc-depth                  = 2
 match-test                 = [
-        #"RepoTokenListInvariantsTest.setUp",
-        #"TermAuctionListInvariantsTest.setUp",
-        "TermAuctionListGetTest.setUp",
+        "RepoTokenListInvariantsTest.setUp",
+        "TermAuctionListInvariantsTest.setUp",
     ]
 ast                        = true
 
@@ -76,18 +75,22 @@ break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
 match-test                 = [
-        #"RepoTokenListInvariantsTest.testInsertSortedNewToken",
-        #"RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
-        #"RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
-        #"TermAuctionListInvariantsTest.testInsertPendingNewOffer",
-        #"TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
-        #"TermAuctionListInvariantsTest.testRemoveCompleted",
-        #"TermAuctionListGetTest.testGetCumulativeDataEmpty",
-        #"TermAuctionListGetTest.testGetPresentValueEmpty",
-        "TermAuctionListGetTest.testGetCumulativeOfferData",
-        #"TermAuctionListGetTest.testGetCumulativeDataNoCompletedAuctions",
-        "TermAuctionListGetTest.testGetCumulativeDataCompletedAuctions",
-        "TermAuctionListGetTest.testGetPresentTotalValue",
+        "RepoTokenListInvariantsTest.testInsertSortedNewToken",
+        "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
+        "RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
+        "RepoTokenListInvariantsTest.testGetCumulativeDataEmpty",
+        "RepoTokenListInvariantsTest.testGetPresentValueEmpty",
+        "RepoTokenListInvariantsTest.testGetPresentTotalValue",
+        "RepoTokenListInvariantsTest.testGetCumulativeRepoTokenData",
+        "TermAuctionListInvariantsTest.testInsertPendingNewOffer",
+        "TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
+        "TermAuctionListInvariantsTest.testRemoveCompleted",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataEmpty",
+        "TermAuctionListInvariantsTest.testGetPresentValueEmpty",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataNoCompletedAuctions",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataCompletedAuctions",
+        "TermAuctionListInvariantsTest.testGetCumulativeOfferData",
+        "TermAuctionListInvariantsTest.testGetPresentTotalValue",
     ]
 ast                        = true
 
