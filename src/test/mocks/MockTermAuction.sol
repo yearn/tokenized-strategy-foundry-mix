@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {ITermAuction} from "../../interfaces/term/ITermAuction.sol";
+import {ITermAuctionOfferLocker} from "../../interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermRepoToken} from "../../interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "../../interfaces/term/ITermRepoServicer.sol";
 import {MockTermAuctionOfferLocker} from "./MockTermAuctionOfferLocker.sol";
@@ -45,7 +46,24 @@ contract MockTermAuction is ITermAuction {
         }
     }
     
-    function auctionCanceled() external {
+    function auctionCancelForWithdrawal() external {
         auctionCancelledForWithdrawal = true;
+    }
+
+    function auctionCancel(bytes32[] calldata offerIds) external {
+
+        uint256 i = 0;
+        // Return revealed offer funds.
+        for (i = 0; i < offerIds.length; ++i) {
+            ITermAuctionOfferLocker.TermAuctionOffer memory offer = MockTermAuctionOfferLocker(termAuctionOfferLocker).lockedOffer(offerIds[i]);
+
+            MockTermAuctionOfferLocker(termAuctionOfferLocker).unlockOfferPartial(
+                offer.id,
+                offer.offeror,
+                offer.amount
+            );
+        }
+
+
     }
 }

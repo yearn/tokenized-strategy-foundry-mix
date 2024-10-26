@@ -7,6 +7,7 @@ import {MockTermRepoLocker} from "./MockTermRepoLocker.sol";
 import {MockTermRepoToken} from "./MockTermRepoToken.sol";
 
 contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
+    error OfferUnlockingFailed();
 
     address public purchaseToken;
     address public termRepoServicer;
@@ -99,5 +100,10 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
             repoLocker.releasePurchaseTokens(msg.sender, lockedOffers[offerId].amount);
             delete lockedOffers[offerId];
         }
+    }
+
+    function unlockOfferPartial(bytes32 offerId, address offeror, uint256 amount) external {
+        delete lockedOffers[offerId];
+        repoLocker.releasePurchaseTokens(offeror, amount);
     }
 }
