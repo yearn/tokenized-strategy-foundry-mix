@@ -33,15 +33,6 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
         TermAuctionOffer storage offer = _lockedOffers[offerId];
         offer.amount = freshUInt256();
         vm.assume(offer.amount < ETH_UPPER_BOUND);
-
-        uint256 _purchaseToken = uint160(kevm.freshAddress());
-        uint256 _isRevealed = uint96(kevm.freshBool());
-        bytes memory offerLastSlotAbi = abi.encodePacked(uint96(_isRevealed), uint160(_purchaseToken));
-        bytes32 offerLastSlot;
-        assembly {
-            offerLastSlot := mload(add(offerLastSlotAbi, 0x20))
-        }
-        _storeBytes32(address(this), lockedOfferSlot(offerId) + 5, offerLastSlot);
     }
 
     function lockedOfferAmount(bytes32 id) public view returns (uint256) {
@@ -87,9 +78,8 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external returns (bytes32[] memory) {
-        kevm.symbolicStorage(address(this));
 
-        uint256 length = freshUInt256();
+        uint256 length = offerSubmissions.length;
         bytes32[] memory offers = new bytes32[](length);
 
         for (uint256 i = 0; i < length; ++i) {
@@ -105,7 +95,8 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
             require(kevm.freshBool() != 0);
         }
 
-        kevm.symbolicStorage(_termRepoServicer);
-        kevm.symbolicStorage(address(this));
+        for (uint256 i = 0; i < offerIds.length; ++i) {
+            delete(_lockedOffers[offerIds[i]]);
+        }
     }
 }
