@@ -41,7 +41,7 @@ contract TermAuctionListTest is KontrolTest {
     /**
      * Set pending offer using slot manipulation directly
      */
-    function setPendingOffer(bytes32 offerId, address repoToken, uint256 offerAmount, address auction, address offerLocker) internal {
+    function _setPendingOffer(bytes32 offerId, address repoToken, uint256 offerAmount, address auction, address offerLocker) internal {
         uint256 offerSlot = _auctionListOfferSlot(offerId);
         _storeUInt256(address(this), offerSlot, uint256(uint160(repoToken)));
         _storeUInt256(address(this), offerSlot + 1, offerAmount);
@@ -52,7 +52,7 @@ contract TermAuctionListTest is KontrolTest {
     /**
      * Return the auction for a given offer in the list.
      */
-    function _getAuction(bytes32 offerId) internal returns(address) {
+    function _getAuction(bytes32 offerId) internal view returns(address) {
         return address(_termAuctionList.offers[offerId].termAuction);
     }
 
@@ -121,7 +121,7 @@ contract TermAuctionListTest is KontrolTest {
             }
 
             // Build PendingOffer
-            setPendingOffer(current, address(repoToken), freshUInt256(), auction, address(offerLocker));
+            _setPendingOffer(current, address(repoToken), freshUInt256(), auction, address(offerLocker));
 
             previous = current;
             ++count;
@@ -156,7 +156,7 @@ contract TermAuctionListTest is KontrolTest {
     /**
      * Assume or assert that there are no completed auctions in the list.
      */
-    function _establishNoCompletedAuctions(Mode mode) internal {
+    function _establishNoCompletedAuctions(Mode mode) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -170,7 +170,7 @@ contract TermAuctionListTest is KontrolTest {
     /**
      * Assume or assert that all auctions in the list are completed.
      */
-    function _establishCompletedAuctions(Mode mode) internal {
+    function _establishCompletedAuctions(Mode mode) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -184,7 +184,7 @@ contract TermAuctionListTest is KontrolTest {
     /**
      * There are no matured tokens in the offers list
      */
-    function _assumeNonMaturedRepoTokens() internal {
+    function _assumeNonMaturedRepoTokens() internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -199,7 +199,7 @@ contract TermAuctionListTest is KontrolTest {
      * Assume or assert that the offer amounts in the offer locker for completed auctions is 0
      * and for non-completed auctions is greater than 0
      */
-    function _assumeOfferAmountLocked() internal {
+    function _assumeOfferAmountLocked() internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -216,7 +216,7 @@ contract TermAuctionListTest is KontrolTest {
         }
     }
 
-    function _assumeRedemptionValueAndBalancePositive() internal {
+    function _assumeRedemptionValueAndBalancePositive() internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {

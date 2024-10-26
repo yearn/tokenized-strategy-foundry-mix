@@ -14,9 +14,9 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, KontrolTest {
     }
 
     function initializeSymbolicParamsFor(address repoToken) public {
-        uint256 repoRedemptionHaircut = freshUInt256();
-        vm.assume(repoRedemptionHaircut <= 1e18);
-        _repoRedemptionHaircut[repoToken] = repoRedemptionHaircut;
+        uint256 repoRedemptionhaircut = freshUInt256();
+        vm.assume(repoRedemptionhaircut <= 1e18);
+        _repoRedemptionHaircut[repoToken] = repoRedemptionhaircut;
 
         uint256 discountRate = freshUInt256();
         vm.assume(discountRate < ETH_UPPER_BOUND);

@@ -32,7 +32,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     /**
      * Assume or assert that the offers in the list are sorted by auction.
      */
-    function _establishSortedByAuctionId(Mode mode) internal {
+    function _establishSortedByAuctionId(Mode mode) internal view {
         bytes32 previous = TermAuctionList.NULL_NODE;
         bytes32 current = _termAuctionList.head;
 
@@ -51,7 +51,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     /**
      * Assume or assert that there are no duplicate offers in the list.
      */
-    function _establishNoDuplicateOffers(Mode mode) internal {
+    function _establishNoDuplicateOffers(Mode mode) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -69,7 +69,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     /**
      * Assume or assert that there are no completed auctions in the list.
      */
-    function _establishNoCompletedOrCancelledAuctions(Mode mode) internal {
+    function _establishNoCompletedOrCancelledAuctions(Mode mode) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -84,7 +84,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     /**
      * Assume or assert that all offer amounts are > 0.
      */
-    function _establishPositiveOfferAmounts(Mode mode) internal {
+    function _establishPositiveOfferAmounts(Mode mode) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -99,7 +99,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
      * Assume or assert that the offer amounts recorded in the list are the same
      * as the offer amounts in the offer locker.
      */
-    function _establishOfferAmountMatchesAmountLocked(Mode mode, bytes32 offerId) internal {
+    function _establishOfferAmountMatchesAmountLocked(Mode mode, bytes32 offerId) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -120,7 +120,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
      * - The head of the list is NULL_NODE iff the count is 0.
      * - If the count is N, the Nth node in the list is followed by NULL_NODE.
      */
-    function _countOffersInList() internal returns (uint256) {
+    function _countOffersInList() internal view returns (uint256) {
         uint256 count = 0;
         bytes32 current = _termAuctionList.head;
 
@@ -135,7 +135,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     /**
      * Return true if the given offer id is in the list, and false otherwise.
      */
-    function _offerInList(bytes32 offerId) internal returns (bool) {
+    function _offerInList(bytes32 offerId) internal view returns (bool) {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
@@ -154,7 +154,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
      * This is necessary in order to use cheatcodes on a symbolic address that
      * change its code or storage.
      */
-    function _assumeNewAddress(address freshAddress) internal {
+    function _assumeNewAddress(address freshAddress) internal view {
         vm.assume(10 <= uint160(freshAddress));
 
         vm.assume(freshAddress != address(this));
@@ -449,7 +449,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
      * Assume that all RepoTokens in the PendingOffers have no discount rate
      * set in the RepoTokenList.
      */
-    function _assumeNoDiscountRatesSet() internal {
+    function _assumeNoDiscountRatesSet() internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {

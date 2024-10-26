@@ -32,14 +32,14 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Return the maturity timestamp of the given RepoToken.
      */
-    function _getRepoTokenMaturity(address repoToken) internal returns (uint256 redemptionTimestamp) {
+    function _getRepoTokenMaturity(address repoToken) internal view returns (uint256 redemptionTimestamp) {
         (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
     }
 
     /**
      * Return the this contract's balance in the given RepoToken.
      */
-    function _getRepoTokenBalance(address repoToken) internal returns (uint256) {
+    function _getRepoTokenBalance(address repoToken) internal view returns (uint256) {
         return ITermRepoToken(repoToken).balanceOf(address(this));
     }
 
@@ -80,7 +80,7 @@ contract RepoTokenListTest is KontrolTest {
      * - The head of the list is NULL_NODE iff the count is 0.
      * - If the count is N, the Nth node in the list is followed by NULL_NODE.
      */
-    function _countNodesInList() internal returns (uint256) {
+    function _countNodesInList() internal view returns (uint256) {
         uint256 count = 0;
         address current = _repoTokenList.head;
 
@@ -95,7 +95,7 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Return true if the given RepoToken is in the list, and false otherwise.
      */
-    function _repoTokenInList(address repoToken) internal returns (bool) {
+    function _repoTokenInList(address repoToken) internal view returns (bool) {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -295,7 +295,7 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Assume or assert that the tokens in the list are sorted by maturity.
      */
-    function _establishSortedByMaturity(Mode mode) internal {
+    function _establishSortedByMaturity(Mode mode) internal view {
         address previous = RepoTokenList.NULL_NODE;
         address current = _repoTokenList.head;
 
@@ -314,7 +314,7 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Assume or assert that there are no duplicate tokens in the list.
      */
-    function _establishNoDuplicateTokens(Mode mode) internal {
+    function _establishNoDuplicateTokens(Mode mode) internal view {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -333,7 +333,7 @@ contract RepoTokenListTest is KontrolTest {
      * Assume or assert that there are no tokens in the list have matured
      * (i.e. all token maturities are greater than the current timestamp).
      */
-    function _establishNoMaturedTokens(Mode mode) internal {
+    function _establishNoMaturedTokens(Mode mode) internal view {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -348,7 +348,7 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Assume or assert that all tokens in the list have balance > 0.
      */
-    function _establishPositiveBalance(Mode mode) internal {
+    function _establishPositiveBalance(Mode mode) internal view {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -367,7 +367,7 @@ contract RepoTokenListTest is KontrolTest {
      * Note: This is equivalent to the above invariant if the NoMaturedTokens
      * invariant also holds.
      */
-    function _establishPositiveBalanceForNonMaturedTokens(Mode mode) internal {
+    function _establishPositiveBalanceForNonMaturedTokens(Mode mode) internal view {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
