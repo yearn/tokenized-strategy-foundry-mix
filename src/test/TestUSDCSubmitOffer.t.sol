@@ -33,7 +33,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -93,7 +93,7 @@ contract TestUSDCSubmitOffer is Setup {
     function testEditOfferWithConcentrationLimit() public {
         bytes32 idHash1 = bytes32("offer id hash 1");
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setRepoTokenConcentrationLimit(0.5e18);
 
         // 50% concentration
