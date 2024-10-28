@@ -363,8 +363,8 @@ library RepoTokenList {
                 }
             }
         } else {
-            try discountRateAdapter.getDiscountRate(address(repoToken)) {
-                discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
+            try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
+                discountRate = rate;
 
             } catch {
                 discountRate = INVALID_AUCTION_RATE;
