@@ -363,7 +363,13 @@ library RepoTokenList {
                 }
             }
         } else {
-            discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
+            try discountRateAdapter.getDiscountRate(address(repoToken)) {
+                discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
+
+            } catch {
+                discountRate = INVALID_AUCTION_RATE;
+                return (false, discountRate, redemptionTimestamp);
+            }
 
             bool isRepoTokenValid;
 
