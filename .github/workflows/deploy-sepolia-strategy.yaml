@@ -64,4 +64,5 @@ jobs:
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
+          GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNOR_ROLE_ADDRESS }}
   
