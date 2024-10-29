@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract TermFinanceVaultWrappedVotesToken is ERC20Votes, Ownable {
-    IERC20 public immutable underlyingToken;
+    ERC20 public immutable underlyingToken;
 
     // Mapping to track the amount of underlying tokens deposited by each account
     mapping(address => uint256) public deposits;
@@ -15,11 +14,15 @@ contract TermFinanceVaultWrappedVotesToken is ERC20Votes, Ownable {
     event Unwrapped(address indexed user, uint256 amount);
 
     constructor(
-        IERC20 _underlyingToken,
+        ERC20 _underlyingToken,
         string memory name,
         string memory symbol
     ) ERC20(name, symbol) ERC20Permit(name) {
         underlyingToken = _underlyingToken;
+    }
+
+    function decimals() public view override returns (uint8) {
+        return underlyingToken.decimals();
     }
 
     // Function to wrap the underlying tokens and mint ERC20Votes tokens
