@@ -61,7 +61,7 @@ contract TestUSDCIntegration is Setup {
         repoToken1MonthAuction = new MockTermAuction(repoToken1Month);
         repoToken1YearAuction = new MockTermAuction(repoToken1Year);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -248,7 +248,7 @@ contract TestUSDCIntegration is Setup {
 
         termController.setOracleRate(repoToken1Month.termRepoId(), 0.05e6);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -303,11 +303,11 @@ contract TestUSDCIntegration is Setup {
     function testRepoTokenBlacklist() public {
         address testUser = vm.addr(0x11111);  
         vm.prank(testUser);
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
         vm.stopPrank();
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
         vm.stopPrank();
 
@@ -320,13 +320,13 @@ contract TestUSDCIntegration is Setup {
         address testUser = vm.addr(0x11111);  
         mockUSDC.mint(testUser, 1e18);
         vm.prank(testUser);
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.pauseDeposit();
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.unpauseDeposit();
         vm.stopPrank();
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.pauseDeposit();
         vm.stopPrank();
 
@@ -338,7 +338,7 @@ contract TestUSDCIntegration is Setup {
         IERC4626(address(termStrategy)).deposit(1e6, testUser);
         vm.stopPrank();
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.unpauseDeposit();
         vm.stopPrank();
 
@@ -354,14 +354,14 @@ contract TestUSDCIntegration is Setup {
         TermDiscountRateAdapter valid =  new TermDiscountRateAdapter(address(termController), adminWallet);
 
         vm.prank(testUser);
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setDiscountRateAdapter(address(valid));
 
-        vm.prank(management);
+        vm.prank(governor);
         vm.expectRevert();
         termStrategy.setDiscountRateAdapter(address(invalid));
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setDiscountRateAdapter(address(valid));
         vm.stopPrank();
 
