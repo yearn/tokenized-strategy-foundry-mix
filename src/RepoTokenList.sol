@@ -364,9 +364,6 @@ library RepoTokenList {
             }
         } else {
             discountRate = discountRateAdapter.getDiscountRate(address(repoToken));
-            if (discountRate == INVALID_AUCTION_RATE) {
-                return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
-            }
 
             bool isRepoTokenValid;
 
