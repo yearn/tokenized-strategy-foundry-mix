@@ -4,6 +4,7 @@ pragma solidity ^0.8.18;
 import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {ITermAuctionOfferLocker} from "./interfaces/term/ITermAuctionOfferLocker.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
+import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermDiscountRateAdapter} from "./interfaces/term/ITermDiscountRateAdapter.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
@@ -175,7 +176,6 @@ library TermAuctionList {
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
             bool removeNode;
-            bool insertRepoToken;
 
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
@@ -186,9 +186,18 @@ library TermAuctionList {
                 // because the offerLocker will have already removed the offer. 
                 // This applies if the repoToken hasn't been added to the repoTokenList 
                 // (only for new auctions, not reopenings).  
-                repoTokenListData.validateAndInsertRepoToken(
+                (bool isValidRepoToken, , uint256 redemptionTimestamp ) = repoTokenListData.validateAndInsertRepoToken(
                     ITermRepoToken(offer.repoToken), discountRateAdapter, asset
                 );
+                if (!isValidRepoToken && block.timestamp > redemptionTimestamp) {
+                    ITermRepoToken repoToken = ITermRepoToken(offer.repoToken);
+                    (, , address repoServicerAddr, ) = repoToken.config();
+                    ITermRepoServicer repoServicer = ITermRepoServicer(repoServicerAddr);
+                    try repoServicer.redeemTermRepoTokens(address(this), repoToken.balanceOf(address(this))) {
+                    } catch {
+
+                    }
+                }
             } else {
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
