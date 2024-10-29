@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import "forge-std/Script.sol";
 import "../src/util/TermFinanceVaultWrappedVotesToken.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract DeployTermFinanceVaultWrappedVotesToken is Script {
     function run() external {
@@ -20,7 +20,7 @@ contract DeployTermFinanceVaultWrappedVotesToken is Script {
         string memory symbol = vm.envString("WRAPPED_TOKEN_SYMBOL");
 
         TermFinanceVaultWrappedVotesToken wrappedToken = new TermFinanceVaultWrappedVotesToken(
-            IERC20(vaultToken),
+            ERC20(vaultToken),
             name,
             symbol
         );
