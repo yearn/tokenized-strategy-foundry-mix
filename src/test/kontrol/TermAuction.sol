@@ -9,11 +9,13 @@ contract TermAuction is ITermAuction, KontrolTest {
     bool _auctionCompleted;
     bool _auctionCancelledForWithdrawal;
 
-    uint256 private constant auctionSlot = 27;
-
     function initializeSymbolic() public {
         kevm.symbolicStorage(address(this));
         // Clear the slot that holds two contract fields
+        uint256 auctionSlot;
+        assembly {
+            auctionSlot := _auctionCompleted.slot
+        }
         _storeUInt256(address(this), auctionSlot, 0);
         _auctionCompleted = kevm.freshBool() != 0;
         _auctionCancelledForWithdrawal = kevm.freshBool() != 0;
