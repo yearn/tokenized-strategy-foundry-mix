@@ -16,6 +16,7 @@ import {ITermAuction} from "./interfaces/term/ITermAuction.sol";
 import {RepoTokenList, RepoTokenListData} from "./RepoTokenList.sol";
 import {TermAuctionList, TermAuctionListData, PendingOffer} from "./TermAuctionList.sol";
 import {RepoTokenUtils} from "./RepoTokenUtils.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 // Import interfaces for many popular DeFi projects, or add your own!
 //import "../interfaces/<protocol>/<Interface>.sol";
@@ -33,7 +34,7 @@ import {RepoTokenUtils} from "./RepoTokenUtils.sol";
 
 // NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
 
-contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
+contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
@@ -46,6 +47,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     error RepoTokenConcentrationTooHigh(address repoToken);
     error RepoTokenBlacklisted(address repoToken);
     error DepositPaused();
+
+    bytes32 public constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
     // Immutable state variables
     ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
@@ -81,7 +84,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Pause the contract
      */
-    function pauseDeposit() external onlyManagement {
+    function pauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = true;
         TERM_VAULT_EVENT_EMITTER.emitDepositPaused();
     }
@@ -89,7 +92,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Unpause the contract
      */
-    function unpauseDeposit() external onlyManagement {
+    function unpauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = false;
         TERM_VAULT_EVENT_EMITTER.emitDepositUnpaused();
     }
@@ -97,7 +100,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Pause the contract
      */
-    function pauseStrategy() external onlyManagement {
+    function pauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _pause();
         depositLock = true;
         TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
@@ -106,7 +109,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     /**
      * @notice Unpause the contract
      */
-    function unpauseStrategy() external onlyManagement {
+    function unpauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _unpause();
         depositLock = false;
         TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
@@ -118,7 +121,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function setTermController(
         address newTermController
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         require(newTermController != address(0));
         require(ITermController(newTermController).getProtocolReserveAddress() != address(0));
         address current = address(currTermController);
@@ -136,7 +139,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function setDiscountRateAdapter(
         address newAdapter
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
         require(address(newDiscountRateAdapter.TERM_CONTROLLER()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
@@ -152,7 +155,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function setTimeToMaturityThreshold(
         uint256 newTimeToMaturityThreshold
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(
             timeToMaturityThreshold,
             newTimeToMaturityThreshold
@@ -167,7 +170,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     */
     function setRequiredReserveRatio(
         uint256 newRequiredReserveRatio
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRequiredReserveRatioUpdated(
             requiredReserveRatio,
             newRequiredReserveRatio
@@ -181,7 +184,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function setRepoTokenConcentrationLimit(
         uint256 newRepoTokenConcentrationLimit
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
             repoTokenConcentrationLimit,
             newRepoTokenConcentrationLimit
@@ -195,7 +198,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      */
     function setDiscountRateMarkup(
         uint256 newDiscountRateMarkup
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
             discountRateMarkup,
             newDiscountRateMarkup
@@ -210,7 +213,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
     function setCollateralTokenParams(
         address tokenAddr,
         uint256 minCollateralRatio
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(
             tokenAddr,
             minCollateralRatio
@@ -218,7 +221,7 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
     }
 
-    function setRepoTokenBlacklist(address repoToken, bool blacklisted) external onlyManagement {
+    function setRepoTokenBlacklist(address repoToken, bool blacklisted) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenBlacklistUpdated(repoToken, blacklisted);
         repoTokenBlacklist[repoToken] = blacklisted;
     }
@@ -1091,13 +1094,15 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
      * @param _yearnVault The address of the Yearn vault
      * @param _discountRateAdapter The address of the discount rate adapter
      * @param _eventEmitter The address of the event emitter
+     * @param _governorAddress The address of the governor
      */
     constructor(
         address _asset,
         string memory _name,
         address _yearnVault,
         address _discountRateAdapter,
-        address _eventEmitter
+        address _eventEmitter,
+        address _governorAddress
     ) BaseStrategy(_asset, _name) {
         YEARN_VAULT = IERC4626(_yearnVault);
         TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
@@ -1111,6 +1116,8 @@ contract Strategy is BaseStrategy, Pausable, ReentrancyGuard {
         requiredReserveRatio = 0.2e18;
         discountRateMarkup = 0.005e18;
         repoTokenConcentrationLimit = 0.1e18;
+
+        _grantRole(GOVERNOR_ROLE, _governorAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
