@@ -198,6 +198,57 @@ contract RepoTokenListInvariantsTest is KontrolTest {
         return false;
     }
 
+    function _repoTokensListToArray(uint256 length) internal view returns (address[] memory repoTokens) {
+        address current = _repoTokenList.head;
+        uint256 i;
+        repoTokens = new address[](length);
+
+        while (current != RepoTokenList.NULL_NODE) {
+            repoTokens[i++] = current;
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    function _establishInsertListPreservation(address insertedRepoToken, address[] memory repoTokens, uint256 repoTokensCount) internal view {
+        address current = _repoTokenList.head;
+        uint256 i = 0;
+
+        if(insertedRepoToken != address(0)) {
+
+            while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+                if(current != repoTokens[i]) {
+                    assert (current == insertedRepoToken);
+                    current = _repoTokenList.nodes[current].next;
+                    break;
+                }
+                i++;
+                current = _repoTokenList.nodes[current].next;
+            }
+
+            if (current != RepoTokenList.NULL_NODE && i == repoTokensCount) {
+                assert (current == insertedRepoToken);
+            }
+        }
+
+        while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+            assert(current == repoTokens[i++]);
+            current = _repoTokenList.nodes[current].next;
+        }
+    }
+
+    function _establishRemoveListPreservation(address[] memory repoTokens, uint256 repoTokensCount) internal view {
+        address current = _repoTokenList.head;
+        uint256 i = 0;
+
+        while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
+            if(current == repoTokens[i++]) {
+                current = _repoTokenList.nodes[current].next;
+            }
+        }
+
+        assert(current == RepoTokenList.NULL_NODE);
+    }
+
     /**
      * Test that insertSorted preserves the list invariants when a new RepoToken
      * is added (that was not present in the list before).
@@ -215,6 +266,8 @@ contract RepoTokenListInvariantsTest is KontrolTest {
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
 
+        address[] memory repoTokens = _repoTokensListToArray(count);
+
         // Generate a new RepoToken with symbolic storage
         address repoToken = _newRepoToken();
         uint256 maturity = _getRepoTokenMaturity(repoToken);
@@ -230,7 +283,9 @@ contract RepoTokenListInvariantsTest is KontrolTest {
         assert(_countNodesInList() == count + 1);
 
         // Assert that the new RepoToken is in the list
-        assert(_repoTokenInList(repoToken));
+        //assert(_repoTokenInList(repoToken));
+
+        _establishInsertListPreservation(repoToken, repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
@@ -258,6 +313,8 @@ contract RepoTokenListInvariantsTest is KontrolTest {
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
 
+        address[] memory repoTokens = _repoTokensListToArray(count);
+
         // Assume that the RepoToken is already in the list
         vm.assume(_repoTokenInList(repoToken));
 
@@ -268,7 +325,9 @@ contract RepoTokenListInvariantsTest is KontrolTest {
         assert(_countNodesInList() == count);
 
         // Assert that the RepoToken is still in the list
-        assert(_repoTokenInList(repoToken));
+        //assert(_repoTokenInList(repoToken));
+
+        _establishInsertListPreservation(address(0), repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
@@ -298,6 +357,7 @@ contract RepoTokenListInvariantsTest is KontrolTest {
     function testRemoveAndRedeemMaturedTokens() external {
         // Save the number of tokens in the list before the function is called
         uint256 count = _countNodesInList();
+        address[] memory repoTokens = _repoTokensListToArray(count);
 
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
@@ -305,7 +365,6 @@ contract RepoTokenListInvariantsTest is KontrolTest {
 
         // Assume that the invariants are satisfied before the function is called
         _establishSortedByMaturity(Mode.Assume);
-        _establishNoDuplicateTokens(Mode.Assume);
         _establishPositiveBalanceForNonMaturedTokens(Mode.Assume);
 
         // Assume that the call to redeemTermRepoTokens will not revert
@@ -316,6 +375,8 @@ contract RepoTokenListInvariantsTest is KontrolTest {
 
         // Assert that the size of the list is less than or equal to before
         assert(_countNodesInList() <= count);
+
+        _establishRemoveListPreservation(repoTokens, count);
 
         // Assert that the invariants are preserved
         _establishSortedByMaturity(Mode.Assert);
