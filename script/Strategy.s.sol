@@ -22,6 +22,7 @@ contract DeployStrategy is Script {
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
         address admin = vm.envAddress("ADMIN_ADDRESS");
         address devops = vm.envAddress("DEVOPS_ADDRESS");
+        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envOr("TERM_CONTROLLER_ADDRESS", address(0));
         uint256 discountRateMarkup = vm.envOr("DISCOUNT_RATE_MARKUP", uint256(0));
         address collateralTokenAddr = vm.envOr("COLLATERAL_TOKEN_ADDR", address(0));
@@ -36,7 +37,8 @@ contract DeployStrategy is Script {
             name,
             yearnVaultAddress,
             discountRateAdapterAddress,
-            address(eventEmitter)
+            address(eventEmitter),
+            governorRoleAddress
         );
 
         console.log("deployed strateghy contract to");
