@@ -27,6 +27,7 @@ struct RepoTokenListData {
 library RepoTokenList {
     address public constant NULL_NODE = address(0);
     uint256 internal constant INVALID_AUCTION_RATE = 0;
+    uint256 internal constant ZERO_AUCTION_RATE = 0;
 
     error InvalidRepoToken(address token);
 
@@ -357,15 +358,14 @@ library RepoTokenList {
             }
 
             uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
-            if (oracleRate != INVALID_AUCTION_RATE) {
+            if (oracleRate != 0) {
                 if (discountRate != oracleRate) {
                     listData.discountRates[address(repoToken)] = oracleRate;
                 }
             }
         } else {
             try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
-                discountRate = rate;
-
+                discountRate = rate == 0 ? ZERO_AUCTION_RATE : rate;
             } catch {
                 discountRate = INVALID_AUCTION_RATE;
                 return (false, discountRate, redemptionTimestamp);
