@@ -27,7 +27,7 @@ struct RepoTokenListData {
 library RepoTokenList {
     address public constant NULL_NODE = address(0);
     uint256 internal constant INVALID_AUCTION_RATE = 0;
-    uint256 internal constant ZERO_AUCTION_RATE = 0;
+    uint256 internal constant ZERO_AUCTION_RATE = 1; //Set to lowest nonzero number so that it is not confused with INVALID_AUCTION_RATe but still calculates as if 0.
 
     error InvalidRepoToken(address token);
 
