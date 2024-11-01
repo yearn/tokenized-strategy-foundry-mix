@@ -34,7 +34,7 @@ contract FunctionSignatureTest is Setup {
         assertEq(strategy.totalSupply(), 0, "total supply");
         assertEq(strategy.unlockedShares(), 0, "unlocked shares");
         assertEq(strategy.asset(), address(asset), "asset");
-        assertEq(strategy.apiVersion(), "3.0.3", "api");
+        assertEq(strategy.apiVersion(), "3.0.4", "api");
         assertEq(strategy.MAX_FEE(), 5_000, "max fee");
         assertEq(strategy.fullProfitUnlockDate(), 0, "unlock date");
         assertEq(strategy.profitUnlockingRate(), 0, "unlock rate");
