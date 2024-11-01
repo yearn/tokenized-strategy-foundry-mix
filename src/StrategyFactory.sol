@@ -9,10 +9,6 @@ contract StrategyFactory {
 
     address public immutable emergencyAdmin;
 
-    address public immutable lendingPool;
-    address public immutable router;
-    address public immutable base;
-
     address public management;
     address public performanceFeeRecipient;
     address public keeper;
