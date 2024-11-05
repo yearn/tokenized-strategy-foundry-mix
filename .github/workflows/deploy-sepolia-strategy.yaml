@@ -38,6 +38,10 @@ on:
         description: 'Repo token concentration limit'
         required: false
         default: '0.01'
+      requiredReserveRatio:
+        description: 'Required reserve ratio'
+        required: false
+        default: '0.01'
     
 jobs:
   deploy:
@@ -74,4 +78,5 @@ jobs:
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
           GOVERNOR_ROLE_ADDRESS: ${{ github.event.inputs.governorRoleAddress }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
+          NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
   

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Script.sol";
+import "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 import "../src/Strategy.sol";
 import "../src/TermVaultEventEmitter.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -20,8 +21,7 @@ contract DeployStrategy is Script {
         string memory name = vm.envString("STRATEGY_NAME");
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
-        address admin = vm.envAddress("ADMIN_ADDRESS");
-        address devops = vm.envAddress("DEVOPS_ADDRESS");
+
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envOr("TERM_CONTROLLER_ADDRESS", address(0));
@@ -30,9 +30,10 @@ contract DeployStrategy is Script {
         uint256 minCollateralRatio = vm.envOr("MIN_COLLATERAL_RATIO", uint256(0));
         uint256 timeToMaturityThreshold = vm.envOr("TIME_TO_MATURITY_THRESHOLD", uint256(0));
         uint256 repoTokenConcentrationLimit = vm.envOr("REPOTOKEN_CONCENTRATION_LIMIT", uint256(0));
+        uint256 newRequiredReserveRatio = vm.envOr("NEW_REQUIRED_RESERVE_RATIO", uint256(0));
         bool isTest = vm.envBool("IS_TEST");
 
-        TermVaultEventEmitter eventEmitter = _deployEventEmitter(admin, devops);
+        TermVaultEventEmitter eventEmitter = _deployEventEmitter();
 
         Strategy strategy = new Strategy(asset,
             name,
@@ -48,7 +49,6 @@ contract DeployStrategy is Script {
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
             console.log("paired strategy contract with event emitter");
-
             strategy.setTermController(termController);
             console.log("set term controller");
             console.log(termController);
@@ -70,15 +70,22 @@ contract DeployStrategy is Script {
             console.log("set repo token concentration limit");
             console.log(repoTokenConcentrationLimit);
 
-            strategy.setPendingManagement(strategyManagement);
+            strategy.setRequiredReserveRatio(newRequiredReserveRatio);
+            console.log("set required reserve ratio");
+            console.log(newRequiredReserveRatio);
+
+            ITokenizedStrategy tokenizedStrategy = ITokenizedStrategy(address(strategy));
+            tokenizedStrategy.setPendingManagement(strategyManagement);
             console.log("set pending management");
-            strategy.acceptManagement();
+            tokenizedStrategy.acceptManagement();
         }
         
         vm.stopBroadcast();
     }
 
-    function _deployEventEmitter(address admin, address devops) internal returns(TermVaultEventEmitter eventEmitter) {
+    function _deployEventEmitter() internal returns(TermVaultEventEmitter eventEmitter) {
+        address admin = vm.envAddress("ADMIN_ADDRESS");
+        address devops = vm.envAddress("DEVOPS_ADDRESS");
         TermVaultEventEmitter eventEmitterImpl = new TermVaultEventEmitter();
         console.log("deployed event emitter impl contract to");
         console.log(address(eventEmitterImpl));
