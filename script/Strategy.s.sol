@@ -155,8 +155,7 @@ contract DeployStrategy is Script {
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         console.log("set pending management");
         console.log(strategyManagement);
-        ITokenizedStrategy(address(strategy)).acceptManagement();
-        console.log("accepted management");
+
 
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
