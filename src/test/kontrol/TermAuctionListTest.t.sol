@@ -421,5 +421,226 @@ contract TermAuctionListTest is KontrolTest {
             current = _termAuctionList.nodes[current].next;
         }
     }
+
+    /**
+     * Assume or assert that the offers in the list are sorted by auction.
+     */
+    function _establishSortedByAuctionId(Mode mode) internal view {
+        bytes32 previous = TermAuctionList.NULL_NODE;
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            if (previous != TermAuctionList.NULL_NODE) {
+                address previousAuction = _getAuction(previous);
+                address currentAuction = _getAuction(current);
+                _establish(mode, previousAuction <= currentAuction);
+            }
+
+            previous = current;
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that there are no duplicate offers in the list.
+     */
+    function _establishNoDuplicateOffers(Mode mode) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            bytes32 other = _termAuctionList.nodes[current].next;
+
+            while (other != TermAuctionList.NULL_NODE) {
+                _establish(mode, current != other);
+                other = _termAuctionList.nodes[other].next;
+            }
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that there are no completed auctions in the list.
+     */
+    function _establishNoCompletedOrCancelledAuctions(Mode mode) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            _establish(mode, !offer.termAuction.auctionCompleted());
+            _establish(mode, !offer.termAuction.auctionCancelledForWithdrawal());
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that all offer amounts are > 0.
+     */
+    function _establishPositiveOfferAmounts(Mode mode) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            _establish(mode, 0 < offer.offerAmount);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Assume or assert that the offer amounts recorded in the list are the same
+     * as the offer amounts in the offer locker.
+     */
+    function _establishOfferAmountMatchesAmountLocked(Mode mode, bytes32 offerId) internal view {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            if(offerId == 0 || offerId != current) {
+                PendingOffer storage offer = _termAuctionList.offers[current];
+                uint256 offerAmount = TermAuctionOfferLocker(address(offer.offerLocker)).lockedOfferAmount(current);
+                _establish(mode, offer.offerAmount == offerAmount);
+            }
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    /**
+     * Count the number of offers in the list.
+     *
+     * Note that this function guarantees the following postconditions:
+     * - The head of the list is NULL_NODE iff the count is 0.
+     * - If the count is N, the Nth node in the list is followed by NULL_NODE.
+     */
+    function _countOffersInList() internal view returns (uint256) {
+        uint256 count = 0;
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            ++count;
+            current = _termAuctionList.nodes[current].next;
+        }
+
+        return count;
+    }
+
+    /**
+     * Return true if the given offer id is in the list, and false otherwise.
+     */
+    function _offerInList(bytes32 offerId) internal view returns (bool) {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            if (current == offerId) {
+                return true;
+            }
+
+            current = _termAuctionList.nodes[current].next;
+        }
+
+        return false;
+    }
+
+    /**
+     * Assume that the address doesn't overlap with any preexisting addresses.
+     * This is necessary in order to use cheatcodes on a symbolic address that
+     * change its code or storage.
+     */
+    function _assumeNewAddress(address freshAddress) internal view {
+        vm.assume(10 <= uint160(freshAddress));
+
+        vm.assume(freshAddress != address(this));
+        vm.assume(freshAddress != address(vm));
+        vm.assume(freshAddress != address(kevm));
+
+        vm.assume(freshAddress != address(_referenceAuction));
+
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            (,, address termRepoServicer, address termRepoCollateralManager) =
+                ITermRepoToken(offer.repoToken).config();
+
+            vm.assume(freshAddress != offer.repoToken);
+            vm.assume(freshAddress != address(offer.termAuction));
+            vm.assume(freshAddress != address(offer.offerLocker));
+            vm.assume(freshAddress != termRepoServicer);
+            vm.assume(freshAddress != termRepoCollateralManager);
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+
+    function _termAuctionListToArray(uint256 length) internal view returns (bytes32[] memory offerIds) {
+        bytes32 current = _termAuctionList.head;
+        uint256 i;
+        offerIds = new bytes32[](length);
+
+        while (current != TermAuctionList.NULL_NODE) {
+            offerIds[i++] = current;
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function _establishInsertListPreservation(bytes32 newOfferId, bytes32[] memory offerIds, uint256 offerIdsCount) internal view {
+        bytes32 current = _termAuctionList.head;
+        uint256 i = 0;
+
+        if(newOfferId != bytes32(0)) {
+
+            while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+                if(current != offerIds[i]) {
+                    assert (current == newOfferId);
+                    current = _termAuctionList.nodes[current].next;
+                    break;
+                }
+                i++;
+                current = _termAuctionList.nodes[current].next;
+            }
+
+            if (current != TermAuctionList.NULL_NODE && i == offerIdsCount) {
+                assert (current == newOfferId);
+            }
+        }
+
+        while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+            assert(current == offerIds[i++]);
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
+    function _establishRemoveListPreservation(bytes32[] memory offerIds, uint256 offerIdsCount) internal view {
+        bytes32 current = _termAuctionList.head;
+        uint256 i = 0;
+
+        while (current != TermAuctionList.NULL_NODE && i < offerIdsCount) {
+            if(current == offerIds[i++]) {
+                current = _termAuctionList.nodes[current].next;
+            }
+        }
+
+        assert(current == TermAuctionList.NULL_NODE);
+    }
+
+    /**
+     * Configure the model of the OfferLocker for every offer in the list to
+     * follow the assumption that unlockOffers will not revert.
+     */
+    function _guaranteeUnlockAlwaysSucceeds() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            PendingOffer storage offer = _termAuctionList.offers[current];
+            TermAuctionOfferLocker offerLocker =
+                TermAuctionOfferLocker(address(offer.offerLocker));
+
+            offerLocker.guaranteeUnlockAlwaysSucceeds();
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
 }
 
