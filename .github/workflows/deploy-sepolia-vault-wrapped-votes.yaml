@@ -1,0 +1,40 @@
+name: "[sepolia-deploy] deploy vault wrapped votes"
+on:
+  workflow_dispatch:
+    inputs:
+      vaultToken:
+        description: 'Vault token address'
+        required: true
+        default: '0x'
+      wrappedTokenName:
+        description: 'Wrapped Votes Token name'
+        required: true
+        default: '0x'
+      wrappedTokenSymbol:
+        description: 'Wrapped Votes Token Symbol'
+        required: true
+        default: '0x'
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: sepolia
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge script script/TermFinanceVaultWrappedVotesToken.s.sol:DeployTermFinanceVaultWrappedVotesToken --rpc-url $RPC_URL --broadcast --verify --verbosity 4
+        env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          VAULT_TOKEN: ${{ github.event.inputs.vaultToken }}
+          WRAPPED_TOKEN_NAME: ${{ github.event.inputs.wrappedTokenName }}
+          WRAPPED_TOKEN_SYMBOL: ${{ github.event.inputs.wrappedTokenSymbol }}

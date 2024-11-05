@@ -41,6 +41,7 @@ contract Setup is ExtendedTest, IEvents {
     address public user = address(10);
     address public keeper = address(4);
     address public management = address(1);
+    address public governor = address(2);
     address public performanceFeeRecipient = address(3);
     address public adminWallet = address(111);
     address public devopsWallet = address(222);
@@ -104,6 +105,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(address(mockFactory), "mockFactory");
         vm.label(address(asset), "asset");
         vm.label(management, "management");
+        vm.label(governor, "governor");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
@@ -117,7 +119,8 @@ contract Setup is ExtendedTest, IEvents {
                     "Tokenized Strategy", 
                     address(mockYearnVault), 
                     address(discountRateAdapter),
-                    address(termVaultEventEmitter)
+                    address(termVaultEventEmitter),
+                    governor
                 )
             )
         );
@@ -135,7 +138,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.prank(management);
         _strategy.acceptManagement();
 
-        vm.prank(management);
+        vm.prank(governor);
         _strategy.setTermController(address(termController));
 
         return address(_strategy);
