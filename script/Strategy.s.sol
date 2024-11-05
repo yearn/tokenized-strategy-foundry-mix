@@ -22,6 +22,7 @@ contract DeployStrategy is Script {
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
         address admin = vm.envAddress("ADMIN_ADDRESS");
         address devops = vm.envAddress("DEVOPS_ADDRESS");
+        address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envOr("TERM_CONTROLLER_ADDRESS", address(0));
         uint256 discountRateMarkup = vm.envOr("DISCOUNT_RATE_MARKUP", uint256(0));
@@ -41,7 +42,7 @@ contract DeployStrategy is Script {
             governorRoleAddress
         );
 
-        console.log("deployed strateghy contract to");
+        console.log("deployed strategy contract to");
         console.log(address(strategy));
 
         if (isTest) {
@@ -68,6 +69,10 @@ contract DeployStrategy is Script {
             strategy.setRepoTokenConcentrationLimit(repoTokenConcentrationLimit);
             console.log("set repo token concentration limit");
             console.log(repoTokenConcentrationLimit);
+
+            strategy.setPendingManagement(strategyManagement);
+            console.log("set pending management");
+            strategy.acceptManagement();
         }
         
         vm.stopBroadcast();
