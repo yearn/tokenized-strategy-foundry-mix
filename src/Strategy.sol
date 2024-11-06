@@ -1135,6 +1135,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         IERC20(_params._asset).safeApprove(_params._yearnVault, type(uint256).max);
 
         currTermController = ITermController(_params._termController);
+
+        for (uint256 i = 0; i < _params._collateralTokens.length; i++) {
+            repoTokenListData.collateralTokenParams[ _params._collateralTokens[i]] = _params._minCollateralRatio[i];
+        }
         
         timeToMaturityThreshold = _params._timeToMaturityThreshold;
         requiredReserveRatio = _params._requiredReserveRatio;
