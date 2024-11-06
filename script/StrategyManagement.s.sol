@@ -6,7 +6,7 @@ import "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 
 contract StrategyManagement is Script {
     function run() external {
-        address strategyManagement = vm.envUint("STRATEGY_MANAGEMENT_ADDRESS");
+        uint256 strategyManagement = vm.envUint("STRATEGY_MANAGEMENT_ADDRESS");
         address strategy = vm.envAddress("STRATEGY");
 
         // Set up the RPC URL (optional if you're using the default foundry config)
