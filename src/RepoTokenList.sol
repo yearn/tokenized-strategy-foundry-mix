@@ -368,7 +368,12 @@ library RepoTokenList {
                 return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
             }
 
-            uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
+            uint256 oracleRate;
+            try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
+                oracleRate = rate;
+            } catch {
+            }
+
             if (oracleRate != 0) {
                 if (discountRate != oracleRate) {
                     listData.discountRates[address(repoToken)] = oracleRate;
