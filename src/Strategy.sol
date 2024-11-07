@@ -147,20 +147,28 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
 
     /**
      * @notice Set the term controller
-     * @param newTermController The address of the new term controller
+     * @param newTermControllerAddr The address of the new term controller
      */
     function setTermController(
-        address newTermController
+        address newTermControllerAddr
     ) external onlyRole(GOVERNOR_ROLE) {
-        require(newTermController != address(0));
-        require(ITermController(newTermController).getProtocolReserveAddress() != address(0));
+        require(newTermControllerAddr != address(0));
+        require(ITermController(newTermControllerAddr).getProtocolReserveAddress() != address(0));
+        ITermController newTermController = ITermController(newTermControllerAddr);
+        address currentIteration = repoTokenListData.head;
+        while (currentIteration != address(0)) {
+            if (!currTermController.isTermDeployed(currentIteration) && !newTermController.isTermDeployed(currentIteration)) {
+                revert("repoToken not in controllers");
+            }
+            currentIteration = repoTokenListData.nodes[currentIteration].next;
+        }
         address current = address(currTermController);
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
             current,
-            newTermController
+            newTermControllerAddr
         );
         prevTermController = ITermController(current);
-        currTermController = ITermController(newTermController);
+        currTermController = newTermController;
     }
 
     /**
@@ -171,7 +179,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         address newAdapter
     ) external onlyRole(GOVERNOR_ROLE) {
         ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
-        require(address(newDiscountRateAdapter.TERM_CONTROLLER()) != address(0));
+        require(address(newDiscountRateAdapter.currTermController()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
             address(discountRateAdapter),
             newAdapter
@@ -477,9 +485,15 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     ) public view returns (uint256) {
         uint256 repoTokenHoldingPV;
         if (repoTokenListData.discountRates[repoToken] != 0) {
+            address tokenTermController;
+            if (currTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(currTermController);
+            } else if (prevTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(prevTermController);
+            }
             repoTokenHoldingPV = calculateRepoTokenPresentValue(
                 repoToken,
-                discountRateAdapter.getDiscountRate(repoToken),
+                discountRateAdapter.getDiscountRate(tokenTermController, repoToken),
                 ITermRepoToken(repoToken).balanceOf(address(this))
             );
         } 
@@ -489,6 +503,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController,
                 repoToken
             );
     }
@@ -542,12 +558,16 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
             liquidBalance +
             repoTokenListData.getPresentValue(
                 discountRateAdapter,
-                PURCHASE_TOKEN_PRECISION
+                PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController,
                 address(0)
             );
     }
