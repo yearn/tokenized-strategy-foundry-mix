@@ -31,7 +31,7 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, KontrolTest {
         return _discountRate[repoToken];
     }
 
-    function TERM_CONTROLLER() external view returns (ITermController) {
+    function currTermController() external view returns (ITermController) {
         return ITermController(kevm.freshAddress());
     }
 }
