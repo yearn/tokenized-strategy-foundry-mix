@@ -39,6 +39,36 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
 
+    /**
+     * @notice Constructor to initialize the Strategy contract
+     * @param _asset The address of the asset
+     * @param _yearnVault The address of the Yearn vault
+     * @param _discountRateAdapter The address of the discount rate adapter
+     * @param _eventEmitter The address of the event emitter
+     * @param _governorAddress The address of the governor
+     * @param _collateralTokens The addresses of the collateral tokens
+     * @param _minCollateralRatio The minimum collateral ratios
+     * @param _termController The address of the term controller
+     * @param _repoTokenConcentrationLimit The concentration limit for repoTokens
+     * @param _timeToMaturityThreshold The time to maturity threshold
+     * @param _requiredReserveRatio The required reserve ratio
+     * @param _discountRateMarkup The discount rate markup
+     */
+    struct StrategyParams {
+        address _asset;
+        address _yearnVault;
+        address _discountRateAdapter;
+        address _eventEmitter;
+        address _governorAddress;
+        address[] _collateralTokens;
+        uint256[] _minCollateralRatio;
+        address _termController;
+        uint256 _repoTokenConcentrationLimit;
+        uint256 _timeToMaturityThreshold;
+        uint256 _requiredReserveRatio;
+        uint256 _discountRateMarkup;
+    }
+
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -1109,35 +1139,33 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
 
     /**
      * @notice Constructor to initialize the Strategy contract
-     * @param _asset The address of the asset
      * @param _name The name of the strategy
-     * @param _yearnVault The address of the Yearn vault
-     * @param _discountRateAdapter The address of the discount rate adapter
-     * @param _eventEmitter The address of the event emitter
-     * @param _governorAddress The address of the governor
+    
      */
     constructor(
-        address _asset,
         string memory _name,
-        address _yearnVault,
-        address _discountRateAdapter,
-        address _eventEmitter,
-        address _governorAddress
-    ) BaseStrategy(_asset, _name) {
-        YEARN_VAULT = IERC4626(_yearnVault);
-        TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_eventEmitter);
+        StrategyParams memory _params
+    ) BaseStrategy(_params._asset, _name) {
+        YEARN_VAULT = IERC4626(_params._yearnVault);
+        TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_params._eventEmitter);
         PURCHASE_TOKEN_PRECISION = 10 ** ERC20(asset).decimals();
 
-        discountRateAdapter = ITermDiscountRateAdapter(_discountRateAdapter);
+        discountRateAdapter = ITermDiscountRateAdapter(_params._discountRateAdapter);
 
-        IERC20(_asset).safeApprove(_yearnVault, type(uint256).max);
+        IERC20(_params._asset).safeApprove(_params._yearnVault, type(uint256).max);
 
-        timeToMaturityThreshold = 45 days;
-        requiredReserveRatio = 0.2e18;
-        discountRateMarkup = 0.005e18;
-        repoTokenConcentrationLimit = 0.1e18;
+        currTermController = ITermController(_params._termController);
 
-        _grantRole(GOVERNOR_ROLE, _governorAddress);
+        for (uint256 i = 0; i < _params._collateralTokens.length; i++) {
+            repoTokenListData.collateralTokenParams[ _params._collateralTokens[i]] = _params._minCollateralRatio[i];
+        }
+        
+        timeToMaturityThreshold = _params._timeToMaturityThreshold;
+        requiredReserveRatio = _params._requiredReserveRatio;
+        discountRateMarkup = _params._discountRateMarkup; 
+        repoTokenConcentrationLimit = _params._repoTokenConcentrationLimit;
+
+        _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
     /*//////////////////////////////////////////////////////////////

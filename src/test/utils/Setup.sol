@@ -112,19 +112,14 @@ contract Setup is ExtendedTest, IEvents {
 
     function setUpStrategy() public returns (address) {
         // we save the strategy as a IStrategyInterface to give it the needed interface
-        IStrategyInterface _strategy = IStrategyInterface(
-            address(
-                new Strategy(
-                    address(asset), 
-                    "Tokenized Strategy", 
-                    address(mockYearnVault), 
-                    address(discountRateAdapter),
-                    address(termVaultEventEmitter),
-                    governor
-                )
-            )
+        IStrategyInterface _strategy = constructStrategy(
+            address(asset), 
+            address(mockYearnVault), 
+            address(discountRateAdapter),
+            address(termVaultEventEmitter),
+            governor,
+            address(termController)
         );
-
         vm.prank(adminWallet);
         termVaultEventEmitter.pairVaultContract(address(_strategy));
 
@@ -142,6 +137,31 @@ contract Setup is ExtendedTest, IEvents {
         _strategy.setTermController(address(termController));
 
         return address(_strategy);
+    }
+
+    function constructStrategy(address asset, address mockYearnVault, address discountRateAdapter, address termVaultEventEmitter, address governor, address termController) internal returns (IStrategyInterface) {
+        address[] memory collateralTokenAddr = new address[](0);
+        uint256[] memory minCollateralRatio = new uint256[](0);
+        Strategy.StrategyParams memory params = Strategy.StrategyParams(
+            asset,
+            mockYearnVault,
+            discountRateAdapter,
+            termVaultEventEmitter,
+            governor,
+            collateralTokenAddr,
+            minCollateralRatio,
+            termController,
+            0.1e18,
+            45 days,
+            0.2e18,
+            0.005e18
+        );
+        Strategy strat = new Strategy(
+                    "Tokenized Strategy", 
+                    params
+                );
+        
+        return IStrategyInterface(address(strat));
     }
 
     function depositIntoStrategy(

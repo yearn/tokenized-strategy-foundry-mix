@@ -10,6 +10,14 @@ on:
         description: 'Yearn strategy name'
         required: true
         default: '0x'
+      governorRoleAddress:
+        description: 'Governor role address'
+        required: true
+        default: '0x'
+      strategyManagementAddress:
+        description: 'Strategy management address'
+        required: false
+        default: '0x'
       discountRateMarkup:
         description: 'Discount rate markup'
         required: false
@@ -28,6 +36,10 @@ on:
         default: '0'
       repoTokenConcentrationLimit:
         description: 'Repo token concentration limit'
+        required: false
+        default: '0.01'
+      requiredReserveRatio:
+        description: 'Required reserve ratio'
         required: false
         default: '0.01'
     
@@ -64,5 +76,7 @@ jobs:
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
-          GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNOR_ROLE_ADDRESS }}
+          GOVERNOR_ROLE_ADDRESS: ${{ github.event.inputs.governorRoleAddress }}
+          STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
+          NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
   
