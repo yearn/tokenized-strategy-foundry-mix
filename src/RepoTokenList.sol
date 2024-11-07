@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
+import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
@@ -176,22 +177,32 @@ library RepoTokenList {
      * @param listData The list data
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
+     * @param prevTermController The previous term controller
+     * @param currTermController The current term controller
      * @return totalPresentValue The total present value of the repoTokens
      * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
         ITermDiscountRateAdapter discountRateAdapter,
-        uint256 purchaseTokenPrecision
+        uint256 purchaseTokenPrecision,
+        ITermController prevTermController,
+        ITermController currTermController
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
         
         address current = listData.head;
+        address tokenTermController;
         while (current != NULL_NODE) {
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 discountRate = discountRateAdapter.getDiscountRate(current);
+            if (currTermController.isTermDeployed(current)){
+                tokenTermController = address(currTermController);
+            } else if (prevTermController.isTermDeployed(current)){
+                tokenTermController = address(prevTermController);
+            } 
+            uint256 discountRate = discountRateAdapter.getDiscountRate(tokenTermController, current);
 
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision

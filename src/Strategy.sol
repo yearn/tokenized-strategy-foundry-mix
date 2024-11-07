@@ -455,9 +455,15 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     ) public view returns (uint256) {
         uint256 repoTokenHoldingPV;
         if (repoTokenListData.discountRates[repoToken] != 0) {
+            address tokenTermController;
+            if (currTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(currTermController);
+            } else if (prevTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(prevTermController);
+            }
             repoTokenHoldingPV = calculateRepoTokenPresentValue(
                 repoToken,
-                discountRateAdapter.getDiscountRate(repoToken),
+                discountRateAdapter.getDiscountRate(tokenTermController, repoToken),
                 ITermRepoToken(repoToken).balanceOf(address(this))
             );
         } 
@@ -467,6 +473,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController,
                 repoToken
             );
     }
@@ -520,12 +528,16 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
             liquidBalance +
             repoTokenListData.getPresentValue(
                 discountRateAdapter,
-                PURCHASE_TOKEN_PRECISION
+                PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
+                prevTermController,
+                currTermController,
                 address(0)
             );
     }
