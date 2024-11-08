@@ -66,6 +66,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     }
 
     struct StrategyState {
+        address assetVault;
+        address eventEmitter;
+        address prevTermController;
         address currTermController;
         address discountRateAdapter;
         uint256 timeToMaturityThreshold;
@@ -517,6 +520,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
 
     function getStrategyState() external view returns (StrategyState memory) {
         return StrategyState({
+            assetVault: address(YEARN_VAULT),
+            eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
+            prevTermController: address(prevTermController),
             currTermController: address(currTermController),
             discountRateAdapter: address(discountRateAdapter),
             timeToMaturityThreshold: timeToMaturityThreshold,
