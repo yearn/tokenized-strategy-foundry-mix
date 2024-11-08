@@ -1158,7 +1158,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
 
         for (uint256 i = 0; i < _params._collateralTokens.length; i++) {
             repoTokenListData.collateralTokenParams[ _params._collateralTokens[i]] = _params._minCollateralRatio[i];
-            TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(_params._collateralTokens[i], _params._minCollateralRatio[i]);
         }
         
         timeToMaturityThreshold = _params._timeToMaturityThreshold;
