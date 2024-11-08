@@ -46,8 +46,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
      * @param _discountRateAdapter The address of the discount rate adapter
      * @param _eventEmitter The address of the event emitter
      * @param _governorAddress The address of the governor
-     * @param _collateralTokens The addresses of the collateral tokens
-     * @param _minCollateralRatio The minimum collateral ratios
      * @param _termController The address of the term controller
      * @param _repoTokenConcentrationLimit The concentration limit for repoTokens
      * @param _timeToMaturityThreshold The time to maturity threshold
@@ -60,8 +58,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         address _discountRateAdapter;
         address _eventEmitter;
         address _governorAddress;
-        address[] _collateralTokens;
-        uint256[] _minCollateralRatio;
         address _termController;
         uint256 _repoTokenConcentrationLimit;
         uint256 _timeToMaturityThreshold;
@@ -157,7 +153,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         ITermController newTermController = ITermController(newTermControllerAddr);
         address currentIteration = repoTokenListData.head;
         while (currentIteration != address(0)) {
-            if (!currTermController.isTermDeployed(currentIteration) && !newTermController.isTermDeployed(currentIteration)) {
+            if (!_isTermDeployed(currentIteration)) {
                 revert("repoToken not in controllers");
             }
             currentIteration = repoTokenListData.nodes[currentIteration].next;
@@ -1155,10 +1151,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         IERC20(_params._asset).safeApprove(_params._yearnVault, type(uint256).max);
 
         currTermController = ITermController(_params._termController);
-
-        for (uint256 i = 0; i < _params._collateralTokens.length; i++) {
-            repoTokenListData.collateralTokenParams[ _params._collateralTokens[i]] = _params._minCollateralRatio[i];
-        }
         
         timeToMaturityThreshold = _params._timeToMaturityThreshold;
         requiredReserveRatio = _params._requiredReserveRatio;
