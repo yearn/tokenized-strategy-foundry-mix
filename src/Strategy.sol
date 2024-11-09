@@ -109,6 +109,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     uint256 internal requiredReserveRatio; // 1e18
     uint256 internal discountRateMarkup; // 1e18
     uint256 internal repoTokenConcentrationLimit; // 1e18
+
+    StrategyState public strategyState;
     mapping(address => bool) public repoTokenBlacklist;
 
     modifier notBlacklisted(address repoToken) {
@@ -516,20 +518,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 currTermController,
                 repoToken
             );
-    }
-
-    function getStrategyState() external view returns (StrategyState memory) {
-        return StrategyState({
-            assetVault: address(YEARN_VAULT),
-            eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
-            prevTermController: address(prevTermController),
-            currTermController: address(currTermController),
-            discountRateAdapter: address(discountRateAdapter),
-            timeToMaturityThreshold: timeToMaturityThreshold,
-            requiredReserveRatio: requiredReserveRatio,
-            discountRateMarkup: discountRateMarkup,
-            repoTokenConcentrationLimit: repoTokenConcentrationLimit
-        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1189,6 +1177,18 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         requiredReserveRatio = _params._requiredReserveRatio;
         discountRateMarkup = _params._discountRateMarkup; 
         repoTokenConcentrationLimit = _params._repoTokenConcentrationLimit;
+
+        strategyState = StrategyState({
+            assetVault: address(YEARN_VAULT),
+            eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
+            prevTermController: address(0),
+            currTermController: address(currTermController),
+            discountRateAdapter: address(discountRateAdapter),
+            timeToMaturityThreshold: timeToMaturityThreshold,
+            requiredReserveRatio: requiredReserveRatio,
+            discountRateMarkup: discountRateMarkup,
+            repoTokenConcentrationLimit: repoTokenConcentrationLimit
+        });
 
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
