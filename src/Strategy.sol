@@ -34,7 +34,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 // NOTE: To implement permissioned functions you can use the onlyManagement, onlyEmergencyAuthorized and onlyKeepers modifiers
 
-contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
+contract Strategy is BaseStrategy, Pausable, AccessControl {
     using SafeERC20 for IERC20;
     using RepoTokenList for RepoTokenListData;
     using TermAuctionList for TermAuctionListData;
@@ -65,6 +65,18 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         uint256 _discountRateMarkup;
     }
 
+    struct StrategyState {
+        address assetVault;
+        address eventEmitter;
+        address prevTermController;
+        address currTermController;
+        address discountRateAdapter;
+        uint256 timeToMaturityThreshold;
+        uint256 requiredReserveRatio;
+        uint256 discountRateMarkup;
+        uint256 repoTokenConcentrationLimit;
+    }
+
     // Custom errors
     error InvalidTermAuction(address auction);
     error TimeToMaturityAboveThreshold();
@@ -73,27 +85,30 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     error RepoTokenConcentrationTooHigh(address repoToken);
     error RepoTokenBlacklisted(address repoToken);
     error DepositPaused();
+    error AuctionNotOpen();
+    error ZeroPurchaseTokenAmount();
+    error OfferNotFound();
 
-    bytes32 public constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
+    bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
     // Immutable state variables
-    ITermVaultEvents public immutable TERM_VAULT_EVENT_EMITTER;
-    uint256 public immutable PURCHASE_TOKEN_PRECISION;
-    IERC4626 public immutable YEARN_VAULT;
+    ITermVaultEvents internal immutable TERM_VAULT_EVENT_EMITTER;
+    uint256 internal immutable PURCHASE_TOKEN_PRECISION;
+    IERC4626 internal immutable YEARN_VAULT;
 
     /// @notice State variables
-    bool public depositLock;
+    bool internal depositLock;
     /// @dev Previous term controller
-    ITermController public prevTermController;
+    ITermController internal prevTermController;
     /// @dev Current term controller
-    ITermController public currTermController;
-    ITermDiscountRateAdapter public discountRateAdapter;
+    ITermController internal currTermController;
+    ITermDiscountRateAdapter internal discountRateAdapter;
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
-    uint256 public timeToMaturityThreshold; // seconds
-    uint256 public requiredReserveRatio; // 1e18
-    uint256 public discountRateMarkup; // 1e18
-    uint256 public repoTokenConcentrationLimit; // 1e18
+    uint256 internal timeToMaturityThreshold; // seconds
+    uint256 internal requiredReserveRatio; // 1e18
+    uint256 internal discountRateMarkup; // 1e18
+    uint256 internal repoTokenConcentrationLimit; // 1e18
     mapping(address => bool) public repoTokenBlacklist;
 
     modifier notBlacklisted(address repoToken) {
@@ -154,7 +169,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         address currentIteration = repoTokenListData.head;
         while (currentIteration != address(0)) {
             if (!_isTermDeployed(currentIteration)) {
-                revert("repoToken not in controllers");
+                revert RepoTokenList.InvalidRepoToken(currentIteration);
             }
             currentIteration = repoTokenListData.nodes[currentIteration].next;
         }
@@ -429,8 +444,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         else {
             simulatedLiquidityRatio = (liquidBalance - proceeds) * 10 ** 18 / assetValue;
         }
-
-
     }
 
     /**
@@ -503,6 +516,20 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
                 currTermController,
                 repoToken
             );
+    }
+
+    function getStrategyState() external view returns (StrategyState memory) {
+        return StrategyState({
+            assetVault: address(YEARN_VAULT),
+            eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
+            prevTermController: address(prevTermController),
+            currTermController: address(currTermController),
+            discountRateAdapter: address(discountRateAdapter),
+            timeToMaturityThreshold: timeToMaturityThreshold,
+            requiredReserveRatio: requiredReserveRatio,
+            discountRateMarkup: discountRateMarkup,
+            repoTokenConcentrationLimit: repoTokenConcentrationLimit
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -770,7 +797,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
                 _withdrawAsset(liquidAmountRequired - liquidity);
             }
         }
-}
+    }
 
     /*//////////////////////////////////////////////////////////////
                     STRATEGIST FUNCTIONS
@@ -798,8 +825,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
             revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
-        require(termAuction.termRepoId() == ITermRepoToken(repoToken).termRepoId(), "repoToken does not match term repo ID");
-
+        if(termAuction.termRepoId() != ITermRepoToken(repoToken).termRepoId()) {
+            revert RepoTokenList.InvalidRepoToken(repoToken);
+        } 
+        
         // Validate purchase token, min collateral ratio and insert the repoToken if necessary
         (bool isValid, ) = repoTokenListData.validateRepoToken(
             ITermRepoToken(repoToken),
@@ -814,11 +843,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         ITermAuctionOfferLocker offerLocker = ITermAuctionOfferLocker(
             termAuction.termAuctionOfferLocker()
         );
-        require(
-            block.timestamp > offerLocker.auctionStartTime() &&
-                block.timestamp < offerLocker.revealTime(),
-            "Auction not open"
-        );
+        if(
+            block.timestamp <= offerLocker.auctionStartTime() ||
+                block.timestamp >= offerLocker.revealTime()
+        ) {
+            revert AuctionNotOpen();
+        }
 
         return offerLocker;
     }
@@ -844,12 +874,13 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     )
         external
         whenNotPaused
-        nonReentrant
         notBlacklisted(repoToken)
         onlyManagement
         returns (bytes32[] memory offerIds)
     {
-        require(purchaseTokenAmount > 0, "Purchase token amount must be greater than zero");
+        if(purchaseTokenAmount == 0) {
+            revert ZeroPurchaseTokenAmount();
+        }
 
         ITermAuctionOfferLocker offerLocker = _validateAndGetOfferLocker(
             termAuction,
@@ -963,7 +994,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
         // Submit the offer and get the offer IDs
         offerIds = offerLocker.lockOffers(offerSubmissions);
 
-        require(offerIds.length > 0, "No offer IDs returned");
+        if(offerIds.length == 0) {
+            revert OfferNotFound();
+        }
 
         // Update the pending offers list
         if (currentOfferAmount == 0) {
@@ -1042,7 +1075,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
     function sellRepoToken(
         address repoToken,
         uint256 repoTokenAmount
-    ) external whenNotPaused nonReentrant notBlacklisted(repoToken) {
+    ) external whenNotPaused notBlacklisted(repoToken) {
         // Ensure the amount of repoTokens to sell is greater than zero
         require(repoTokenAmount > 0);
 
@@ -1060,7 +1093,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl, ReentrancyGuard {
             );
 
         if (!isRepoTokenValid) {
-                revert RepoTokenList.InvalidRepoToken(repoToken);
+            revert RepoTokenList.InvalidRepoToken(repoToken);
         }
 
         // Sweep assets and redeem repoTokens, if needed
