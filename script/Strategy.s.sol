@@ -172,8 +172,6 @@ contract DeployStrategy is Script {
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envAddress("TERM_CONTROLLER_ADDRESS");
         uint256 discountRateMarkup = vm.envUint("DISCOUNT_RATE_MARKUP");
-        address[] memory collateralTokenAddr = stringToAddressArray(vm.envString("COLLATERAL_TOKEN_ADDR"));
-        uint256[] memory minCollateralRatio = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIO"));
         uint256 timeToMaturityThreshold = vm.envUint("TIME_TO_MATURITY_THRESHOLD");
         uint256 repoTokenConcentrationLimit = vm.envUint("REPOTOKEN_CONCENTRATION_LIMIT");
         uint256 newRequiredReserveRatio = vm.envUint("NEW_REQUIRED_RESERVE_RATIO");
@@ -184,8 +182,6 @@ contract DeployStrategy is Script {
             discountRateAdapterAddress,
             address(eventEmitter),
             governorRoleAddress,
-            collateralTokenAddr,
-            minCollateralRatio,
             termController,
             repoTokenConcentrationLimit,
             timeToMaturityThreshold,

@@ -26,7 +26,7 @@ struct RepoTokenListData {
 //////////////////////////////////////////////////////////////*/
 
 library RepoTokenList {
-    address public constant NULL_NODE = address(0);
+    address internal constant NULL_NODE = address(0);
     uint256 internal constant INVALID_AUCTION_RATE = 0;
     uint256 internal constant ZERO_AUCTION_RATE = 1; //Set to lowest nonzero number so that it is not confused with INVALID_AUCTION_RATe but still calculates as if 0.
 
@@ -193,16 +193,10 @@ library RepoTokenList {
         if (listData.head == NULL_NODE) return 0;
         
         address current = listData.head;
-        address tokenTermController;
         while (current != NULL_NODE) {
             uint256 currentMaturity = getRepoTokenMaturity(current);
             uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            if (currTermController.isTermDeployed(current)){
-                tokenTermController = address(currTermController);
-            } else if (prevTermController.isTermDeployed(current)){
-                tokenTermController = address(prevTermController);
-            } 
-            uint256 discountRate = discountRateAdapter.getDiscountRate(tokenTermController, current);
+            uint256 discountRate = discountRateAdapter.getDiscountRate(current);
 
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision

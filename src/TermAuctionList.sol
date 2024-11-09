@@ -35,7 +35,7 @@ struct TermAuctionListData {
 library TermAuctionList {
     using RepoTokenList for RepoTokenListData;
 
-    bytes32 public constant NULL_NODE = bytes32(0);
+    bytes32 internal constant NULL_NODE = bytes32(0);
 
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
@@ -278,7 +278,6 @@ library TermAuctionList {
             }
 
             uint256 offerAmount = offer.offerLocker.lockedOffer(current).amount;
-            address tokenTermController;
 
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
@@ -291,11 +290,6 @@ library TermAuctionList {
                         purchaseTokenPrecision,
                         discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
                     );
-                    if (currTermController.isTermDeployed(offer.repoToken)){
-                        tokenTermController = address(currTermController);
-                    } else if (prevTermController.isTermDeployed(offer.repoToken)){
-                        tokenTermController = address(prevTermController);
-                    } 
                     totalValue += RepoTokenUtils.calculatePresentValue(
                         repoTokenAmountInBaseAssetPrecision,
                         purchaseTokenPrecision,
