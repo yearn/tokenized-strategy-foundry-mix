@@ -140,16 +140,12 @@ contract Setup is ExtendedTest, IEvents {
     }
 
     function constructStrategy(address asset, address mockYearnVault, address discountRateAdapter, address termVaultEventEmitter, address governor, address termController) internal returns (IStrategyInterface) {
-        address[] memory collateralTokenAddr = new address[](0);
-        uint256[] memory minCollateralRatio = new uint256[](0);
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
             mockYearnVault,
             discountRateAdapter,
             termVaultEventEmitter,
             governor,
-            collateralTokenAddr,
-            minCollateralRatio,
             termController,
             0.1e18,
             45 days,
