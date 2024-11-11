@@ -8,7 +8,7 @@ contract StrategyKeeperManagement is Script {
     function run() external {
         uint256 deployerPK = vm.envUint("PRIVATE_KEY");
 
-        uint256 keeperAddress = vm.envAddress("KEEPER_ADDRESS");
+        address keeperAddress = vm.envAddress("KEEPER_ADDRESS");
         address strategy = vm.envAddress("STRATEGY");
 
         // Set up the RPC URL (optional if you're using the default foundry config)
