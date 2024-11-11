@@ -14,23 +14,32 @@ jobs:
       name: sepolia
       url: https://term-finance.github.io/yearn-v3-term-vault/
     steps:
-      - uses: actions/checkout@v4  # Pin version
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly  # Specify foundry version
+          version: nightly
       - run: forge install
       - run: forge build
       - run: forge tree
-      - name: Deploy Mock Vault  # Add step name for clarity
+      - name: Verify Environment
+        run: |
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "PRIVATE_KEY is not set"
+          else
+            echo "PRIVATE_KEY is set and starts with: ${PRIVATE_KEY:0:6}..."
+          fi
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      - name: Deploy Mock Vault
         run: |
           forge create lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock \
-          --rpc-url $RPC_URL \
-          --constructor-args ${{ github.event.inputs.vaultToken }} \
-          --private-key $PRIVATE_KEY \
-          --etherscan-api-key $ETHERSCAN_API_KEY \
+          --rpc-url "$RPC_URL" \
+          --constructor-args "${{ github.event.inputs.vaultToken }}" \
+          --private-key "$PRIVATE_KEY" \
+          --etherscan-api-key "$ETHERSCAN_API_KEY" \
           --verify
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
