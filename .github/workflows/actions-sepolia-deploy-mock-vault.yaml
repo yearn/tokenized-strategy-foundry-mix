@@ -24,6 +24,7 @@ jobs:
       - run: forge build
       - run: forge tree
       - run: forge create lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock --rpc-url $RPC_URL --constructor-args $VAULT_TOKEN --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify
+        env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
