@@ -30,6 +30,7 @@ jobs:
       - run: forge script script/StrategyKeeperManagement.s.sol:StrategyKeeperManagement --rpc-url $RPC_URL --broadcast --gas-price  500000000000  --verify --verbosity 4
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           KEEPER_ADDRESS: ${{ github.event.inputs.keeper }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           STRATEGY: ${{ github.event.inputs.strategy }}
