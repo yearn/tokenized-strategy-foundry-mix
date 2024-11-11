@@ -340,7 +340,7 @@ contract TermAuctionListTest is KontrolTest {
     function _getGroupedOfferTimeAndAmount(
         ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision
-    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
+    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount) {
         
         bytes32 current = _termAuctionList.head;
 

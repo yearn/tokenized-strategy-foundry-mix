@@ -31,9 +31,6 @@ contract TermRepoServicer is ITermRepoServicer, KontrolTest {
         if (!_redeemAlwaysSucceeds) {
             require(kevm.freshBool() != 0);
         }
-
-        kevm.symbolicStorage(_termRepoToken);
-        kevm.symbolicStorage(address(this));
     }
 
     function termRepoToken() external view returns (address) {

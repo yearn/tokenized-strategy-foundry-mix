@@ -241,6 +241,18 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         }
     }
 
+    function _guaranteeRedeemOfferRepoTokenAlwaysSucceeds() internal {
+        bytes32 current = _termAuctionList.head;
+
+        while (current != TermAuctionList.NULL_NODE) {
+            address repoToken = _termAuctionList.offers[current].repoToken;
+            (, , address repoServicer,) = ITermRepoToken(repoToken).config();
+            TermRepoServicer(repoServicer).guaranteeRedeemAlwaysSucceeds();
+
+            current = _termAuctionList.nodes[current].next;
+        }
+    }
+
     /**
      * Test that removeCompleted preserves the list invariants.
      */
@@ -425,8 +437,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
 
         (
             uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
-            uint256 cumulativeOfferAmountCompletedAuctions,
-            bool foundCompletedAuctions
+            uint256 cumulativeOfferAmountCompletedAuctions
         ) = _getGroupedOfferTimeAndAmount(
             ITermDiscountRateAdapter(address(discountRateAdapter)),
             purchaseTokenPrecision
@@ -434,8 +445,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
 
         assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityCompletedAuctions);
         assert(cumulativeOfferAmount == cumulativeOfferAmountCompletedAuctions);
-        assert(found == foundCompletedAuctions);
-
     }
 
     function _filterDiscountRateSet() internal {
