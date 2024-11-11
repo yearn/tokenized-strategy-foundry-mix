@@ -413,39 +413,39 @@ contract TestUSDCSellRepoToken is Setup {
         vm.prank(governor);
         termStrategy.setTermController(address(0));
 
-        address currentController = address(termStrategy.currTermController());
+        address currentController = address(termStrategy.getStrategyState().currTermController);
         vm.prank(governor);
         termStrategy.setTermController(address(newController));
-        assertEq(address(termStrategy.currTermController()), address(newController));
-        assertEq(address(termStrategy.prevTermController()), currentController);
+        assertEq(address(termStrategy.getStrategyState().currTermController), address(newController));
+        assertEq(address(termStrategy.getStrategyState().currTermController), currentController);
 
         vm.expectRevert();
         termStrategy.setTimeToMaturityThreshold(12345);
 
         vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(12345);
-        assertEq(termStrategy.timeToMaturityThreshold(), 12345);
+        assertEq(termStrategy.getStrategyState().timeToMaturityThreshold, 12345);
 
         vm.expectRevert();
         termStrategy.setRequiredReserveRatio(12345);
 
         vm.prank(governor);
         termStrategy.setRequiredReserveRatio(12345);
-        assertEq(termStrategy.requiredReserveRatio(), 12345);
+        assertEq(termStrategy.getStrategyState().requiredReserveRatio, 12345);
 
         vm.expectRevert();
         termStrategy.setDiscountRateMarkup(12345);
 
         vm.prank(governor);
         termStrategy.setDiscountRateMarkup(12345);
-        assertEq(termStrategy.discountRateMarkup(), 12345);
+        assertEq(termStrategy.getStrategyState().discountRateMarkup, 12345);
 
         vm.expectRevert();
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
 
         vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        assertEq(termStrategy.discountRateMarkup(), 12345);
+        assertEq(termStrategy.getStrategyState().discountRateMarkup, 12345);
     }
 
     function testRepoTokenValidationFailures() public {

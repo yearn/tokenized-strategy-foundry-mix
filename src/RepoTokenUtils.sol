@@ -9,8 +9,8 @@ import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 //////////////////////////////////////////////////////////////*/
 
 library RepoTokenUtils {
-    uint256 public constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
-    uint256 public constant RATE_PRECISION = 1e18;
+    uint256 internal constant THREESIXTY_DAYCOUNT_SECONDS = 360 days;
+    uint256 internal constant RATE_PRECISION = 1e18;
 
     /*//////////////////////////////////////////////////////////////
                         VIEW FUNCTIONS

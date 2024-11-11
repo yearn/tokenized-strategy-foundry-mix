@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.18;
 
+import {ITermController} from "./interfaces/term/ITermController.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
 import {ITermRepoCollateralManager} from "./interfaces/term/ITermRepoCollateralManager.sol";
@@ -25,8 +26,9 @@ struct RepoTokenListData {
 //////////////////////////////////////////////////////////////*/
 
 library RepoTokenList {
-    address public constant NULL_NODE = address(0);
+    address internal constant NULL_NODE = address(0);
     uint256 internal constant INVALID_AUCTION_RATE = 0;
+    uint256 internal constant ZERO_AUCTION_RATE = 1; //Set to lowest nonzero number so that it is not confused with INVALID_AUCTION_RATe but still calculates as if 0.
 
     error InvalidRepoToken(address token);
 
@@ -175,13 +177,17 @@ library RepoTokenList {
      * @param listData The list data
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
+     * @param prevTermController The previous term controller
+     * @param currTermController The current term controller
      * @return totalPresentValue The total present value of the repoTokens
      * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
         ITermDiscountRateAdapter discountRateAdapter,
-        uint256 purchaseTokenPrecision
+        uint256 purchaseTokenPrecision,
+        ITermController prevTermController,
+        ITermController currTermController
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
@@ -356,16 +362,20 @@ library RepoTokenList {
                 return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
             }
 
-            uint256 oracleRate = discountRateAdapter.getDiscountRate(address(repoToken));
-            if (oracleRate != INVALID_AUCTION_RATE) {
+            uint256 oracleRate;
+            try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
+                oracleRate = rate;
+            } catch {
+            }
+
+            if (oracleRate != 0) {
                 if (discountRate != oracleRate) {
                     listData.discountRates[address(repoToken)] = oracleRate;
                 }
             }
         } else {
             try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
-                discountRate = rate;
-
+                discountRate = rate == 0 ? ZERO_AUCTION_RATE : rate;
             } catch {
                 discountRate = INVALID_AUCTION_RATE;
                 return (false, discountRate, redemptionTimestamp);
