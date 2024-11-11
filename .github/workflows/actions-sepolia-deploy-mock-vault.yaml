@@ -1,0 +1,31 @@
+name: "[sepolia-deploy] deploy mock vault"
+on:
+  workflow_dispatch:
+    inputs:
+      vaultToken:
+        description: 'Vault token address'
+        required: true
+        default: '0x'
+
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: sepolia
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge create --rpc-url $RPC_URL --constructor-args "0x27Af15ed04dFB358eA86F22Ff93625d6B7ceF494" --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock --broadcast --verify --verbosity 4
+        env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          VAULT_TOKEN: ${{ github.event.inputs.vaultToken }}
