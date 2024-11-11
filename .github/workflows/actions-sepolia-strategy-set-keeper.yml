@@ -6,6 +6,10 @@ on:
         description: 'keeper address'
         required: true
         default: '0x'
+      strategy:
+        description: 'strategy address'
+        required: true
+        default: '0x'
   
     
 jobs:
