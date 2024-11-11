@@ -1,4 +1,4 @@
-name: "[sepolia-deploy] manage strategy"
+name: "[sepolia-deploy] manage strategy keeper"
 on:
   workflow_dispatch:
     inputs:
