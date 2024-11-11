@@ -512,8 +512,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
-                prevTermController,
-                currTermController,
                 repoToken
             );
     }
@@ -581,16 +579,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             liquidBalance +
             repoTokenListData.getPresentValue(
                 discountRateAdapter,
-                PURCHASE_TOKEN_PRECISION,
-                prevTermController,
-                currTermController
+                PURCHASE_TOKEN_PRECISION
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
                 discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
-                prevTermController,
-                currTermController,
                 address(0)
             );
     }

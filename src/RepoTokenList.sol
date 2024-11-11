@@ -177,17 +177,13 @@ library RepoTokenList {
      * @param listData The list data
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
-     * @param prevTermController The previous term controller
-     * @param currTermController The current term controller
      * @return totalPresentValue The total present value of the repoTokens
      * @dev  Aggregates the present value of all repoTokens in the list. 
      */
     function getPresentValue(
         RepoTokenListData storage listData, 
         ITermDiscountRateAdapter discountRateAdapter,
-        uint256 purchaseTokenPrecision,
-        ITermController prevTermController,
-        ITermController currTermController
+        uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
