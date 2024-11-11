@@ -37,8 +37,8 @@ jobs:
         run: |
           forge create lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock \
           --rpc-url "$RPC_URL" \
-          --constructor-args "${{ github.event.inputs.vaultToken }}" \
           --private-key "$PRIVATE_KEY" \
+          --constructor-args "${{ github.event.inputs.vaultToken }}" \
           --etherscan-api-key "$ETHERSCAN_API_KEY" \
           --verify
         env:
