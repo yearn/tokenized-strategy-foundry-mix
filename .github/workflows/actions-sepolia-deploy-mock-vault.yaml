@@ -23,7 +23,7 @@ jobs:
       - run: forge install
       - run: forge build
       - run: forge tree
-      - run: forge create --rpc-url $RPC_URL --constructor-args "0x27Af15ed04dFB358eA86F22Ff93625d6B7ceF494" --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock --broadcast --verify --verbosity 4
+      - run: forge create --rpc-url $RPC_URL --constructor-args $VAULT_TOKEN --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify lib/openzeppelin-contracts/contracts/mocks/ERC4626Mock.sol:ERC4626Mock  
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
