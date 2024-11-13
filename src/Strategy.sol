@@ -68,6 +68,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     struct StrategyState {
         address assetVault;
         address eventEmitter;
+        address governorAddress;
         address prevTermController;
         address currTermController;
         address discountRateAdapter;
@@ -1181,6 +1182,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         strategyState = StrategyState({
             assetVault: address(YEARN_VAULT),
             eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
+            governorAddress: _params._governorAddress,
             prevTermController: address(0),
             currTermController: address(currTermController),
             discountRateAdapter: address(discountRateAdapter),
