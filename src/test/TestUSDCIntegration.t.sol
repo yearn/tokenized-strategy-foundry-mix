@@ -365,7 +365,21 @@ contract TestUSDCIntegration is Setup {
         termStrategy.setDiscountRateAdapter(address(valid));
         vm.stopPrank();
 
-        assertEq(address(valid), address(termStrategy.getStrategyState().discountRateAdapter));
+        (
+            address assetVault,
+        address eventEmitter,
+        address governorAddr,
+        address prevTermController,
+        address currTermController,
+        address discountRateAdapter,
+        uint256 timeToMaturityThreshold,
+        uint256 requiredReserveRatio,
+        uint256 discountRateMarkup,
+        uint256 repoTokenConcentrationLimit
+        ) = termStrategy.strategyState();
+
+
+        assertEq(address(valid), discountRateAdapter);
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(

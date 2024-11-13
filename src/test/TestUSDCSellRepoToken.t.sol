@@ -413,39 +413,52 @@ contract TestUSDCSellRepoToken is Setup {
         vm.prank(governor);
         termStrategy.setTermController(address(0));
 
-        address currentController = address(termStrategy.getStrategyState().currTermController);
+         (
+            address assetVault,
+        address eventEmitter,
+        address governorAddr,
+        address prevTermController,
+        address currTermController,
+        address discountRateAdapter,
+        uint256 timeToMaturityThreshold,
+        uint256 requiredReserveRatio,
+        uint256 discountRateMarkup,
+        uint256 repoTokenConcentrationLimit
+        ) = termStrategy.strategyState();
+
+        address currentController = currTermController;
         vm.prank(governor);
         termStrategy.setTermController(address(newController));
-        assertEq(address(termStrategy.getStrategyState().currTermController), address(newController));
-        assertEq(address(termStrategy.getStrategyState().currTermController), currentController);
+        assertEq(currTermController, address(newController));
+        assertEq(currTermController, currentController);
 
         vm.expectRevert();
         termStrategy.setTimeToMaturityThreshold(12345);
 
         vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(12345);
-        assertEq(termStrategy.getStrategyState().timeToMaturityThreshold, 12345);
+        assertEq(timeToMaturityThreshold, 12345);
 
         vm.expectRevert();
         termStrategy.setRequiredReserveRatio(12345);
 
         vm.prank(governor);
         termStrategy.setRequiredReserveRatio(12345);
-        assertEq(termStrategy.getStrategyState().requiredReserveRatio, 12345);
+        assertEq(requiredReserveRatio, 12345);
 
         vm.expectRevert();
         termStrategy.setDiscountRateMarkup(12345);
 
         vm.prank(governor);
         termStrategy.setDiscountRateMarkup(12345);
-        assertEq(termStrategy.getStrategyState().discountRateMarkup, 12345);
+        assertEq(discountRateMarkup, 12345);
 
         vm.expectRevert();
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
 
         vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        assertEq(termStrategy.getStrategyState().discountRateMarkup, 12345);
+        assertEq(discountRateMarkup, 12345);
     }
 
     function testRepoTokenValidationFailures() public {
