@@ -15,14 +15,17 @@ interface ITermVaultEvents {
     event MinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio);
 
     event RepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit);
+    
 
     event DepositPaused();
 
     event DepositUnpaused();
 
+    /*
     event StrategyPaused();
 
     event StrategyUnpaused();
+    */
 
     event DiscountRateAdapterUpdated(
         address indexed oldAdapter, 
@@ -33,6 +36,8 @@ interface ITermVaultEvents {
         address indexed repoToken,
         bool blacklisted
     );
+
+    event NewGovernor(address newGovernor);
 
     function emitTermControllerUpdated(address oldController, address newController) external;
 
@@ -45,14 +50,16 @@ interface ITermVaultEvents {
     function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external;
 
     function emitRepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit) external;
+    
 
     function emitDepositPaused() external;
 
     function emitDepositUnpaused() external;
+    /*
 
     function emitStrategyPaused() external;
 
-    function emitStrategyUnpaused() external;
+    function emitStrategyUnpaused() external;*/
 
     function emitDiscountRateAdapterUpdated(
         address oldAdapter,
@@ -60,4 +67,6 @@ interface ITermVaultEvents {
     ) external;
 
     function emitRepoTokenBlacklistUpdated(address repoToken, bool blacklisted) external;
+
+    function emitNewGovernor(address newGovernor) external;
 }

@@ -368,9 +368,10 @@ contract TestUSDCIntegration is Setup {
         (
             address assetVault,
         address eventEmitter,
-        address prevTermController,
-        address currTermController,
-        address discountRateAdapter,
+        address governor,
+        ITermController prevTermController,
+        ITermController currTermController,
+        ITermDiscountRateAdapter discountRateAdapter,
         uint256 timeToMaturityThreshold,
         uint256 requiredReserveRatio,
         uint256 discountRateMarkup,
@@ -378,7 +379,58 @@ contract TestUSDCIntegration is Setup {
         ) = termStrategy.strategyState();
 
 
-        assertEq(address(valid), discountRateAdapter);
+        assertEq(address(valid), address(discountRateAdapter));
+    }
+
+    function testSettingNewGovernor() public {
+        address testUser = vm.addr(0x11111);  
+
+        TermDiscountRateAdapter invalid =  new TermDiscountRateAdapter(address(0), adminWallet);
+        TermDiscountRateAdapter valid =  new TermDiscountRateAdapter(address(termController), adminWallet);
+
+        vm.prank(testUser);
+        vm.expectRevert();
+        termStrategy.setPendingGovernor(address(testUser));
+
+        vm.prank(governor);
+        vm.expectRevert();
+        termStrategy.setPendingGovernor(address(0));
+
+        vm.prank(governor);
+        termStrategy.setPendingGovernor(address(testUser));
+        vm.stopPrank();
+
+        vm.prank(adminWallet);
+        vm.expectRevert("!pendingGovernor");
+        termStrategy.acceptGovernor();
+
+        vm.startPrank(testUser);
+        termStrategy.acceptGovernor();
+        vm.stopPrank();
+
+        vm.startPrank(governor);
+        vm.expectRevert();
+        termStrategy.setDiscountRateAdapter(address(valid));
+
+        vm.startPrank(testUser);
+        termStrategy.setDiscountRateAdapter(address(valid));
+        vm.stopPrank();
+
+        (
+            address assetVault,
+        address eventEmitter,
+        address governor,
+        ITermController prevTermController,
+        ITermController currTermController,
+        ITermDiscountRateAdapter discountRateAdapter,
+        uint256 timeToMaturityThreshold,
+        uint256 requiredReserveRatio,
+        uint256 discountRateMarkup,
+        uint256 repoTokenConcentrationLimit
+        ) = termStrategy.strategyState();
+
+
+        assertEq(address(valid), address(discountRateAdapter));
     }
 
     function _getRepoTokenAmountGivenPurchaseTokenAmount(
