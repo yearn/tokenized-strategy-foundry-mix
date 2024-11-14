@@ -6,7 +6,6 @@ import "@tokenized-strategy/interfaces/ITokenizedStrategy.sol";
 import "../src/Strategy.sol";
 import "../src/TermVaultEventEmitter.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 contract DeployStrategy is Script {
     /**
@@ -170,21 +169,19 @@ contract DeployStrategy is Script {
         address asset = vm.envAddress("ASSET_ADDRESS");
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
-        address operatorRoleAddress = vm.envAddress("OPERATOR_ROLE_ADDRESS");
+        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envAddress("TERM_CONTROLLER_ADDRESS");
         uint256 discountRateMarkup = vm.envUint("DISCOUNT_RATE_MARKUP");
         uint256 timeToMaturityThreshold = vm.envUint("TIME_TO_MATURITY_THRESHOLD");
         uint256 repoTokenConcentrationLimit = vm.envUint("REPOTOKEN_CONCENTRATION_LIMIT");
         uint256 newRequiredReserveRatio = vm.envUint("NEW_REQUIRED_RESERVE_RATIO");
 
-        checkUnderlyingVaultAsset(asset, yearnVaultAddress);
-
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
             yearnVaultAddress,
             discountRateAdapterAddress,
             address(eventEmitter),
-            operatorRoleAddress,
+            governorRoleAddress,
             termController,
             repoTokenConcentrationLimit,
             timeToMaturityThreshold,
@@ -209,10 +206,5 @@ contract DeployStrategy is Script {
         console.log("deployed event emitter proxy contract to");
         console.log(address(eventEmitterProxy));
         eventEmitter = TermVaultEventEmitter(address(eventEmitterProxy));
-    }
-
-    function checkUnderlyingVaultAsset(address asset, address underlyingVault) internal {
-        address underlyingAsset = IERC4626(underlyingVault).asset();
-        require(underlyingAsset == asset, "Underlying asset does not match asset");
     }
 }
