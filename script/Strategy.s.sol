@@ -176,6 +176,8 @@ contract DeployStrategy is Script {
         uint256 repoTokenConcentrationLimit = vm.envUint("REPOTOKEN_CONCENTRATION_LIMIT");
         uint256 newRequiredReserveRatio = vm.envUint("NEW_REQUIRED_RESERVE_RATIO");
 
+        checkUnderlyingVaultAsset(asset, yearnVaultAddress);
+
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
             yearnVaultAddress,
@@ -191,6 +193,11 @@ contract DeployStrategy is Script {
 
         return params;
 
+    }
+
+    function checkUnderlyingVaultAsset(address asset, address underlyingVault) internal {
+        address underlyingAsset = IERC4626(underlyingVault).asset();
+        require(underlyingAsset == asset, "Underlying asset does not match asset");
     }
 
     function _deployEventEmitter() internal returns(TermVaultEventEmitter eventEmitter) {

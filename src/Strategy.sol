@@ -4,7 +4,6 @@ pragma solidity ^0.8.18;
 import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 import {ITermRepoToken} from "./interfaces/term/ITermRepoToken.sol";
 import {ITermRepoServicer} from "./interfaces/term/ITermRepoServicer.sol";
@@ -69,9 +68,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         address assetVault;
         address eventEmitter;
         address governorAddress;
-        address prevTermController;
-        address currTermController;
-        address discountRateAdapter;
+        ITermController prevTermController;
+        ITermController currTermController;
+        ITermDiscountRateAdapter discountRateAdapter;
         uint256 timeToMaturityThreshold;
         uint256 requiredReserveRatio;
         uint256 discountRateMarkup;
@@ -99,17 +98,11 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
 
     /// @notice State variables
     bool internal depositLock;
-    /// @dev Previous term controller
-    ITermController internal prevTermController;
-    /// @dev Current term controller
-    ITermController internal currTermController;
-    ITermDiscountRateAdapter internal discountRateAdapter;
+    address internal pendingGovernor;
+
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
-    uint256 internal timeToMaturityThreshold; // seconds
-    uint256 internal requiredReserveRatio; // 1e18
-    uint256 internal discountRateMarkup; // 1e18
-    uint256 internal repoTokenConcentrationLimit; // 1e18
+
 
     StrategyState public strategyState;
     mapping(address => bool) public repoTokenBlacklist;
@@ -147,7 +140,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function pauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _pause();
         depositLock = true;
-        TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
+        //TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
     }
 
     /**
@@ -156,7 +149,21 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function unpauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _unpause();
         depositLock = false;
-        TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
+        //TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
+    }
+
+    function setPendingGovernor(address newGovernor) external onlyRole(GOVERNOR_ROLE) {
+        require(newGovernor != address(0));
+        pendingGovernor = newGovernor;
+    }
+
+    function acceptGovernor() external {
+        require(msg.sender == pendingGovernor, "!pendingGovernor");
+        _revokeRole(GOVERNOR_ROLE, strategyState.governorAddress);
+        _grantRole(GOVERNOR_ROLE, pendingGovernor);
+        strategyState.governorAddress = pendingGovernor;
+        pendingGovernor = address(0);
+        TERM_VAULT_EVENT_EMITTER.emitNewGovernor(pendingGovernor);
     }
 
     /**
@@ -176,13 +183,13 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             }
             currentIteration = repoTokenListData.nodes[currentIteration].next;
         }
-        address current = address(currTermController);
+        address current = address(strategyState.currTermController);
         TERM_VAULT_EVENT_EMITTER.emitTermControllerUpdated(
             current,
             newTermControllerAddr
         );
-        prevTermController = ITermController(current);
-        currTermController = newTermController;
+        strategyState.prevTermController = ITermController(current);
+        strategyState.currTermController = newTermController;
     }
 
     /**
@@ -195,10 +202,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
         require(address(newDiscountRateAdapter.currTermController()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
-            address(discountRateAdapter),
+            address(strategyState.discountRateAdapter),
             newAdapter
         );
-        discountRateAdapter = newDiscountRateAdapter;
+        strategyState.discountRateAdapter = newDiscountRateAdapter;
     }
 
     /**
@@ -209,10 +216,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 newTimeToMaturityThreshold
     ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(
-            timeToMaturityThreshold,
+            strategyState.timeToMaturityThreshold,
             newTimeToMaturityThreshold
         );
-        timeToMaturityThreshold = newTimeToMaturityThreshold;
+        strategyState.timeToMaturityThreshold = newTimeToMaturityThreshold;
     }
 
     /**
@@ -224,10 +231,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 newRequiredReserveRatio
     ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRequiredReserveRatioUpdated(
-            requiredReserveRatio,
+            strategyState.requiredReserveRatio,
             newRequiredReserveRatio
         );
-        requiredReserveRatio = newRequiredReserveRatio;
+        strategyState.requiredReserveRatio = newRequiredReserveRatio;
     }
 
     /**
@@ -238,10 +245,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 newRepoTokenConcentrationLimit
     ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
-            repoTokenConcentrationLimit,
+            strategyState.repoTokenConcentrationLimit,
             newRepoTokenConcentrationLimit
         );
-        repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
+        strategyState.repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
     }
 
     /**
@@ -252,10 +259,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 newDiscountRateMarkup
     ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
-            discountRateMarkup,
+            strategyState.discountRateMarkup,
             newDiscountRateMarkup
         );
-        discountRateMarkup = newDiscountRateMarkup;
+        strategyState.discountRateMarkup = newDiscountRateMarkup;
     }
     /**
      * @notice Set the collateral token parameters
@@ -412,9 +419,11 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             if (!isRepoTokenValid) {
                 revert RepoTokenList.InvalidRepoToken(repoToken);
             }
+
             
-            uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
-            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
+            
+            uint256 discountRate = strategyState.discountRateAdapter.getDiscountRate(repoToken);
+            uint256 repoRedemptionHaircut = strategyState.discountRateAdapter.repoRedemptionHaircut(repoToken);
             repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                 repoToken,
                 amount,
@@ -425,7 +434,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 repoTokenAmountInBaseAssetPrecision,
                 PURCHASE_TOKEN_PRECISION,
                 redemptionTimestamp,
-                discountRate + discountRateMarkup
+                discountRate + strategyState.discountRateMarkup
             );
         }
 
@@ -472,7 +481,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
                 repoToken,
                 amount,
                 PURCHASE_TOKEN_PRECISION,
-                discountRateAdapter.repoRedemptionHaircut(repoToken)
+                strategyState.discountRateAdapter.repoRedemptionHaircut(repoToken)
             );
         return
             RepoTokenUtils.calculatePresentValue(
@@ -498,14 +507,14 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 repoTokenHoldingPV;
         if (repoTokenListData.discountRates[repoToken] != 0) {
             address tokenTermController;
-            if (currTermController.isTermDeployed(repoToken)){
-                tokenTermController = address(currTermController);
-            } else if (prevTermController.isTermDeployed(repoToken)){
-                tokenTermController = address(prevTermController);
+            if (strategyState.currTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(strategyState.currTermController);
+            } else if (strategyState.prevTermController.isTermDeployed(repoToken)){
+                tokenTermController = address(strategyState.prevTermController);
             }
             repoTokenHoldingPV = calculateRepoTokenPresentValue(
                 repoToken,
-                discountRateAdapter.getDiscountRate(tokenTermController, repoToken),
+                strategyState.discountRateAdapter.getDiscountRate(tokenTermController, repoToken),
                 ITermRepoToken(repoToken).balanceOf(address(this))
             );
         } 
@@ -513,10 +522,10 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             repoTokenHoldingPV +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
-                prevTermController,
-                currTermController,
+                strategyState.prevTermController,
+                strategyState.currTermController,
                 repoToken
             );
     }
@@ -566,17 +575,20 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * and the present value of all pending offers to calculate the total asset value.
      */
     function _totalAssetValue(uint256 liquidBalance) internal view returns (uint256 totalValue) {
+        ITermController prevTermController = strategyState.prevTermController;
+        ITermController currTermController = strategyState.currTermController;
+        
         return
             liquidBalance +
             repoTokenListData.getPresentValue(
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
                 prevTermController,
                 currTermController
             ) +
             termAuctionListData.getPresentValue(
                 repoTokenListData,
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 PURCHASE_TOKEN_PRECISION,
                 prevTermController,
                 currTermController,
@@ -646,7 +658,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         );
 
         // Check if the repoToken concentration exceeds the predefined limit
-        if (repoTokenConcentration > repoTokenConcentrationLimit) {
+        if (repoTokenConcentration > strategyState.repoTokenConcentrationLimit) {
             revert RepoTokenConcentrationTooHigh(repoToken);
         }
     }
@@ -680,7 +692,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             uint256 cumulativeRepoTokenAmount,
             bool foundInRepoTokenList
         ) = repoTokenListData.getCumulativeRepoTokenData(
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
@@ -696,7 +708,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             bool foundInOfferList
         ) = termAuctionListData.getCumulativeOfferData(
                 repoTokenListData,
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 repoToken,
                 repoTokenAmount,
                 PURCHASE_TOKEN_PRECISION
@@ -711,7 +723,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             !foundInOfferList &&
             repoToken != address(0)
         ) {
-            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(repoToken);
+            uint256 repoRedemptionHaircut = strategyState.discountRateAdapter.repoRedemptionHaircut(repoToken);
             uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
                 .getNormalizedRepoTokenAmount(
                     repoToken,
@@ -749,6 +761,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * It handles cases where either controller might be unset (address(0)).
      */
     function _isTermDeployed(address termContract) private view returns (bool) {
+        ITermController currTermController = strategyState.currTermController;
+        ITermController prevTermController = strategyState.prevTermController;
         if (address(currTermController) != address(0) && currTermController.isTermDeployed(termContract)) {
             return true;
         }
@@ -768,7 +782,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function _redeemRepoTokens(uint256 liquidAmountRequired) private {
         // Remove completed auction offers
-        termAuctionListData.removeCompleted(repoTokenListData, discountRateAdapter, address(asset));
+        termAuctionListData.removeCompleted(repoTokenListData, strategyState.discountRateAdapter, address(asset));
 
         // Remove and redeem matured repoTokens
         repoTokenListData.removeAndRedeemMaturedTokens();
@@ -909,7 +923,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 liquidReserveRatio = liquidBalance * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
 
         // Check that new offer does not violate reserve ratio constraint
-        if (liquidReserveRatio < requiredReserveRatio) {
+        if (liquidReserveRatio < strategyState.requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -922,7 +936,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         );
 
         // Check if the resulting weighted time to maturity exceeds the threshold
-        if (resultingWeightedTimeToMaturity > timeToMaturityThreshold) {
+        if (resultingWeightedTimeToMaturity > strategyState.timeToMaturityThreshold) {
             revert TimeToMaturityAboveThreshold();
         }
 
@@ -1037,7 +1051,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         // Update the term auction list data and remove completed offers
         termAuctionListData.removeCompleted(
             repoTokenListData,
-            discountRateAdapter,
+            strategyState.discountRateAdapter,
             address(asset)
         );
 
@@ -1077,7 +1091,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         (bool isRepoTokenValid , , uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
-                discountRateAdapter,
+                strategyState.discountRateAdapter,
                 address(asset)
             );
 
@@ -1094,14 +1108,14 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         uint256 totalAssetValue = _totalAssetValue(liquidBalance);
         require(totalAssetValue > 0);
 
-        uint256 discountRate = discountRateAdapter.getDiscountRate(repoToken);
+        uint256 discountRate = strategyState.discountRateAdapter.getDiscountRate(repoToken);
 
         // Calculate the repoToken amount in base asset precision        
         uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
             repoToken,
             repoTokenAmount,
             PURCHASE_TOKEN_PRECISION,
-            discountRateAdapter.repoRedemptionHaircut(repoToken)
+            strategyState.discountRateAdapter.repoRedemptionHaircut(repoToken)
         );
 
         // Calculate the proceeds from selling the repoToken            
@@ -1109,7 +1123,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             repoTokenAmountInBaseAssetPrecision,
             PURCHASE_TOKEN_PRECISION,
             redemptionTimestamp,
-            discountRate + discountRateMarkup
+            discountRate + strategyState.discountRateMarkup
         );
 
         // Ensure the liquid balance is sufficient to cover the proceeds
@@ -1123,13 +1137,13 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             repoTokenAmount,
             liquidBalance - proceeds
         );
-        if (resultingTimeToMaturity > timeToMaturityThreshold) {
+        if (resultingTimeToMaturity > strategyState.timeToMaturityThreshold) {
             revert TimeToMaturityAboveThreshold();
         }
 
         // Ensure the remaining liquid balance is above the liquidity threshold
         uint256 newLiquidReserveRatio = ( liquidBalance - proceeds ) * 1e18 / totalAssetValue; // NOTE: we require totalAssetValue > 0 above
-        if (newLiquidReserveRatio < requiredReserveRatio) {
+        if (newLiquidReserveRatio < strategyState.requiredReserveRatio) {
             revert BalanceBelowRequiredReserveRatio();
         }
 
@@ -1168,28 +1182,19 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         TERM_VAULT_EVENT_EMITTER = ITermVaultEvents(_params._eventEmitter);
         PURCHASE_TOKEN_PRECISION = 10 ** ERC20(asset).decimals();
 
-        discountRateAdapter = ITermDiscountRateAdapter(_params._discountRateAdapter);
-
         IERC20(_params._asset).safeApprove(_params._yearnVault, type(uint256).max);
-
-        currTermController = ITermController(_params._termController);
-        
-        timeToMaturityThreshold = _params._timeToMaturityThreshold;
-        requiredReserveRatio = _params._requiredReserveRatio;
-        discountRateMarkup = _params._discountRateMarkup; 
-        repoTokenConcentrationLimit = _params._repoTokenConcentrationLimit;
 
         strategyState = StrategyState({
             assetVault: address(YEARN_VAULT),
             eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
             governorAddress: _params._governorAddress,
-            prevTermController: address(0),
-            currTermController: address(currTermController),
-            discountRateAdapter: address(discountRateAdapter),
-            timeToMaturityThreshold: timeToMaturityThreshold,
-            requiredReserveRatio: requiredReserveRatio,
-            discountRateMarkup: discountRateMarkup,
-            repoTokenConcentrationLimit: repoTokenConcentrationLimit
+            prevTermController: ITermController(address(0)),
+            currTermController: ITermController(_params._termController),
+            discountRateAdapter: ITermDiscountRateAdapter(_params._discountRateAdapter),
+            timeToMaturityThreshold: _params._timeToMaturityThreshold,
+            requiredReserveRatio: _params._requiredReserveRatio,
+            discountRateMarkup: _params._discountRateMarkup,
+            repoTokenConcentrationLimit: _params._repoTokenConcentrationLimit
         });
 
         _grantRole(GOVERNOR_ROLE, _params._governorAddress);
