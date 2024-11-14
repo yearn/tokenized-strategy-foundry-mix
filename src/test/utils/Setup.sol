@@ -41,7 +41,7 @@ contract Setup is ExtendedTest, IEvents {
     address public user = address(10);
     address public keeper = address(4);
     address public management = address(1);
-    address public governor = address(2);
+    address public operator = address(2);
     address public performanceFeeRecipient = address(3);
     address public adminWallet = address(111);
     address public devopsWallet = address(222);
@@ -105,7 +105,7 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(address(mockFactory), "mockFactory");
         vm.label(address(asset), "asset");
         vm.label(management, "management");
-        vm.label(governor, "governor");
+        vm.label(operator, "operator");
         vm.label(address(strategy), "strategy");
         vm.label(performanceFeeRecipient, "performanceFeeRecipient");
     }
@@ -117,7 +117,7 @@ contract Setup is ExtendedTest, IEvents {
             address(mockYearnVault), 
             address(discountRateAdapter),
             address(termVaultEventEmitter),
-            governor,
+            operator,
             address(termController)
         );
         vm.prank(adminWallet);
@@ -133,19 +133,19 @@ contract Setup is ExtendedTest, IEvents {
         vm.prank(management);
         _strategy.acceptManagement();
 
-        vm.prank(governor);
+        vm.prank(management);
         _strategy.setTermController(address(termController));
 
         return address(_strategy);
     }
 
-    function constructStrategy(address asset, address mockYearnVault, address discountRateAdapter, address termVaultEventEmitter, address governor, address termController) internal returns (IStrategyInterface) {
+    function constructStrategy(address asset, address mockYearnVault, address discountRateAdapter, address termVaultEventEmitter, address operator, address termController) internal returns (IStrategyInterface) {
         Strategy.StrategyParams memory params = Strategy.StrategyParams(
             asset,
             mockYearnVault,
             discountRateAdapter,
             termVaultEventEmitter,
-            governor,
+            operator,
             termController,
             0.1e18,
             45 days,
@@ -209,10 +209,10 @@ contract Setup is ExtendedTest, IEvents {
         address gov = mockFactory.governance();
 
         // Need to make sure there is a protocol fee recipient to set the fee.
-        vm.prank(gov);
+        vm.prank(management);
         mockFactory.setRecipient(gov);
 
-        vm.prank(gov);
+        vm.prank(management);
         mockFactory.setFee(_protocolFee);
 
         vm.prank(management);

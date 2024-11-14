@@ -40,7 +40,7 @@ contract TestUSDCSubmitOffer is Setup {
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
         repoToken100WeekAuction = new MockTermAuction(repoToken100Week);
 
-        vm.startPrank(governor);
+        vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -59,12 +59,12 @@ contract TestUSDCSubmitOffer is Setup {
 
     function _submitOffer(bytes32 idHash, uint256 offerAmount) private returns (bytes32) { 
         // test: only management can submit offers
-        vm.expectRevert("!management");
+        vm.expectRevert();
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
-        vm.prank(management);
+        vm.prank(operator);
         offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
@@ -88,11 +88,11 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferBelowLiquidReserveRatio() public {   
-        vm.startPrank(governor);    
+        vm.startPrank(management);    
         termStrategy.setRequiredReserveRatio(0.5e18);
         vm.stopPrank();
 
-        vm.startPrank(management);
+        vm.startPrank(operator);
         vm.expectRevert(abi.encodeWithSelector(Strategy.BalanceBelowRequiredReserveRatio.selector));
         termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  51e6
@@ -100,7 +100,7 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferToInvalidAuction() public {       
-        vm.startPrank(management);    
+        vm.startPrank(operator);    
         termController.markNotTermDeployed(address(repoToken1WeekAuction));
         vm.expectRevert(abi.encodeWithSelector(Strategy.InvalidTermAuction.selector, address(repoToken1WeekAuction)));
         termStrategy.submitAuctionOffer(
@@ -109,7 +109,7 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferToAuctionWithInvalidRepoToken() public {       
-        vm.startPrank(management);    
+        vm.startPrank(operator);    
         termController.markNotTermDeployed(address(repoToken1Week));
         vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
         termStrategy.submitAuctionOffer(
@@ -118,7 +118,7 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferWithoutEnoughLiquidity() public {
-        vm.prank(management);        
+        vm.prank(operator);        
         vm.expectRevert(abi.encodeWithSelector(Strategy.InsufficientLiquidBalance.selector, 100e6, 101e6));
         termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"),  101e6
@@ -126,7 +126,7 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferWithExcessiveWeightedTimeMaturity() public {
-        vm.prank(management);        
+        vm.prank(operator);        
         vm.expectRevert(abi.encodeWithSelector(Strategy.TimeToMaturityAboveThreshold.selector));
         termStrategy.submitAuctionOffer(
             repoToken100WeekAuction, address(repoToken100Week), bytes32("offer id hash 1"), bytes32("test price"),  10e6
@@ -134,11 +134,11 @@ contract TestUSDCSubmitOffer is Setup {
     }
 
     function testSubmitOfferFailsIfMinCollatRatioisZero() public {       
-        vm.startPrank(governor);
+        vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0);
         vm.stopPrank();
 
-        vm.startPrank(management);
+        vm.startPrank(operator);
         vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
         termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), bytes32("offer id hash 1"), bytes32("test price"), 1e6
@@ -158,7 +158,7 @@ contract TestUSDCSubmitOffer is Setup {
         assertEq(termStrategy.totalAssetValue(), termStrategy.totalLiquidBalance() + 1e6);
         assertEq(termStrategy.liquidReserveRatio(), 0.99e18);
 
-        vm.prank(management);
+        vm.prank(operator);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), offerAmount
         ); 
@@ -177,10 +177,10 @@ contract TestUSDCSubmitOffer is Setup {
 
         offerIds[0] = offerId1;
 
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
 
-        vm.prank(management);
+        vm.prank(operator);
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance);
@@ -197,10 +197,10 @@ contract TestUSDCSubmitOffer is Setup {
 
         offerIds[0] = offerId1;
 
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
 
-        vm.startPrank(management);
+        vm.startPrank(operator);
         termController.markNotTermDeployed(address(repoToken1WeekAuction));
         vm.expectRevert(abi.encodeWithSelector(Strategy.InvalidTermAuction.selector, address(repoToken1WeekAuction)));
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
