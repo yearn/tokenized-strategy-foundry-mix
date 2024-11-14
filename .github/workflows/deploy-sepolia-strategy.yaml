@@ -10,8 +10,8 @@ on:
         description: 'Yearn strategy name'
         required: true
         default: '0x'
-      operatorRoleAddress:
-        description: 'Operator role address'
+      governorRoleAddress:
+        description: 'Governor role address'
         required: true
         default: '0x'
       strategyManagementAddress:
@@ -66,7 +66,7 @@ jobs:
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
-          OPERATOR_ROLE_ADDRESS: ${{ github.event.inputs.operatorRoleAddress }}
+          GOVERNOR_ROLE_ADDRESS: ${{ github.event.inputs.governorRoleAddress }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
           NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
   
