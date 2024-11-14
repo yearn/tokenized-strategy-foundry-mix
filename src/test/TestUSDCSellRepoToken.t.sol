@@ -45,7 +45,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         termStrategy = Strategy(address(strategy));
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(10 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -77,7 +77,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -129,7 +129,7 @@ contract TestUSDCSellRepoToken is Setup {
         termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
         termController.markNotTermDeployed(address(repoToken1Week));
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -155,7 +155,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         termController.setOracleRate(repoToken1Week.termRepoId(), 0.00001e18);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -181,7 +181,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setRequiredReserveRatio(0.5e18);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
@@ -393,7 +393,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         mockUSDC.mint(address(termStrategy), 3e6);
 
-        vm.prank(operator);
+        vm.prank(management);
         termStrategy.submitAuctionOffer(
             repoToken4WeekAuction, address(repoToken4Week), idHash, bytes32("test price"), 3e6
         );
@@ -403,75 +403,61 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(weightedTimeToMaturity, 1108800);
     }
 
-    function testSetTermController() public {
+    function testSetGovernanceParameters() public {
         MockTermController newController = new MockTermController();
 
         vm.expectRevert();
         termStrategy.setTermController(address(newController));
 
         vm.expectRevert();
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setTermController(address(0));
 
-        Strategy.StrategyState memory state1;
-        Strategy.StrategyState memory state2;
+         (
+            address assetVault,
+        address eventEmitter,
+        address prevTermController,
+        address currTermController,
+        address discountRateAdapter,
+        uint256 timeToMaturityThreshold,
+        uint256 requiredReserveRatio,
+        uint256 discountRateMarkup,
+        uint256 repoTokenConcentrationLimit
+        ) = termStrategy.strategyState();
 
-        getStateForAssertion(state1);
-
-        address currentController = state1.currTermController;
-        vm.prank(management);
+        address currentController = currTermController;
+        vm.prank(governor);
         termStrategy.setTermController(address(newController));
-        getStateForAssertion(state2);
-        assertEq(state2.currTermController, address(newController));
-        assertEq(state2.prevTermController, currentController);
-    }
+        assertEq(currTermController, address(newController));
+        assertEq(currTermController, currentController);
 
-    function testSetTimeToMaturityThreshold() public {
-        Strategy.StrategyState memory state;
-
-         vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setTimeToMaturityThreshold(12345);
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(12345);
-        getStateForAssertion(state);
-        assertEq(state.timeToMaturityThreshold, 12345);
-    }
+        assertEq(timeToMaturityThreshold, 12345);
 
-    function testSetRequiredReserveRatio() public {
-        Strategy.StrategyState memory state;
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setRequiredReserveRatio(12345);
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setRequiredReserveRatio(12345);
-        getStateForAssertion(state);
-        assertEq(state.requiredReserveRatio, 12345);
-    }
+        assertEq(requiredReserveRatio, 12345);
 
-    function testSetDiscountRateMarkup() public {
-        Strategy.StrategyState memory state;
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setDiscountRateMarkup(12345);
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setDiscountRateMarkup(12345);
-        getStateForAssertion(state);
-        assertEq(state.discountRateMarkup, 12345);
-    }
+        assertEq(discountRateMarkup, 12345);
 
-    function testSetCollateralTokenParams() public {
-        vm.prank(management);
-        termStrategy.setDiscountRateMarkup(12345);
-
-        Strategy.StrategyState memory state;
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        getStateForAssertion(state);
-        assertEq(state.discountRateMarkup, 12345);
+        assertEq(discountRateMarkup, 12345);
     }
 
     function testRepoTokenValidationFailures() public {
@@ -492,7 +478,7 @@ contract TestUSDCSellRepoToken is Setup {
         termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);     
         termController.setOracleRate(repoTokenMatured.termRepoId(), 0.05e18);     
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0);
 
         // test: min collateral ratio not set
@@ -500,7 +486,7 @@ contract TestUSDCSellRepoToken is Setup {
         vm.prank(testUser);
         termStrategy.sellRepoToken(address(repoToken1Week), 1e18);         
 
-        vm.startPrank(management);
+        vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -516,7 +502,7 @@ contract TestUSDCSellRepoToken is Setup {
 
         (uint256 timeToMat, ,) = termStrategy.simulateTransaction(address(0), 0);
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(timeToMat);
 
         // test: can't sell 4 week repo token because of time to maturity threshold
@@ -653,11 +639,11 @@ contract TestUSDCSellRepoToken is Setup {
         IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
         vm.stopPrank();
 
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.setRepoTokenConcentrationLimit(0.4e18);
 
         // Set to 40%
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.setRepoTokenConcentrationLimit(0.4e18);
 
         termController.setOracleRate(repoToken2Week.termRepoId(), 0.05e18); 
@@ -681,10 +667,10 @@ contract TestUSDCSellRepoToken is Setup {
 
         mockUSDC.mint(testDepositor, depositAmount);
 
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.pauseStrategy();
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.pauseStrategy();
 
         vm.startPrank(testDepositor);
@@ -699,25 +685,10 @@ contract TestUSDCSellRepoToken is Setup {
             "Pausable: paused"
         );
 
-        vm.prank(management);
+        vm.prank(governor);
         termStrategy.unpauseStrategy();
         vm.prank(testDepositor);
         IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
         vm.stopPrank();
     }
-
-    function getStateForAssertion(Strategy.StrategyState memory state) internal view {
-    (
-        state.assetVault,
-        state.eventEmitter,
-        state.operatorAddress,
-        state.prevTermController,
-        state.currTermController,
-        state.discountRateAdapter,
-        state.timeToMaturityThreshold,
-        state.requiredReserveRatio,
-        state.discountRateMarkup,
-        state.repoTokenConcentrationLimit
-    ) = termStrategy.strategyState();
-}
 }

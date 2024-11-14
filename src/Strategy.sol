@@ -45,7 +45,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * @param _yearnVault The address of the Yearn vault
      * @param _discountRateAdapter The address of the discount rate adapter
      * @param _eventEmitter The address of the event emitter
-     * @param _operatorAddress The address of the operator
+     * @param _governorAddress The address of the governor
      * @param _termController The address of the term controller
      * @param _repoTokenConcentrationLimit The concentration limit for repoTokens
      * @param _timeToMaturityThreshold The time to maturity threshold
@@ -57,7 +57,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         address _yearnVault;
         address _discountRateAdapter;
         address _eventEmitter;
-        address _operatorAddress;
+        address _governorAddress;
         address _termController;
         uint256 _repoTokenConcentrationLimit;
         uint256 _timeToMaturityThreshold;
@@ -68,7 +68,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     struct StrategyState {
         address assetVault;
         address eventEmitter;
-        address operatorAddress;
         address prevTermController;
         address currTermController;
         address discountRateAdapter;
@@ -90,7 +89,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     error ZeroPurchaseTokenAmount();
     error OfferNotFound();
 
-    bytes32 internal constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+    bytes32 internal constant GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
     // Immutable state variables
     ITermVaultEvents internal immutable TERM_VAULT_EVENT_EMITTER;
@@ -128,7 +127,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     /**
      * @notice Pause the contract
      */
-    function pauseDeposit() external onlyManagement {
+    function pauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = true;
         TERM_VAULT_EVENT_EMITTER.emitDepositPaused();
     }
@@ -136,7 +135,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     /**
      * @notice Unpause the contract
      */
-    function unpauseDeposit() external onlyManagement {
+    function unpauseDeposit() external onlyRole(GOVERNOR_ROLE) {
         depositLock = false;
         TERM_VAULT_EVENT_EMITTER.emitDepositUnpaused();
     }
@@ -144,7 +143,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     /**
      * @notice Pause the contract
      */
-    function pauseStrategy() external onlyManagement {
+    function pauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _pause();
         depositLock = true;
         TERM_VAULT_EVENT_EMITTER.emitStrategyPaused();
@@ -153,7 +152,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     /**
      * @notice Unpause the contract
      */
-    function unpauseStrategy() external onlyManagement {
+    function unpauseStrategy() external onlyRole(GOVERNOR_ROLE) {
         _unpause();
         depositLock = false;
         TERM_VAULT_EVENT_EMITTER.emitStrategyUnpaused();
@@ -165,7 +164,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function setTermController(
         address newTermControllerAddr
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         require(newTermControllerAddr != address(0));
         require(ITermController(newTermControllerAddr).getProtocolReserveAddress() != address(0));
         ITermController newTermController = ITermController(newTermControllerAddr);
@@ -183,8 +182,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         );
         prevTermController = ITermController(current);
         currTermController = newTermController;
-        strategyState.prevTermController = current;
-        strategyState.currTermController = newTermControllerAddr;
     }
 
     /**
@@ -193,7 +190,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function setDiscountRateAdapter(
         address newAdapter
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         ITermDiscountRateAdapter newDiscountRateAdapter = ITermDiscountRateAdapter(newAdapter);
         require(address(newDiscountRateAdapter.currTermController()) != address(0));
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateAdapterUpdated(
@@ -201,7 +198,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             newAdapter
         );
         discountRateAdapter = newDiscountRateAdapter;
-        strategyState.discountRateAdapter = newAdapter;
     }
 
     /**
@@ -210,13 +206,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function setTimeToMaturityThreshold(
         uint256 newTimeToMaturityThreshold
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitTimeToMaturityThresholdUpdated(
             timeToMaturityThreshold,
             newTimeToMaturityThreshold
         );
         timeToMaturityThreshold = newTimeToMaturityThreshold;
-        strategyState.timeToMaturityThreshold = newTimeToMaturityThreshold;
     }
 
     /**
@@ -226,13 +221,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     */
     function setRequiredReserveRatio(
         uint256 newRequiredReserveRatio
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRequiredReserveRatioUpdated(
             requiredReserveRatio,
             newRequiredReserveRatio
         );
         requiredReserveRatio = newRequiredReserveRatio;
-        strategyState.requiredReserveRatio = newRequiredReserveRatio;
     }
 
     /**
@@ -241,13 +235,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function setRepoTokenConcentrationLimit(
         uint256 newRepoTokenConcentrationLimit
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenConcentrationLimitUpdated(
             repoTokenConcentrationLimit,
             newRepoTokenConcentrationLimit
         );
         repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
-        strategyState.repoTokenConcentrationLimit = newRepoTokenConcentrationLimit;
     }
 
     /**
@@ -256,13 +249,12 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function setDiscountRateMarkup(
         uint256 newDiscountRateMarkup
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitDiscountRateMarkupUpdated(
             discountRateMarkup,
             newDiscountRateMarkup
         );
         discountRateMarkup = newDiscountRateMarkup;
-        strategyState.discountRateMarkup = newDiscountRateMarkup;
     }
     /**
      * @notice Set the collateral token parameters
@@ -272,7 +264,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function setCollateralTokenParams(
         address tokenAddr,
         uint256 minCollateralRatio
-    ) external onlyManagement {
+    ) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitMinCollateralRatioUpdated(
             tokenAddr,
             minCollateralRatio
@@ -280,7 +272,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         repoTokenListData.collateralTokenParams[tokenAddr] = minCollateralRatio;
     }
 
-    function setRepoTokenBlacklist(address repoToken, bool blacklisted) external onlyManagement {
+    function setRepoTokenBlacklist(address repoToken, bool blacklisted) external onlyRole(GOVERNOR_ROLE) {
         TERM_VAULT_EVENT_EMITTER.emitRepoTokenBlacklistUpdated(repoToken, blacklisted);
         repoTokenBlacklist[repoToken] = blacklisted;
     }
@@ -871,7 +863,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         external
         whenNotPaused
         notBlacklisted(repoToken)
-        onlyRole(OPERATOR_ROLE)
+        onlyManagement
         returns (bytes32[] memory offerIds)
     {
         if(purchaseTokenAmount == 0) {
@@ -1026,7 +1018,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     function deleteAuctionOffers(
         address termAuction,
         bytes32[] calldata offerIds
-    ) external onlyRole(OPERATOR_ROLE) {
+    ) external onlyManagement {
         // Validate if the term auction is deployed by term
         if (!_isTermDeployed(termAuction)) {
             revert InvalidTermAuction(termAuction);
@@ -1189,7 +1181,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         strategyState = StrategyState({
             assetVault: address(YEARN_VAULT),
             eventEmitter: address(TERM_VAULT_EVENT_EMITTER),
-            operatorAddress: _params._operatorAddress,
             prevTermController: address(0),
             currTermController: address(currTermController),
             discountRateAdapter: address(discountRateAdapter),
@@ -1199,7 +1190,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             repoTokenConcentrationLimit: repoTokenConcentrationLimit
         });
 
-        _grantRole(OPERATOR_ROLE, _params._operatorAddress);
+        _grantRole(GOVERNOR_ROLE, _params._governorAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
