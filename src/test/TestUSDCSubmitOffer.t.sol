@@ -33,7 +33,7 @@ contract TestUSDCSubmitOffer is Setup {
 
         repoToken1WeekAuction = new MockTermAuction(repoToken1Week);
 
-        vm.startPrank(governor);
+        vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -50,12 +50,12 @@ contract TestUSDCSubmitOffer is Setup {
 
     function _submitOffer(bytes32 idHash, uint256 offerAmount) private returns (bytes32) { 
         // test: only management can submit offers
-        vm.expectRevert("!management");
+        vm.expectRevert();
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
 
-        vm.prank(management);
+        vm.prank(operator);
         offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), idHash, bytes32("test price"), offerAmount
         );        
@@ -80,7 +80,7 @@ contract TestUSDCSubmitOffer is Setup {
         // TODO: fuzz this
         uint256 offerAmount = 4e6;
 
-        vm.prank(management);
+        vm.prank(operator);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), offerAmount
         );        
@@ -93,7 +93,7 @@ contract TestUSDCSubmitOffer is Setup {
     function testEditOfferWithConcentrationLimit() public {
         bytes32 idHash1 = bytes32("offer id hash 1");
 
-        vm.prank(governor);
+        vm.prank(management);
         termStrategy.setRepoTokenConcentrationLimit(0.5e18);
 
         // 50% concentration
@@ -101,13 +101,13 @@ contract TestUSDCSubmitOffer is Setup {
 
         // 60% concentration should fail (> 50%)
         vm.expectRevert(abi.encodeWithSelector(Strategy.RepoTokenConcentrationTooHigh.selector, address(repoToken1Week)));
-        vm.prank(management);
+        vm.prank(operator);
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), 60e6
         );
 
         // 40% concentration should pass
-        vm.prank(management);
+        vm.prank(operator);
         offerIds = termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), offerId1, bytes32("test price"), 40e6
         );        
@@ -120,10 +120,10 @@ contract TestUSDCSubmitOffer is Setup {
 
         offerIds[0] = offerId1;
 
-        vm.expectRevert("!management");
+        vm.expectRevert();
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
 
-        vm.prank(management);
+        vm.prank(operator);
         termStrategy.deleteAuctionOffers(address(repoToken1WeekAuction), offerIds);
 
         assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance);

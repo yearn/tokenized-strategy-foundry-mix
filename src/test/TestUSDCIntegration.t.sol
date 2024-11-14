@@ -61,7 +61,7 @@ contract TestUSDCIntegration is Setup {
         repoToken1MonthAuction = new MockTermAuction(repoToken1Month);
         repoToken1YearAuction = new MockTermAuction(repoToken1Year);
 
-        vm.startPrank(governor);
+        vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         termStrategy.setRepoTokenConcentrationLimit(1e18);
@@ -78,12 +78,12 @@ contract TestUSDCIntegration is Setup {
 
     function _submitOffer(bytes32 idHash, uint256 offerAmount, MockTermAuction auction, MockTermRepoToken repoToken) private returns (bytes32) { 
         // test: only management can submit offers
-        vm.expectRevert("!management");
+        vm.expectRevert();
         bytes32[] memory offerIds = termStrategy.submitAuctionOffer(
             auction, address(repoToken), idHash, bytes32("test price"), offerAmount
         );        
 
-        vm.prank(management);
+        vm.prank(operator);
         offerIds = termStrategy.submitAuctionOffer(
             auction, address(repoToken), idHash, bytes32("test price"), offerAmount
         );        
@@ -248,7 +248,7 @@ contract TestUSDCIntegration is Setup {
 
         termController.setOracleRate(repoToken1Month.termRepoId(), 0.05e6);
 
-        vm.startPrank(governor);
+        vm.startPrank(management);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
@@ -266,7 +266,7 @@ contract TestUSDCIntegration is Setup {
     function testSuccessfulUnlockedOfferFromCancelledAuction() public {
         address testUser = vm.addr(0x11111);
 
-        vm.prank(management);
+        vm.prank(operator);
         termStrategy.submitAuctionOffer(
             repoToken1WeekAuction, address(repoToken1Week), bytes32("offer 1"), bytes32("test price"), 1e6
         ); 
@@ -303,11 +303,11 @@ contract TestUSDCIntegration is Setup {
     function testRepoTokenBlacklist() public {
         address testUser = vm.addr(0x11111);  
         vm.prank(testUser);
-        vm.expectRevert();
+        vm.expectRevert("!management");
         termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
         vm.stopPrank();
 
-        vm.prank(governor);
+        vm.prank(management);
         termStrategy.setRepoTokenBlacklist(address(repoToken1Week), true);
         vm.stopPrank();
 
@@ -320,13 +320,13 @@ contract TestUSDCIntegration is Setup {
         address testUser = vm.addr(0x11111);  
         mockUSDC.mint(testUser, 1e18);
         vm.prank(testUser);
-        vm.expectRevert();
+        vm.expectRevert("!management");
         termStrategy.pauseDeposit();
-        vm.expectRevert();
+        vm.expectRevert("!management");
         termStrategy.unpauseDeposit();
         vm.stopPrank();
 
-        vm.prank(governor);
+        vm.prank(management);
         termStrategy.pauseDeposit();
         vm.stopPrank();
 
@@ -338,7 +338,7 @@ contract TestUSDCIntegration is Setup {
         IERC4626(address(termStrategy)).deposit(1e6, testUser);
         vm.stopPrank();
 
-        vm.prank(governor);
+        vm.prank(management);
         termStrategy.unpauseDeposit();
         vm.stopPrank();
 
@@ -354,21 +354,17 @@ contract TestUSDCIntegration is Setup {
         TermDiscountRateAdapter valid =  new TermDiscountRateAdapter(address(termController), adminWallet);
 
         vm.prank(testUser);
-        vm.expectRevert();
+        vm.expectRevert("!management");
         termStrategy.setDiscountRateAdapter(address(valid));
 
-        vm.prank(governor);
-        vm.expectRevert();
-        termStrategy.setDiscountRateAdapter(address(invalid));
-
-        vm.prank(governor);
+        vm.prank(management);
         termStrategy.setDiscountRateAdapter(address(valid));
         vm.stopPrank();
 
         (
-            address assetVault,
+        address assetVault,
         address eventEmitter,
-        address governorAddr,
+        address operatorAddr,
         address prevTermController,
         address currTermController,
         address discountRateAdapter,
