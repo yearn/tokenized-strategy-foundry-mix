@@ -18,7 +18,8 @@ jobs:
       - name: Run non-Kontrol tests
         run: |
           forge test --no-match-path "src/test/kontrol/*" -vvv
-      - run: forge snapshot
+      - name: Run snapshot without Kontrol tests
+        run: forge snapshot --no-match-path "src/test/kontrol/*"
   formal-verification:
     runs-on: ubuntu-latest
     needs: test
