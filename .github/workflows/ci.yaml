@@ -86,12 +86,26 @@ jobs:
           echo "Checking for krun..."
           find . -name krun
           ls -l $(find . -name krun | head -n 1) || echo "krun not found"
+      - name: Verify Directory Structure
+        run: |
+          echo "Checking for k-util.sh..."
+          find . -name k-util.sh || echo "k-util.sh not found"
+          ls -l ./kframework/k-distribution/src/main/lib/kframework || echo "Directory not found"
+      - name: Build Missing K Framework Components
+        run: |
+          cd kframework
+          make || echo "Make failed"
       - name: Run Formal Verification with KEVM
         run: |
           echo "Running formal verification..."
           KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
+          K_LIB_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
           export PATH=$KRUN_PATH:$PATH
+          export K_LIB_PATH
           echo "Updated PATH: $PATH"
+          echo "Library Path: $K_LIB_PATH"
           which krun || { echo "krun not found in PATH"; exit 1; }
-          krun verification.k || { echo "Formal verification failed"; exit 1; }
+          KRUN_SCRIPT=$(find . -name krun | head -n 1)
+          bash $KRUN_SCRIPT verification.k || { echo "Formal verification failed"; exit 1; }
+
 
