@@ -42,17 +42,6 @@ jobs:
             . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
           fi
           nix --version || { echo "Nix installation failed"; exit 1; }
-      - name: Install kup
-        run: |
-          echo "Installing kup..."
-          nix profile install github:runtimeverification/kup#kup \
-            --option extra-substituters 'https://k-framework.cachix.org' \
-            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
-            --experimental-features 'nix-command flakes'
-
-          # Add kup to PATH
-          export PATH="/nix/var/nix/profiles/per-user/$USER/profile/bin:$PATH"
-          which kup || { echo "kup not found in PATH after installation"; exit 1; }
       - name: Download K Framework
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
