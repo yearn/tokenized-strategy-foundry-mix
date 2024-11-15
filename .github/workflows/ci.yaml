@@ -68,7 +68,6 @@ jobs:
           export PATH=$PATH:$(pwd)/bin
 
           echo "Checking available Makefile targets..."
-          cd evm
           make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z_-]+:' | sed 's/:$//' || echo "No targets found in Makefile"
 
           echo "Building KEVM..."
