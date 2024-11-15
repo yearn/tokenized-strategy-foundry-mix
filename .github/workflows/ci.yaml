@@ -106,6 +106,12 @@ jobs:
           echo "Library Path: $K_LIB_PATH"
           which krun || { echo "krun not found in PATH"; exit 1; }
           KRUN_SCRIPT=$(find . -name krun | head -n 1)
+
+          # Override the environment variable for k-util.sh path
+          export K_LIB_OVERRIDE=$K_LIB_PATH
+          sed -i "s|../lib/kframework|$K_LIB_OVERRIDE|" $KRUN_SCRIPT
+
           bash $KRUN_SCRIPT verification.k || { echo "Formal verification failed"; exit 1; }
+
 
 
