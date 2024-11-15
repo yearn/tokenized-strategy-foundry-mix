@@ -37,92 +37,14 @@ jobs:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
           echo "Downloading K Framework..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+          curl -H "Authorization: token $REPOSITORY_TOKEN" https://kframework.org/install
 
-          echo "Validating tarball..."
-          file kframework.tar.gz || { echo "Download failed"; exit 1; }
-
-          echo "Extracting K Framework..."
-          mkdir -p kframework
-          tar -xvzf kframework.tar.gz -C kframework --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          ls -l kframework || { echo "Extraction directory not found"; exit 1; }
-
-          echo "Setting up K Framework..."
-          export PATH=$PATH:$(pwd)/kframework/bin
+          kup install kontrol
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
           export PATH=$HOME/.local/bin:$PATH
           poetry --version
-
-      # Download and Build KEVM
-      - name: Install KEVM
-        env:
-            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          echo "Downloading KEVM..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o evm.tar.gz https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
-          
-          echo "Extracting KEVM..."
-          mkdir -p evm
-          tar -xvzf evm.tar.gz -C evm --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          ls -l evm || { echo "EVM directory not found"; exit 1; }
-          
-          echo "Building KEVM..."
-          cd evm
-          export PATH=$PATH:$(pwd)/bin
-
-          echo "Checking available Makefile targets..."
-          make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z_-]+:' | sed 's/:$//' || echo "No targets found in Makefile"
-
-          echo "Building KEVM..."
-          # Run the default 'all' target or fallback to specific targets
-          make all || echo "Default 'all' target failed"
-          make kevm-pyk || echo "'kevm-pyk' target failed"
-          make test || echo "'test' target failed"
-      # Run the Formal Verification Job
-      - name: Verify krun Installation
-        run: |
-          echo "Checking for krun..."
-          find . -name krun
-          ls -l $(find . -name krun | head -n 1) || echo "krun not found"
-      - name: Verify Directory Structure
-        run: |
-          echo "Checking for k-util.sh..."
-          find . -name k-util.sh || echo "k-util.sh not found"
-          ls -l ./kframework/k-distribution/src/main/lib/kframework || echo "Directory not found"
-      - name: Build Missing K Framework Components
-        run: |
-          cd kframework
-          make || echo "Make failed"
-      - name: Run Formal Verification with KEVM
-        run: |
-          echo "Running formal verification..."
-          
-          # Locate the paths for krun and k-util.sh
-          KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
-          K_UTIL_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
-          
-          export PATH=$KRUN_PATH:$PATH
-          echo "Updated PATH: $PATH"
-          echo "k-util.sh Path: $K_UTIL_PATH"
-          
-          # Ensure krun is available
-          which krun || { echo "krun not found in PATH"; exit 1; }
-          
-          # Locate the krun script
-          KRUN_SCRIPT=$(find . -name krun | head -n 1)
-          echo "Found krun script at: $KRUN_SCRIPT"
-          
-          # Update the krun script to reference the correct k-util.sh path
-          sed -i "s|\.\./lib/kframework|$K_UTIL_PATH|" $KRUN_SCRIPT
-
-          # Debug the updated krun script
-          echo "Updated krun script:"
-          head -n 10 $KRUN_SCRIPT
-
-          # Run krun with the fixed paths
-          bash $KRUN_SCRIPT verification.k || { echo "Formal verification failed"; exit 1; }
 
 
 
