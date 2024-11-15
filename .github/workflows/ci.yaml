@@ -49,6 +49,11 @@ jobs:
 
           echo "Setting up K Framework..."
           export PATH=$PATH:$(pwd)/kframework/bin
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          export PATH=$HOME/.local/bin:$PATH
+          poetry --version
 
       # Download and Build KEVM
       - name: Install KEVM
