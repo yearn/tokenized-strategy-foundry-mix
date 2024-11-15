@@ -23,7 +23,7 @@ jobs:
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
 
-  kontrol-verification:
+  formal-verification:
     runs-on: ubuntu-latest
     needs: foundry-test
     steps:
@@ -32,16 +32,31 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: Install Kontrol
+      - name: Install K Framework and Kontrol
         run: |
-          python3 -m pip install --upgrade pip
-          pip install kontrol
+          # Install dependencies
+          sudo apt-get update
+          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex z3 libz3-dev libsecp256k1-dev
+
+          # Install K Framework via kup
+          echo "Installing K Framework..."
+          curl -sSL https://kframework.org/install | bash
+          export PATH=$PATH:$HOME/.kup/bin
+          
+          # Verify kup installation
+          echo "Verifying kup installation..."
+          which kup || { echo "kup not found"; exit 1; }
+          
+          # Install Kontrol using kup
+          echo "Installing Kontrol..."
+          kup install kontrol
+          
+          # Add Kontrol to PATH
+          echo "$HOME/.kup/bin" >> $GITHUB_PATH
+          
+          # Verify Kontrol installation
+          echo "Verifying Kontrol installation..."
+          kontrol --version || { echo "Kontrol installation failed"; exit 1; }
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -53,27 +68,41 @@ jobs:
           forge build --build-info --force
           ls -la out/
 
-      - name: Run Kontrol Verification
+      - name: Run Formal Verification with Kontrol
         run: |
           # Create results directory
           mkdir -p verification-results
+          
+          # Initialize counter for verified specs
+          verified_count=0
           
           # Run verification for each specification
           for spec in src/test/kontrol/*.k; do
             if [ -f "$spec" ]; then
               echo "Verifying $(basename "$spec")..."
               
-              kontrol prove "$spec" \
-                --contract-dir ./src/contracts \
-                --output-dir ./verification-results \
-                --verbose || {
-                  echo "Verification failed for $spec"
-                  exit 1
-                }
+              # Run Kontrol verification
+              if kontrol prove "$spec" \
+                 --contract-dir ./src/contracts \
+                 --output-dir ./verification-results \
+                 --verbose; then
+                echo "✓ Verification successful for $spec"
+                ((verified_count++))
+              else
+                echo "✗ Verification failed for $spec"
+                cat "./verification-results/$(basename "$spec" .k).out" 2>/dev/null || echo "No output file found"
+                exit 1
+              fi
             fi
           done
           
-          echo "Verification completed successfully!"
+          # Check if any specs were verified
+          if [ $verified_count -eq 0 ]; then
+            echo "No specification files found to verify"
+            exit 1
+          else
+            echo "Successfully verified $verified_count specification(s)"
+          fi
 
       - name: Upload Verification Results
         if: always()
