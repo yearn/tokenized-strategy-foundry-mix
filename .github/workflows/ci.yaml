@@ -52,9 +52,11 @@ jobs:
 
       # Download and Build KEVM
       - name: Install KEVM
+        env:
+            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
           echo "Downloading KEVM..."
-          curl -LO https://github.com/runtimeverification/evm-semantics/releases/download/v1.0/evm.tar.gz
+          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o evm.tar.gz https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
           
           echo "Extracting KEVM..."
           mkdir -p evm
