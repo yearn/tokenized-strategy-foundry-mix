@@ -35,7 +35,7 @@ jobs:
       - name: Install K Framework
         run: |
           curl -L -o kframework.tar.gz https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
-          tar -xvzf kframework
+          tar -xvzf kframework.tar.gz
           cd kframework
           export PATH=$PATH:$(pwd)/bin
       # Verify KEVM setup
