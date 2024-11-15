@@ -77,39 +77,55 @@ jobs:
           # Set absolute paths
           WORKSPACE="$GITHUB_WORKSPACE"
           K_ROOT="$WORKSPACE/kframework"
+          K_LIB_DIR="$K_ROOT/k-distribution/lib/kframework"
           
-          # Create necessary directories
-          mkdir -p "$K_ROOT/k-distribution/lib/kframework"
+          # Create directory if it doesn't exist (with -p to avoid errors if it exists)
+          mkdir -p "$K_LIB_DIR"
           
-          # Find and copy k-util.sh
+          # Find k-util.sh
           K_UTIL=$(find "$K_ROOT" -name k-util.sh | head -n 1)
           if [ -z "$K_UTIL" ]; then
             echo "Error: k-util.sh not found"
+            find "$K_ROOT" -type f -name "*k-util*" # Debug: look for similar files
             exit 1
           fi
           
-          # Copy k-util.sh to the expected location
-          cp "$K_UTIL" "$K_ROOT/k-distribution/lib/kframework/"
+          echo "Found k-util.sh at: $K_UTIL"
+          
+          # Copy k-util.sh to the expected location (use -f to force overwrite if exists)
+          cp -f "$K_UTIL" "$K_LIB_DIR/"
           
           # Find krun
           KRUN=$(find "$K_ROOT" -name krun | head -n 1)
           if [ -z "$KRUN" ]; then
             echo "Error: krun not found"
+            find "$K_ROOT" -type f -name "*krun*" # Debug: look for similar files
             exit 1
           fi
           
+          echo "Found krun at: $KRUN"
           KRUN_DIR=$(dirname "$KRUN")
           
           # Export paths
-          echo "K_BIN=$KRUN_DIR" >> $GITHUB_ENV
-          echo "K_LIB=$K_ROOT/k-distribution/lib/kframework" >> $GITHUB_ENV
-          echo "PATH=$KRUN_DIR:$PATH" >> $GITHUB_ENV
+          {
+            echo "K_BIN=$KRUN_DIR"
+            echo "K_LIB=$K_LIB_DIR"
+            echo "PATH=$KRUN_DIR:$PATH"
+          } >> $GITHUB_ENV
           
-          # Verify setup
-          echo "K Framework paths:"
+          # Debug: Show directory structure
+          echo "K Framework directory structure:"
+          echo "K_ROOT=$K_ROOT"
           echo "K_BIN=$KRUN_DIR"
-          echo "K_LIB=$K_ROOT/k-distribution/lib/kframework"
-          ls -l "$K_ROOT/k-distribution/lib/kframework"
+          echo "K_LIB=$K_LIB_DIR"
+          ls -la "$K_ROOT/k-distribution/lib" || echo "lib directory not accessible"
+          ls -la "$K_LIB_DIR" || echo "kframework directory not accessible"
+          
+          # Verify k-util.sh was copied correctly
+          if [ ! -f "$K_LIB_DIR/k-util.sh" ]; then
+            echo "Error: Failed to copy k-util.sh to $K_LIB_DIR"
+            exit 1
+          fi
 
       - name: Configure KRUN
         run: |
