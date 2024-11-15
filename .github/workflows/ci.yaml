@@ -34,13 +34,10 @@ jobs:
       # Install dependencies for K Framework
       - name: Install K Framework
         run: |
-          sudo apt update
-          sudo apt install -y openjdk-11-jdk maven curl
-          curl -LO https://github.com/runtimeverification/k/releases/download/v1.0/kframework.tar.gz
+          curl -LO https://github.com/runtimeverification/k/releases/download/v5.4.0/kframework.tar.gz
           tar -xvzf kframework.tar.gz
           cd kframework
           export PATH=$PATH:$(pwd)/bin
-
       # Verify KEVM setup
       - name: Install KEVM
         run: |
