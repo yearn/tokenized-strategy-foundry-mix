@@ -32,29 +32,42 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Install K Framework and Kontrol
+      # Download and Extract K Framework
+      - name: Download K Framework
+        env:
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          # Install dependencies
+          echo "Downloading K Framework..."
+          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz \
+            https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+
+          echo "Extracting K Framework..."
+          mkdir -p kframework
+          tar -xzf kframework.tar.gz -C kframework --strip-components=1
+
+          echo "Adding K to PATH..."
+          echo "$PWD/kframework/k-distribution/target/release/k/bin" >> $GITHUB_PATH
+
+      - name: Install Dependencies
+        run: |
           sudo apt-get update
           sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex z3 libz3-dev libsecp256k1-dev
 
-          # Install K Framework via kup
-          echo "Installing K Framework..."
-          curl -sSL https://kframework.org/install | bash
+      - name: Install Kontrol with KUP
+        env:
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+        run: |
+          # Set up kup with authentication
+          echo "Installing kup..."
+          curl -H "Authorization: token $REPOSITORY_TOKEN" -sSL https://kframework.org/install | bash
+          
+          echo "Adding kup to PATH..."
           export PATH=$PATH:$HOME/.kup/bin
-          
-          # Verify kup installation
-          echo "Verifying kup installation..."
-          which kup || { echo "kup not found"; exit 1; }
-          
-          # Install Kontrol using kup
-          echo "Installing Kontrol..."
-          kup install kontrol
-          
-          # Add Kontrol to PATH
           echo "$HOME/.kup/bin" >> $GITHUB_PATH
           
-          # Verify Kontrol installation
+          echo "Installing Kontrol..."
+          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+          
           echo "Verifying Kontrol installation..."
           kontrol --version || { echo "Kontrol installation failed"; exit 1; }
 
@@ -70,18 +83,13 @@ jobs:
 
       - name: Run Formal Verification with Kontrol
         run: |
-          # Create results directory
           mkdir -p verification-results
-          
-          # Initialize counter for verified specs
           verified_count=0
           
-          # Run verification for each specification
           for spec in src/test/kontrol/*.k; do
             if [ -f "$spec" ]; then
               echo "Verifying $(basename "$spec")..."
               
-              # Run Kontrol verification
               if kontrol prove "$spec" \
                  --contract-dir ./src/contracts \
                  --output-dir ./verification-results \
@@ -96,7 +104,6 @@ jobs:
             fi
           done
           
-          # Check if any specs were verified
           if [ $verified_count -eq 0 ]; then
             echo "No specification files found to verify"
             exit 1
