@@ -32,6 +32,27 @@ jobs:
           submodules: recursive
 
       # Download and Extract K Framework
+      - name: Check Nix Installation
+        run: |
+          if ! command -v nix &> /dev/null; then
+            echo "Installing nix..."
+            curl -L https://install.determinate.systems/nix | sh -s -- install --no-confirm \
+              --extra-conf "trusted-public-keys = cache.nixos.org-1:k-framework.cachix.org-1:k-framework-binary.cachix.org-1" \
+              --extra-conf "substituters = https://cache.nixos.org https://k-framework.cachix.org"
+            . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+          fi
+          nix --version || { echo "Nix installation failed"; exit 1; }
+      - name: Install kup
+        run: |
+          echo "Installing kup..."
+          nix profile install github:runtimeverification/kup#kup \
+            --option extra-substituters 'https://k-framework.cachix.org' \
+            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+            --experimental-features 'nix-command flakes'
+
+          # Add kup to PATH
+          export PATH="/nix/var/nix/profiles/per-user/$USER/profile/bin:$PATH"
+          which kup || { echo "kup not found in PATH after installation"; exit 1; }
       - name: Download K Framework
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
