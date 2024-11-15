@@ -23,7 +23,7 @@ jobs:
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
 
-  formal-verification:
+  kontrol-verification:
     runs-on: ubuntu-latest
     needs: foundry-test
     steps:
@@ -32,143 +32,53 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # Download and Extract K Framework
-      - name: Download K Framework
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          echo "Downloading K Framework..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz \
-            https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
-
-          echo "Validating tarball..."
-          file kframework.tar.gz || { echo "Download failed"; exit 1; }
-
-          echo "Extracting K Framework..."
-          mkdir -p kframework
-          tar -xzf kframework.tar.gz -C kframework --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          ls -l kframework || { echo "Extraction directory not found"; exit 1; }
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          version: 1.4.0
-          virtualenvs-create: true
+          python-version: '3.10'
+          cache: 'pip'
 
-      # Download and Build KEVM
-      - name: Install KEVM
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+      - name: Install Kontrol
         run: |
-          echo "Downloading KEVM..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o evm.tar.gz \
-            https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
-          
-          mkdir -p evm
-          tar -xzf evm.tar.gz -C evm --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          
-          cd evm
-          make deps || true
-          make build || true
-          make test || true
+          python3 -m pip install --upgrade pip
+          pip install kontrol
 
-      - name: Setup K Framework Environment
-        run: |
-          # Set absolute paths
-          WORKSPACE="$GITHUB_WORKSPACE"
-          K_ROOT="$WORKSPACE/kframework"
-          
-          # Find core files
-          K_UTIL=$(find "$K_ROOT" -name k-util.sh | head -n 1)
-          KRUN=$(find "$K_ROOT" -name krun | head -n 1)
-          
-          if [ -z "$K_UTIL" ] || [ -z "$KRUN" ]; then
-            echo "Error: Required files not found"
-            echo "K_UTIL: $K_UTIL"
-            echo "KRUN: $KRUN"
-            exit 1
-          fi
-          
-          # Set directories
-          K_UTIL_DIR=$(dirname "$K_UTIL")
-          KRUN_DIR=$(dirname "$KRUN")
-          
-          # Export paths
-          {
-            echo "K_BIN=$KRUN_DIR"
-            echo "K_LIB=$K_UTIL_DIR"
-            echo "PATH=$KRUN_DIR:$PATH"
-          } >> $GITHUB_ENV
-          
-          echo "Path setup complete"
-          echo "K_BIN=$KRUN_DIR"
-          echo "K_LIB=$K_UTIL_DIR"
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
 
-      - name: Debug KRUN Script
+      - name: Build Contracts
         run: |
-          KRUN_SCRIPT="$K_BIN/krun"
-          
-          echo "Original KRUN script content:"
-          cat "$KRUN_SCRIPT"
-          
-          # Create backup
-          cp "$KRUN_SCRIPT" "${KRUN_SCRIPT}.backup"
-          
-          # Clean up any DOS line endings
-          dos2unix "$KRUN_SCRIPT"
-          
-          # Fix common script issues
-          sed -i 's/\r//g' "$KRUN_SCRIPT"  # Remove any remaining CR characters
-          sed -i 's/\t/    /g' "$KRUN_SCRIPT"  # Replace tabs with spaces
-          
-          echo "Modified KRUN script:"
-          cat "$KRUN_SCRIPT"
-          
-          echo "Testing KRUN script syntax:"
-          bash -n "$KRUN_SCRIPT" || echo "Syntax check failed"
+          forge build --build-info --force
+          ls -la out/
 
-      - name: Run Formal Verification with KEVM
+      - name: Run Kontrol Verification
         run: |
+          # Create results directory
           mkdir -p verification-results
           
-          # Debug variables
-          echo "Current environment:"
-          env | grep -E 'K_|PATH'
-          
-          # Test krun directly
-          echo "Testing krun directly:"
-          "$K_BIN/krun" --version || echo "krun version check failed"
-          
-          # Process each spec file with extra debugging
+          # Run verification for each specification
           for spec in src/test/kontrol/*.k; do
             if [ -f "$spec" ]; then
-              echo "Processing spec file: $spec"
-              echo "File contents:"
-              head -n 10 "$spec"
+              echo "Verifying $(basename "$spec")..."
               
-              echo "Running verification with full command:"
-              CMD="$K_BIN/krun --directory src/test/kontrol --debug --output-file verification-results/$(basename "$spec" .k).out $spec"
-              echo "$CMD"
-              
-              if eval "$CMD"; then
-                echo "✓ Verification successful for $spec"
-              else
-                echo "✗ Verification failed for $spec"
-                echo "Error output:"
-                cat "verification-results/$(basename "$spec" .k).out" 2>/dev/null || echo "No output file generated"
-                echo "Full environment:"
-                env
-                exit 1
-              fi
+              kontrol prove "$spec" \
+                --contract-dir ./src/contracts \
+                --output-dir ./verification-results \
+                --verbose || {
+                  echo "Verification failed for $spec"
+                  exit 1
+                }
             fi
           done
+          
+          echo "Verification completed successfully!"
 
       - name: Upload Verification Results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: verification-debug
-          path: |
-            verification-results/
-            ${{ env.K_BIN }}/krun*
+          name: kontrol-verification-results
+          path: verification-results/
           retention-days: 5
