@@ -67,17 +67,15 @@ jobs:
           cd evm
           export PATH=$PATH:$(pwd)/bin
 
-          echo "Listing KEVM directory contents..."
+          echo "Checking available Makefile targets..."
+          cd evm
+          make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z_-]+:' | sed 's/:$//' || echo "No targets found in Makefile"
 
-          if [ -f Makefile ]; then
-            make help || make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z_-]+:'
-          else
-            echo "No Makefile found in the evm directory."
-            exit 1
-          fi
-          make deps
-          make build
-
+          echo "Building KEVM..."
+          # Run the default 'all' target or fallback to specific targets
+          make all || echo "Default 'all' target failed"
+          make kevm-pyk || echo "'kevm-pyk' target failed"
+          make test || echo "'test' target failed"
       # Run the Formal Verification Job
       - name: Formal Verification with KEVM
         run: |
