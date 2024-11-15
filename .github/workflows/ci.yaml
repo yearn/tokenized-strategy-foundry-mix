@@ -98,18 +98,29 @@ jobs:
       - name: Run Formal Verification with KEVM
         run: |
           echo "Running formal verification..."
+          
+          # Locate the paths for krun and k-util.sh
           KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
           K_LIB_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
+          
           export PATH=$KRUN_PATH:$PATH
           echo "Updated PATH: $PATH"
           echo "Library Path: $K_LIB_PATH"
+          
+          # Ensure krun is available
           which krun || { echo "krun not found in PATH"; exit 1; }
+          
+          # Update the krun script to use the absolute K_LIB_PATH
           KRUN_SCRIPT=$(find . -name krun | head -n 1)
-
-          # Replace incorrect library path reference in krun script
           sed -i "s|../lib/kframework|$K_LIB_PATH|" $KRUN_SCRIPT
 
+          # Debug the updated krun script
+          echo "Updated krun script:"
+          head -n 10 $KRUN_SCRIPT
+
+          # Run krun with the fixed paths
           bash $KRUN_SCRIPT verification.k || { echo "Formal verification failed"; exit 1; }
+
 
 
 
