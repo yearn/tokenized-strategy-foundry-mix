@@ -34,7 +34,7 @@ jobs:
       # Install dependencies for K Framework
       - name: Install K Framework
         run: |
-          curl -LO kframework.tar.gz https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+          curl -L -o kframework.tar.gz https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
           tar -xvzf kframework
           cd kframework
           export PATH=$PATH:$(pwd)/bin
