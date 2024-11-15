@@ -1,4 +1,5 @@
 name: CI
+
 on: [push]
 
 jobs:
@@ -31,149 +32,126 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # Download and Extract K Framework
-      - name: Download K Framework
+      - name: Setup Environment Variables
+        run: |
+          echo "K_ROOT=$GITHUB_WORKSPACE/kframework" >> $GITHUB_ENV
+          echo "KEVM_ROOT=$GITHUB_WORKSPACE/evm" >> $GITHUB_ENV
+          echo "PATH=$GITHUB_WORKSPACE/kframework/k-distribution/target/release/k/bin:$GITHUB_WORKSPACE/evm/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Download and Extract K Framework
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          echo "Downloading K Framework..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+          curl -H "Authorization: token $REPOSITORY_TOKEN" \
+               -L -o kframework.tar.gz \
+               https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+          
+          mkdir -p "$K_ROOT"
+          tar -xzf kframework.tar.gz -C "$K_ROOT" --strip-components=1
+          
+          echo "K Framework contents:"
+          ls -la "$K_ROOT"
 
-          echo "Validating tarball..."
-          file kframework.tar.gz || { echo "Download failed"; exit 1; }
-
-          echo "Extracting K Framework..."
-          mkdir -p kframework
-          tar -xvzf kframework.tar.gz -C kframework --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          ls -l kframework || { echo "Extraction directory not found"; exit 1; }
-
-          echo "Setting up K Framework..."
-          export PATH=$PATH:$(pwd)/kframework/bin
       - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-          export PATH=$HOME/.local/bin:$PATH
-          poetry --version
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.4.0
+          virtualenvs-create: true
+          virtualenvs-in-project: true
 
-      # Download and Build KEVM
       - name: Install KEVM
         env:
-            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          echo "Downloading KEVM..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o evm.tar.gz https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
+          curl -H "Authorization: token $REPOSITORY_TOKEN" \
+               -L -o evm.tar.gz \
+               https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
           
-          echo "Extracting KEVM..."
-          mkdir -p evm
-          tar -xvzf evm.tar.gz -C evm --strip-components=1 || { echo "Extraction failed"; exit 1; }
-          ls -l evm || { echo "EVM directory not found"; exit 1; }
+          mkdir -p "$KEVM_ROOT"
+          tar -xzf evm.tar.gz -C "$KEVM_ROOT" --strip-components=1
           
-          echo "Building KEVM..."
-          cd evm
-          export PATH=$PATH:$(pwd)/bin
+          cd "$KEVM_ROOT"
+          make deps
+          make build
+          make test
 
-          echo "Checking available Makefile targets..."
-          make -pRrq : 2>/dev/null | grep -E '^[a-zA-Z_-]+:' | sed 's/:$//' || echo "No targets found in Makefile"
-
-          echo "Building KEVM..."
-          # Run the default 'all' target or fallback to specific targets
-          make all || echo "Default 'all' target failed"
-          make kevm-pyk || echo "'kevm-pyk' target failed"
-          make test || echo "'test' target failed"
-      # Run the Formal Verification Job
-      - name: Verify krun Installation
+      - name: Setup K Framework
         run: |
-          echo "Checking for krun..."
-          find . -name krun
-          ls -l $(find . -name krun | head -n 1) || echo "krun not found"
-      - name: Verify Directory Structure
-        run: |
-          echo "Checking for k-util.sh..."
-          find . -name k-util.sh || echo "k-util.sh not found"
-          ls -l ./kframework/k-distribution/src/main/lib/kframework || echo "Directory not found"
-      - name: Build Missing K Framework Components
-        run: |
-          cd kframework
-          make || echo "Make failed"
-      - name: Setup K Framework Environment
-        run: |
-          # Find the k-util.sh file
-          K_UTIL=$(find . -name k-util.sh | head -n 1)
-          K_UTIL_DIR=$(dirname "$K_UTIL")
+          cd "$K_ROOT"
           
-          # Find krun
-          KRUN=$(find . -name krun | head -n 1)
-          KRUN_DIR=$(dirname "$KRUN")
+          # Build K Framework
+          mvn package -DskipTests
           
-          # Export necessary environment variables
-          export K_LIB="$K_UTIL_DIR"
-          export PATH="$KRUN_DIR:$PATH"
+          # Setup paths
+          K_BIN="$K_ROOT/k-distribution/target/release/k/bin"
+          K_LIB="$K_ROOT/k-distribution/target/release/k/lib/kframework"
           
-          # Create symbolic links if needed
-          mkdir -p "$KRUN_DIR/../lib/kframework"
-          ln -sf "$K_UTIL" "$KRUN_DIR/../lib/kframework/k-util.sh"
+          # Verify directory structure
+          echo "K Framework directory structure:"
+          ls -R "$K_BIN"
+          ls -R "$K_LIB"
           
-          # Verify setup
-          echo "K Framework paths:"
-          echo "K_LIB=$K_LIB"
-          echo "PATH=$PATH"
-          ls -l "$KRUN_DIR/../lib/kframework/"
+          # Export paths
+          echo "K_BIN=$K_BIN" >> $GITHUB_ENV
+          echo "K_LIB=$K_LIB" >> $GITHUB_ENV
+          echo "PATH=$K_BIN:$PATH" >> $GITHUB_ENV
 
-      - name: Run Formal Verification with KEVM
+      - name: Configure KRUN
         run: |
-          # Set up environment
-          echo "Setting up K Framework environment..."
-          export K_BIN=$(find . -name krun | head -n 1 | xargs dirname)
-          export K_LIB=$(find . -name k-util.sh | head -n 1 | xargs dirname)
-          export PATH=$K_BIN:$PATH
-
-          # Debug environment
-          echo "K_BIN: $K_BIN"
-          echo "K_LIB: $K_LIB"
-          echo "PATH: $PATH"
-
-          # Ensure required binaries are found
-          if [[ -z "$K_BIN" || -z "$K_LIB" ]]; then
-            echo "Error: K_BIN or K_LIB is empty. Ensure K Framework is installed correctly."
+          KRUN_SCRIPT="$K_BIN/krun"
+          
+          if [ ! -f "$KRUN_SCRIPT" ]; then
+            echo "Error: krun script not found at $KRUN_SCRIPT"
             exit 1
           fi
+          
+          # Backup original script
+          cp "$KRUN_SCRIPT" "${KRUN_SCRIPT}.backup"
+          
+          # Update paths in krun script
+          sed -i "s|source \"\$dir/\.\./lib/kframework/k-util\.sh\"|source \"$K_LIB/k-util.sh\"|g" "$KRUN_SCRIPT"
+          
+          echo "Modified krun script:"
+          head -n 10 "$KRUN_SCRIPT"
+          
+          # Test krun
+          "$KRUN_SCRIPT" --version
 
-          KRUN_SCRIPT=$(find . -name krun | head -n 1)
-          if [[ -z "$KRUN_SCRIPT" ]]; then
-            echo "Error: KRUN_SCRIPT is empty. Cannot find krun."
-            exit 1
-          fi
-          echo "KRUN_SCRIPT: $KRUN_SCRIPT"
-
-          # Patch the krun script to fix k-util.sh path
-          sed -i "s|\.\./lib/kframework|$K_LIB|" $KRUN_SCRIPT
-
-          # Verify patching
-          echo "Patched krun script:"
-          head -n 10 $KRUN_SCRIPT
-
-          # Verify K Framework installation
-          echo "K Framework version:"
-          krun --version || { echo "Failed to run krun"; exit 1; }
-
-          # Create results directory
+      - name: Run Formal Verification
+        run: |
           mkdir -p verification-results
-
-          # Run verifications for each spec file
+          
+          # Initialize counter for verified specs
+          verified_count=0
+          
           for spec in src/test/kontrol/*.k; do
-            echo "Verifying $spec..."
-            krun --directory src/test/kontrol \
-                --debug \
-                --output-file "verification-results/$(basename $spec .k).out" \
-                "$spec" || { echo "Verification failed for $spec"; exit 1; }
+            if [ -f "$spec" ]; then
+              echo "Verifying $spec..."
+              
+              if "$K_BIN/krun" \
+                 --directory src/test/kontrol \
+                 --debug \
+                 --output-file "verification-results/$(basename "$spec" .k).out" \
+                 "$spec"; then
+                echo "✓ Verification successful for $spec"
+                ((verified_count++))
+              else
+                echo "✗ Verification failed for $spec"
+                exit 1
+              fi
+            fi
           done
-
-          # Check results
-          if [ -d verification-results ]; then
-            echo "Verification Results:"
-            cat verification-results/*.out
-          else
-            echo "No verification results found"
+          
+          if [ $verified_count -eq 0 ]; then
+            echo "No specification files found to verify"
             exit 1
+          else
+            echo "Successfully verified $verified_count specification(s)"
           fi
 
+      - name: Upload Verification Results
+        uses: actions/upload-artifact@v2
+        with:
+          name: verification-results
+          path: verification-results/
+          if-no-files-found: error
