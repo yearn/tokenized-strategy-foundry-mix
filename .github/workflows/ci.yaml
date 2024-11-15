@@ -9,6 +9,12 @@ jobs:
           fetch-depth: 0
           submodules: recursive
       - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install forge-std
+        run: |
+          forge install foundry-rs/forge-std --no-commit
+          forge remappings > remappings.txt
       - run: forge test -vvv
       - run: forge snapshot
   formal-verification:
