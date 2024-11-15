@@ -101,18 +101,21 @@ jobs:
           
           # Locate the paths for krun and k-util.sh
           KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
-          K_LIB_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
+          K_UTIL_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
           
           export PATH=$KRUN_PATH:$PATH
           echo "Updated PATH: $PATH"
-          echo "Library Path: $K_LIB_PATH"
+          echo "k-util.sh Path: $K_UTIL_PATH"
           
           # Ensure krun is available
           which krun || { echo "krun not found in PATH"; exit 1; }
           
-          # Update the krun script to use the absolute K_LIB_PATH
+          # Locate the krun script
           KRUN_SCRIPT=$(find . -name krun | head -n 1)
-          sed -i "s|../lib/kframework|$K_LIB_PATH|" $KRUN_SCRIPT
+          echo "Found krun script at: $KRUN_SCRIPT"
+          
+          # Update the krun script to reference the correct k-util.sh path
+          sed -i "s|\.\./lib/kframework|$K_UTIL_PATH|" $KRUN_SCRIPT
 
           # Debug the updated krun script
           echo "Updated krun script:"
