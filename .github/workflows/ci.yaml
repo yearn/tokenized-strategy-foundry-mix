@@ -31,72 +31,49 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-      - name: Install Dependencies
+
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex z3 libz3-dev libsecp256k1-dev
+          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
 
-      - name: Debug and Install KUP
-        run: |
-          # Debug: Show environment
-          echo "Current directory: $(pwd)"
-          echo "Home directory: $HOME"
-          echo "Python version: $(python3 --version)"
-          
-          # Install kup with debug output
-          echo "Installing kup..."
-          curl -sSL https://kframework.org/install -o install.sh
-          
-          # Debug: Show install script
-          echo "Install script content:"
-          cat install.sh
-          
-          # Run installation with debug output
-          bash -x install.sh
-          
-          # Debug: Check kup installation
-          echo "Checking kup installation..."
-          ls -la $HOME/.kup || echo ".kup directory not found"
-          ls -la $HOME/.kup/bin || echo ".kup/bin directory not found"
-          
-          # Add to PATH
-          export PATH="$HOME/.kup/bin:$PATH"
-          echo "$HOME/.kup/bin" >> $GITHUB_PATH
-          
-          # Verify kup installation
-          echo "Verifying kup command..."
-          which kup || echo "kup not found in PATH"
-          kup --version || echo "kup version check failed"
+      # Install Nix
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+            substituters = https://cache.nixos.org https://k-framework.cachix.org
 
-      - name: Install Kontrol via KUP
+      # Install Cachix
+      - uses: cachix/cachix-action@v12
+        with:
+          name: k-framework
+          extraPullNames: k-framework-binary
+
+      - name: Install KUP and Kontrol
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          # Configure git authentication
+          # Configure git for private repository access
           git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
           
-          # Set up netrc for authentication
-          echo "machine github.com login ${REPOSITORY_TOKEN}" > $HOME/.netrc
-          chmod 600 $HOME/.netrc
+          echo "Installing kup..."
+          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+            --option extra-substituters 'https://k-framework.cachix.org' \
+            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+            --experimental-features 'nix-command flakes'
           
-          # Debug: Show git config
-          echo "Git config:"
-          git config --global --list | grep -v "url"
+          # Add kup to PATH
+          export PATH=$PATH:$HOME/.nix-profile/bin
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
           
-          # Install Kontrol with debug output
-          echo "Installing Kontrol via kup..."
-          export GITHUB_TOKEN=$REPOSITORY_TOKEN
-          kup install kontrol --verbose || {
-            echo "kup install kontrol failed"
-            echo "kup debug output:"
-            kup --debug install kontrol
-            exit 1
-          }
+          echo "Installing Kontrol..."
+          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
           
-          # Verify Kontrol installation
-          echo "Verifying Kontrol installation..."
-          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          kontrol --version || { echo "Kontrol failed to run"; exit 1; }
+          echo "Verifying installations..."
+          kup --version
+          kontrol --version
 
       - name: Run Formal Verification with Kontrol
         run: |
@@ -127,3 +104,11 @@ jobs:
           else
             echo "Successfully verified $verified_count specification(s)"
           fi
+
+      - name: Upload Verification Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: kontrol-verification-results
+          path: verification-results/
+          retention-days: 5
