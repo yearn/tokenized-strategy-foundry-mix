@@ -81,8 +81,12 @@ jobs:
           make kevm-pyk || echo "'kevm-pyk' target failed"
           make test || echo "'test' target failed"
       # Run the Formal Verification Job
+      - name: Verify krun Installation
+        run: |
+          echo "Checking for krun..."
+          find . -name krun
+          ls -l $(find . -name krun | head -n 1) || echo "krun not found"
       - name: Formal Verification with KEVM
         run: |
           echo "Running formal verification..."
-          cd evm
           krun verification.k || { echo "Formal verification failed"; exit 1; }
