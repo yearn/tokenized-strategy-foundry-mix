@@ -1,5 +1,6 @@
 name: CI
 on: [push]
+
 jobs:
   foundry-test:
     runs-on: ubuntu-latest
@@ -20,20 +21,39 @@ jobs:
           forge test --no-match-path "src/test/kontrol/*" -vvv
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
+
   formal-verification:
     runs-on: ubuntu-latest
     needs: foundry-test
-    container:
-      image: runtimeverification/kontrol:latest
     steps:
       - uses: actions/checkout@master
         with:
           fetch-depth: 0
           submodules: recursive
-      - name: Build and Run Proofs
+
+      # Install dependencies for K Framework
+      - name: Install K Framework
         run: |
-          kontrol build
-          kontrol prove --config-profile setup
-          kontrol prove --config-profile tests
-      - name: View Results
-        run: kontrol list
+          sudo apt update
+          sudo apt install -y openjdk-11-jdk maven curl
+          curl -LO https://github.com/runtimeverification/k/releases/download/v1.0/kframework.tar.gz
+          tar -xvzf kframework.tar.gz
+          cd kframework
+          export PATH=$PATH:$(pwd)/bin
+
+      # Verify KEVM setup
+      - name: Install KEVM
+        run: |
+          curl -LO https://github.com/runtimeverification/evm-semantics/releases/download/v1.0/evm.tar.gz
+          tar -xvzf evm.tar.gz
+          cd evm
+          export PATH=$PATH:$(pwd)/bin
+          make deps  # Install KEVM dependencies
+          make build # Build KEVM
+
+      # Run the formal verification job
+      - name: Formal Verification with KEVM
+        run: |
+          cd evm
+          # Assuming `verification.k` exists and contains the formal specification
+          krun verification.k
