@@ -31,8 +31,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # Install dependencies for K Framework
-     - name: Download K Framework
+      - name: Download K Framework
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
@@ -40,19 +39,17 @@ jobs:
           tar -xvzf kframework.tar.gz
           cd kframework
           export PATH=$PATH:$(pwd)/bin
-      # Verify KEVM setup
+
       - name: Install KEVM
         run: |
           curl -LO https://github.com/runtimeverification/evm-semantics/releases/download/v1.0/evm.tar.gz
           tar -xvzf evm.tar.gz
           cd evm
           export PATH=$PATH:$(pwd)/bin
-          make deps  # Install KEVM dependencies
-          make build # Build KEVM
+          make deps
+          make build
 
-      # Run the formal verification job
       - name: Formal Verification with KEVM
         run: |
           cd evm
-          # Assuming `verification.k` exists and contains the formal specification
           krun verification.k
