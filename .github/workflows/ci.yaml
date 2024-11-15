@@ -97,32 +97,31 @@ jobs:
           make || echo "Make failed"
       - name: Run Formal Verification with KEVM
         run: |
-          echo "Running formal verification..."
+          # Set up environment
+          export K_BIN=$(find . -name krun | head -n 1 | xargs dirname)
+          export PATH=$K_BIN:$PATH
           
-          # Locate the paths for krun and k-util.sh
-          KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
-          K_UTIL_PATH=$(find . -name k-util.sh | head -n 1 | xargs dirname)
+          # Print environment for debugging
+          echo "K Framework version:"
+          krun --version
           
-          export PATH=$KRUN_PATH:$PATH
-          echo "Updated PATH: $PATH"
-          echo "k-util.sh Path: $K_UTIL_PATH"
+          # Run verifications for each spec file
+          for spec in src/test/kontrol/*.k; do
+            echo "Verifying $spec..."
+            krun --directory src/test/kontrol \
+                 --debug \
+                 --output-file "verification-results/$(basename $spec .k).out" \
+                 "$spec"
+          done
           
-          # Ensure krun is available
-          which krun || { echo "krun not found in PATH"; exit 1; }
-          
-          # Locate the krun script
-          KRUN_SCRIPT=$(find . -name krun | head -n 1)
-          echo "Found krun script at: $KRUN_SCRIPT"
-          
-          # Update the krun script to reference the correct k-util.sh path
-          sed -i "s|\.\./lib/kframework|$K_UTIL_PATH|" $KRUN_SCRIPT
-
-          # Debug the updated krun script
-          echo "Updated krun script:"
-          head -n 10 $KRUN_SCRIPT
-
-          # Run krun with the fixed paths
-          bash $KRUN_SCRIPT verification.k || { echo "Formal verification failed"; exit 1; }
+          # Check results
+          if [ -d verification-results ]; then
+            echo "Verification Results:"
+            cat verification-results/*.out
+          else
+            echo "No verification results found"
+            exit 1
+          fi
 
 
 
