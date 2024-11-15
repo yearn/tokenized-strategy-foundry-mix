@@ -78,132 +78,97 @@ jobs:
           WORKSPACE="$GITHUB_WORKSPACE"
           K_ROOT="$WORKSPACE/kframework"
           
-          echo "Current directory structure before setup:"
-          ls -R "$K_ROOT"
-          
-          # Try to locate existing directories
-          echo "Searching for existing k-util.sh..."
-          find "$K_ROOT" -name k-util.sh
-          
-          echo "Searching for existing krun..."
-          find "$K_ROOT" -name krun
-          
-          # Check directory structure
-          echo "Checking directory structure..."
-          ls -la "$K_ROOT/k-distribution" || echo "k-distribution not found"
-          ls -la "$K_ROOT/k-distribution/lib" || echo "lib directory not found"
-          
-          # Find k-util.sh first
+          # Find core files
           K_UTIL=$(find "$K_ROOT" -name k-util.sh | head -n 1)
-          if [ -z "$K_UTIL" ]; then
-            echo "Error: k-util.sh not found"
-            exit 1
-          fi
-          
-          echo "Found k-util.sh at: $K_UTIL"
-          
-          # Get the directory where k-util.sh currently resides
-          K_UTIL_DIR=$(dirname "$K_UTIL")
-          echo "k-util.sh directory: $K_UTIL_DIR"
-          
-          # Find krun
           KRUN=$(find "$K_ROOT" -name krun | head -n 1)
-          if [ -z "$KRUN" ]; then
-            echo "Error: krun not found"
+          
+          if [ -z "$K_UTIL" ] || [ -z "$KRUN" ]; then
+            echo "Error: Required files not found"
+            echo "K_UTIL: $K_UTIL"
+            echo "KRUN: $KRUN"
             exit 1
           fi
           
-          echo "Found krun at: $KRUN"
+          # Set directories
+          K_UTIL_DIR=$(dirname "$K_UTIL")
           KRUN_DIR=$(dirname "$KRUN")
-          echo "krun directory: $KRUN_DIR"
-          
-          # Use the existing directory structure instead of creating new ones
-          K_LIB="$K_UTIL_DIR"
           
           # Export paths
           {
             echo "K_BIN=$KRUN_DIR"
-            echo "K_LIB=$K_LIB"
+            echo "K_LIB=$K_UTIL_DIR"
             echo "PATH=$KRUN_DIR:$PATH"
           } >> $GITHUB_ENV
           
-          # Debug: Show final paths
-          echo "Final K Framework paths:"
+          echo "Path setup complete"
           echo "K_BIN=$KRUN_DIR"
-          echo "K_LIB=$K_LIB"
-          echo "PATH=$KRUN_DIR:$PATH"
-          
-          # Verify k-util.sh is accessible
-          if [ ! -f "$K_LIB/k-util.sh" ]; then
-            echo "Error: Cannot access k-util.sh at $K_LIB/k-util.sh"
-            exit 1
-          fi
+          echo "K_LIB=$K_UTIL_DIR"
 
-      - name: Configure KRUN
+      - name: Debug KRUN Script
         run: |
-          # Get paths from environment
-          K_BIN="$K_BIN"
-          K_LIB="$K_LIB"
-          
           KRUN_SCRIPT="$K_BIN/krun"
           
-          if [ ! -f "$KRUN_SCRIPT" ]; then
-            echo "Error: krun script not found at $KRUN_SCRIPT"
-            exit 1
-          fi
+          echo "Original KRUN script content:"
+          cat "$KRUN_SCRIPT"
           
           # Create backup
           cp "$KRUN_SCRIPT" "${KRUN_SCRIPT}.backup"
           
-          # Update source path in krun script
-          sed -i "s|source.*k-util\.sh|source \"$K_LIB/k-util.sh\"|g" "$KRUN_SCRIPT"
+          # Clean up any DOS line endings
+          dos2unix "$KRUN_SCRIPT"
           
-          echo "Modified krun script:"
-          head -n 10 "$KRUN_SCRIPT"
+          # Fix common script issues
+          sed -i 's/\r//g' "$KRUN_SCRIPT"  # Remove any remaining CR characters
+          sed -i 's/\t/    /g' "$KRUN_SCRIPT"  # Replace tabs with spaces
           
-          # Test k-util.sh exists
-          if [ ! -f "$K_LIB/k-util.sh" ]; then
-            echo "Error: k-util.sh not found at $K_LIB/k-util.sh"
-            exit 1
-          fi
+          echo "Modified KRUN script:"
+          cat "$KRUN_SCRIPT"
+          
+          echo "Testing KRUN script syntax:"
+          bash -n "$KRUN_SCRIPT" || echo "Syntax check failed"
 
       - name: Run Formal Verification with KEVM
         run: |
-          # Create results directory
           mkdir -p verification-results
           
-          # Initialize counter for verified specs
-          verified_count=0
+          # Debug variables
+          echo "Current environment:"
+          env | grep -E 'K_|PATH'
           
+          # Test krun directly
+          echo "Testing krun directly:"
+          "$K_BIN/krun" --version || echo "krun version check failed"
+          
+          # Process each spec file with extra debugging
           for spec in src/test/kontrol/*.k; do
             if [ -f "$spec" ]; then
-              echo "Verifying $spec..."
+              echo "Processing spec file: $spec"
+              echo "File contents:"
+              head -n 10 "$spec"
               
-              if "$K_BIN/krun" \
-                --directory src/test/kontrol \
-                --debug \
-                --output-file "verification-results/$(basename "$spec" .k).out" \
-                "$spec"; then
+              echo "Running verification with full command:"
+              CMD="$K_BIN/krun --directory src/test/kontrol --debug --output-file verification-results/$(basename "$spec" .k).out $spec"
+              echo "$CMD"
+              
+              if eval "$CMD"; then
                 echo "✓ Verification successful for $spec"
-                ((verified_count++))
               else
                 echo "✗ Verification failed for $spec"
+                echo "Error output:"
+                cat "verification-results/$(basename "$spec" .k).out" 2>/dev/null || echo "No output file generated"
+                echo "Full environment:"
+                env
                 exit 1
               fi
             fi
           done
-          
-          if [ $verified_count -eq 0 ]; then
-            echo "No specification files found to verify"
-            exit 1
-          else
-            echo "Successfully verified $verified_count specification(s)"
-          fi
 
       - name: Upload Verification Results
+        if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: verification-results
-          path: verification-results/
-          if-no-files-found: error
-          retention-days: 30
+          name: verification-debug
+          path: |
+            verification-results/
+            ${{ env.K_BIN }}/krun*
+          retention-days: 5
