@@ -38,8 +38,12 @@ jobs:
         run: |
           echo "Downloading K Framework..."
           curl -H "Authorization: token $REPOSITORY_TOKEN" https://kframework.org/install
+          echo "Checking for kup..."
+          find /nix -name kup || echo "kup not found"
+          nix profile list --experimental-features 'nix-command flakes' || echo "No kup profile installed"
 
           kup install kontrol
+
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 -
