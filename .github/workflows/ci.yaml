@@ -95,34 +95,54 @@ jobs:
         run: |
           cd kframework
           make || echo "Make failed"
+      - name: Setup K Framework Environment
+        run: |
+          # Find the k-util.sh file
+          K_UTIL=$(find . -name k-util.sh | head -n 1)
+          K_UTIL_DIR=$(dirname "$K_UTIL")
+          
+          # Find krun
+          KRUN=$(find . -name krun | head -n 1)
+          KRUN_DIR=$(dirname "$KRUN")
+          
+          # Export necessary environment variables
+          export K_LIB="$K_UTIL_DIR"
+          export PATH="$KRUN_DIR:$PATH"
+          
+          # Create symbolic links if needed
+          mkdir -p "$KRUN_DIR/../lib/kframework"
+          ln -sf "$K_UTIL" "$KRUN_DIR/../lib/kframework/k-util.sh"
+          
+          # Verify setup
+          echo "K Framework paths:"
+          echo "K_LIB=$K_LIB"
+          echo "PATH=$PATH"
+          ls -l "$KRUN_DIR/../lib/kframework/"
+
       - name: Run Formal Verification with KEVM
         run: |
-          # Set up environment
-          export K_BIN=$(find . -name krun | head -n 1 | xargs dirname)
-          export PATH=$K_BIN:$PATH
-          
-          # Print environment for debugging
-          echo "K Framework version:"
-          krun --version
+          # Create results directory
+          mkdir -p verification-results
           
           # Run verifications for each spec file
           for spec in src/test/kontrol/*.k; do
-            echo "Verifying $spec..."
-            krun --directory src/test/kontrol \
-                 --debug \
-                 --output-file "verification-results/$(basename $spec .k).out" \
-                 "$spec"
+            if [ -f "$spec" ]; then
+              echo "Verifying $spec..."
+              K_OPTS="--directory $(dirname $spec) --debug" \
+              "$KRUN" \
+                --output "verification-results/$(basename $spec .k).out" \
+                "$spec"
+            else
+              echo "No .k files found in src/test/kontrol/"
+              exit 1
+            fi
           done
           
           # Check results
-          if [ -d verification-results ]; then
+          if [ -d verification-results ] && [ "$(ls -A verification-results)" ]; then
             echo "Verification Results:"
             cat verification-results/*.out
           else
             echo "No verification results found"
             exit 1
           fi
-
-
-
-
