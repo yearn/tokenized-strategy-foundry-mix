@@ -31,55 +31,43 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-
-      # Download and Extract K Framework
-      - name: Download K Framework
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          echo "Downloading K Framework..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz \
-            https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
-
-          echo "Extracting K Framework..."
-          mkdir -p kframework
-          tar -xzf kframework.tar.gz -C kframework --strip-components=1
-
-          echo "Adding K to PATH..."
-          echo "$PWD/kframework/k-distribution/target/release/k/bin" >> $GITHUB_PATH
-
       - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex z3 libz3-dev libsecp256k1-dev
 
-      - name: Install Kontrol with KUP
+      - name: Install KUp and Kontrol
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          # Set up kup with authentication
+          # Install kup without authentication
           echo "Installing kup..."
-          curl -H "Authorization: token $REPOSITORY_TOKEN" -sSL https://kframework.org/install | bash
+          curl -sSL https://kframework.org/install | bash
           
+          # Add kup to PATH
           echo "Adding kup to PATH..."
           export PATH=$PATH:$HOME/.kup/bin
           echo "$HOME/.kup/bin" >> $GITHUB_PATH
           
-          echo "Installing Kontrol..."
-          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+          # Configure git for kup
+          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
           
+          # Install Kontrol with auth
+          echo "Installing Kontrol..."
+          export GITHUB_TOKEN=$REPOSITORY_TOKEN
+          kup install kontrol
+          
+          # Verify installation
           echo "Verifying Kontrol installation..."
+          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
           kontrol --version || { echo "Kontrol installation failed"; exit 1; }
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Build Contracts
+      - name: Configure Git Authentication
+        env:
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          forge build --build-info --force
-          ls -la out/
+          echo "machine github.com login ${REPOSITORY_TOKEN}" > ~/.netrc
+          chmod 600 ~/.netrc
 
       - name: Run Formal Verification with Kontrol
         run: |
@@ -110,11 +98,3 @@ jobs:
           else
             echo "Successfully verified $verified_count specification(s)"
           fi
-
-      - name: Upload Verification Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: kontrol-verification-results
-          path: verification-results/
-          retention-days: 5
