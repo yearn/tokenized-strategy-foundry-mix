@@ -36,38 +36,67 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex z3 libz3-dev libsecp256k1-dev
 
-      - name: Install KUp and Kontrol
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+      - name: Debug and Install KUP
         run: |
-          # Install kup without authentication
-          echo "Installing kup..."
-          curl -sSL https://kframework.org/install | bash
+          # Debug: Show environment
+          echo "Current directory: $(pwd)"
+          echo "Home directory: $HOME"
+          echo "Python version: $(python3 --version)"
           
-          # Add kup to PATH
-          echo "Adding kup to PATH..."
-          export PATH=$PATH:$HOME/.kup/bin
+          # Install kup with debug output
+          echo "Installing kup..."
+          curl -sSL https://kframework.org/install -o install.sh
+          
+          # Debug: Show install script
+          echo "Install script content:"
+          cat install.sh
+          
+          # Run installation with debug output
+          bash -x install.sh
+          
+          # Debug: Check kup installation
+          echo "Checking kup installation..."
+          ls -la $HOME/.kup || echo ".kup directory not found"
+          ls -la $HOME/.kup/bin || echo ".kup/bin directory not found"
+          
+          # Add to PATH
+          export PATH="$HOME/.kup/bin:$PATH"
           echo "$HOME/.kup/bin" >> $GITHUB_PATH
           
-          # Configure git for kup
-          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          
-          # Install Kontrol with auth
-          echo "Installing Kontrol..."
-          export GITHUB_TOKEN=$REPOSITORY_TOKEN
-          kup install kontrol
-          
-          # Verify installation
-          echo "Verifying Kontrol installation..."
-          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          kontrol --version || { echo "Kontrol installation failed"; exit 1; }
+          # Verify kup installation
+          echo "Verifying kup command..."
+          which kup || echo "kup not found in PATH"
+          kup --version || echo "kup version check failed"
 
-      - name: Configure Git Authentication
+      - name: Install Kontrol via KUP
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          echo "machine github.com login ${REPOSITORY_TOKEN}" > ~/.netrc
-          chmod 600 ~/.netrc
+          # Configure git authentication
+          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          
+          # Set up netrc for authentication
+          echo "machine github.com login ${REPOSITORY_TOKEN}" > $HOME/.netrc
+          chmod 600 $HOME/.netrc
+          
+          # Debug: Show git config
+          echo "Git config:"
+          git config --global --list | grep -v "url"
+          
+          # Install Kontrol with debug output
+          echo "Installing Kontrol via kup..."
+          export GITHUB_TOKEN=$REPOSITORY_TOKEN
+          kup install kontrol --verbose || {
+            echo "kup install kontrol failed"
+            echo "kup debug output:"
+            kup --debug install kontrol
+            exit 1
+          }
+          
+          # Verify Kontrol installation
+          echo "Verifying Kontrol installation..."
+          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+          kontrol --version || { echo "Kontrol failed to run"; exit 1; }
 
       - name: Run Formal Verification with Kontrol
         run: |
