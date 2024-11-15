@@ -15,7 +15,9 @@ jobs:
         run: |
           forge install foundry-rs/forge-std --no-commit
           forge remappings > remappings.txt
-      - run: forge test -vvv
+      - name: Run non-Kontrol tests
+        run: |
+          forge test --no-match-path "src/test/kontrol/*" -vvv
       - run: forge snapshot
   formal-verification:
     runs-on: ubuntu-latest
