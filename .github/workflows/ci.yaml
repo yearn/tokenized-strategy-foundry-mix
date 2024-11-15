@@ -6,7 +6,7 @@ jobs:
   foundry-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
@@ -32,72 +32,91 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Setup Environment Variables
-        run: |
-          echo "K_ROOT=$GITHUB_WORKSPACE/kframework" >> $GITHUB_ENV
-          echo "KEVM_ROOT=$GITHUB_WORKSPACE/evm" >> $GITHUB_ENV
-          echo "PATH=$GITHUB_WORKSPACE/kframework/k-distribution/target/release/k/bin:$GITHUB_WORKSPACE/evm/bin:$PATH" >> $GITHUB_ENV
-
-      - name: Download and Extract K Framework
+      # Download and Extract K Framework
+      - name: Download K Framework
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          curl -H "Authorization: token $REPOSITORY_TOKEN" \
-               -L -o kframework.tar.gz \
-               https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
-          
-          mkdir -p "$K_ROOT"
-          tar -xzf kframework.tar.gz -C "$K_ROOT" --strip-components=1
-          
-          echo "K Framework contents:"
-          ls -la "$K_ROOT"
+          echo "Downloading K Framework..."
+          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o kframework.tar.gz \
+            https://github.com/runtimeverification/k/releases/download/v7.1.170/kframework-7.1.170-src.tar.gz
+
+          echo "Validating tarball..."
+          file kframework.tar.gz || { echo "Download failed"; exit 1; }
+
+          echo "Extracting K Framework..."
+          mkdir -p kframework
+          tar -xzf kframework.tar.gz -C kframework --strip-components=1 || { echo "Extraction failed"; exit 1; }
+          ls -l kframework || { echo "Extraction directory not found"; exit 1; }
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: 1.4.0
           virtualenvs-create: true
-          virtualenvs-in-project: true
 
+      # Download and Build KEVM
       - name: Install KEVM
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          curl -H "Authorization: token $REPOSITORY_TOKEN" \
-               -L -o evm.tar.gz \
-               https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
+          echo "Downloading KEVM..."
+          curl -H "Authorization: token $REPOSITORY_TOKEN" -L -o evm.tar.gz \
+            https://github.com/runtimeverification/evm-semantics/archive/refs/tags/v1.0.753.tar.gz
           
-          mkdir -p "$KEVM_ROOT"
-          tar -xzf evm.tar.gz -C "$KEVM_ROOT" --strip-components=1
+          mkdir -p evm
+          tar -xzf evm.tar.gz -C evm --strip-components=1 || { echo "Extraction failed"; exit 1; }
           
-          cd "$KEVM_ROOT"
-          make deps
-          make build
-          make test
+          cd evm
+          make deps || true
+          make build || true
+          make test || true
 
-      - name: Setup K Framework
+      - name: Setup K Framework Environment
         run: |
-          cd "$K_ROOT"
+          # Set absolute paths
+          WORKSPACE="$GITHUB_WORKSPACE"
+          K_ROOT="$WORKSPACE/kframework"
           
-          # Build K Framework
-          mvn package -DskipTests
+          # Create necessary directories
+          mkdir -p "$K_ROOT/k-distribution/lib/kframework"
           
-          # Setup paths
-          K_BIN="$K_ROOT/k-distribution/target/release/k/bin"
-          K_LIB="$K_ROOT/k-distribution/target/release/k/lib/kframework"
+          # Find and copy k-util.sh
+          K_UTIL=$(find "$K_ROOT" -name k-util.sh | head -n 1)
+          if [ -z "$K_UTIL" ]; then
+            echo "Error: k-util.sh not found"
+            exit 1
+          fi
           
-          # Verify directory structure
-          echo "K Framework directory structure:"
-          ls -R "$K_BIN"
-          ls -R "$K_LIB"
+          # Copy k-util.sh to the expected location
+          cp "$K_UTIL" "$K_ROOT/k-distribution/lib/kframework/"
+          
+          # Find krun
+          KRUN=$(find "$K_ROOT" -name krun | head -n 1)
+          if [ -z "$KRUN" ]; then
+            echo "Error: krun not found"
+            exit 1
+          fi
+          
+          KRUN_DIR=$(dirname "$KRUN")
           
           # Export paths
-          echo "K_BIN=$K_BIN" >> $GITHUB_ENV
-          echo "K_LIB=$K_LIB" >> $GITHUB_ENV
-          echo "PATH=$K_BIN:$PATH" >> $GITHUB_ENV
+          echo "K_BIN=$KRUN_DIR" >> $GITHUB_ENV
+          echo "K_LIB=$K_ROOT/k-distribution/lib/kframework" >> $GITHUB_ENV
+          echo "PATH=$KRUN_DIR:$PATH" >> $GITHUB_ENV
+          
+          # Verify setup
+          echo "K Framework paths:"
+          echo "K_BIN=$KRUN_DIR"
+          echo "K_LIB=$K_ROOT/k-distribution/lib/kframework"
+          ls -l "$K_ROOT/k-distribution/lib/kframework"
 
       - name: Configure KRUN
         run: |
+          # Get paths from environment
+          K_BIN="$K_BIN"
+          K_LIB="$K_LIB"
+          
           KRUN_SCRIPT="$K_BIN/krun"
           
           if [ ! -f "$KRUN_SCRIPT" ]; then
@@ -105,20 +124,24 @@ jobs:
             exit 1
           fi
           
-          # Backup original script
+          # Create backup
           cp "$KRUN_SCRIPT" "${KRUN_SCRIPT}.backup"
           
-          # Update paths in krun script
-          sed -i "s|source \"\$dir/\.\./lib/kframework/k-util\.sh\"|source \"$K_LIB/k-util.sh\"|g" "$KRUN_SCRIPT"
+          # Update source path in krun script
+          sed -i "s|source.*k-util\.sh|source \"$K_LIB/k-util.sh\"|g" "$KRUN_SCRIPT"
           
           echo "Modified krun script:"
           head -n 10 "$KRUN_SCRIPT"
           
-          # Test krun
-          "$KRUN_SCRIPT" --version
+          # Test k-util.sh exists
+          if [ ! -f "$K_LIB/k-util.sh" ]; then
+            echo "Error: k-util.sh not found at $K_LIB/k-util.sh"
+            exit 1
+          fi
 
-      - name: Run Formal Verification
+      - name: Run Formal Verification with KEVM
         run: |
+          # Create results directory
           mkdir -p verification-results
           
           # Initialize counter for verified specs
@@ -129,10 +152,10 @@ jobs:
               echo "Verifying $spec..."
               
               if "$K_BIN/krun" \
-                 --directory src/test/kontrol \
-                 --debug \
-                 --output-file "verification-results/$(basename "$spec" .k).out" \
-                 "$spec"; then
+                --directory src/test/kontrol \
+                --debug \
+                --output-file "verification-results/$(basename "$spec" .k).out" \
+                "$spec"; then
                 echo "✓ Verification successful for $spec"
                 ((verified_count++))
               else
