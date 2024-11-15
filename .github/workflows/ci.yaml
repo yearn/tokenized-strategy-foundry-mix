@@ -86,7 +86,12 @@ jobs:
           echo "Checking for krun..."
           find . -name krun
           ls -l $(find . -name krun | head -n 1) || echo "krun not found"
-      - name: Formal Verification with KEVM
+      - name: Run Formal Verification with KEVM
         run: |
           echo "Running formal verification..."
+          KRUN_PATH=$(find . -name krun | head -n 1 | xargs dirname)
+          export PATH=$KRUN_PATH:$PATH
+          echo "Updated PATH: $PATH"
+          which krun || { echo "krun not found in PATH"; exit 1; }
           krun verification.k || { echo "Formal verification failed"; exit 1; }
+
