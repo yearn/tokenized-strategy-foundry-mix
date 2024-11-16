@@ -72,7 +72,7 @@ jobs:
           GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
           
           echo "Verifying installations..."
-          kontrol --version
+          kontrol version
 
       - name: Run Formal Verification with Kontrol
         run: |
