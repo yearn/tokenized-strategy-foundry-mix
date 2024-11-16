@@ -32,6 +32,18 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      # Install Foundry first
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install forge-std and build
+        run: |
+          forge install foundry-rs/forge-std --no-commit
+          forge build --build-info --force
+          forge remappings > remappings.txt
+
       - name: Install System Dependencies
         run: |
           sudo apt-get update
@@ -100,6 +112,10 @@ jobs:
             fi
           fi
           
+          # Verify forge is available
+          echo "Verifying forge installation:"
+          forge --version
+          
           # Show available profiles
           echo "Available configuration profiles:"
           kontrol prove --list-profiles || echo "No profiles configured"
@@ -111,9 +127,14 @@ jobs:
           # Debug: Show working directory and files
           echo "Current directory: $(pwd)"
           echo "Contracts directory content:"
-          ls -R ./src
+          ls -R ./src/contracts
           echo "Specification directory content:"
           ls -R ./src/test/kontrol
+          
+          # Verify forge is in PATH
+          echo "Verifying forge is available:"
+          which forge
+          forge --version
           
           # Step 1: Build Kontrol project
           echo "Building Kontrol project..."
@@ -157,4 +178,5 @@ jobs:
             verification-results/
             .build/
             .kontrol/
+            out/
           retention-days: 5
