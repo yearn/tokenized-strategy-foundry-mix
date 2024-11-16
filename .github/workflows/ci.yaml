@@ -36,7 +36,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      # Install Foundry
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -82,16 +81,22 @@ jobs:
           export PATH="$HOME/.nix-profile/bin:$PATH"
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
           
-          echo "Verifying kup installation..."
-          which kup || { echo "kup not found in PATH"; exit 1; }
-          kup list || { echo "kup not working properly"; exit 1; }
-          
           echo "Installing Kontrol..."
           GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
           
           echo "Verifying Kontrol installation..."
           which kontrol || { echo "kontrol not found in PATH"; exit 1; }
           kontrol version || { echo "kontrol not working properly"; exit 1; }
+
+      - name: Cache Kontrol Build
+        uses: actions/cache@v3
+        with:
+          path: |
+            .build
+            .kontrol
+          key: kontrol-cache-${{ github.sha }}
+          restore-keys: |
+            kontrol-cache-
 
       - name: Run Setup Verification
         run: |
@@ -109,107 +114,114 @@ jobs:
           name: setup-verification-results
           path: |
             verification-results/
-            .build/
-            .kontrol/
           retention-days: 5
-
   repo-token-tests:
-    needs: setup-verification
-    runs-on: ubuntu-latest
-    timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
+      needs: setup-verification
+      runs-on: ubuntu-latest
+      timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+            submodules: recursive
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly
 
-      - name: Install forge-std and build
-        run: |
-          forge install foundry-rs/forge-std --no-commit
-          forge build --build-info --force
-          forge remappings > remappings.txt
+        - name: Install forge-std and build
+          run: |
+            forge install foundry-rs/forge-std --no-commit
+            forge build --build-info --force
+            forge remappings > remappings.txt
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
-            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
+        - name: Install System Dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+              z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
 
-      # Install Nix
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: |
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
-            substituters = https://cache.nixos.org https://k-framework.cachix.org
+        # Install Nix
+        - uses: DeterminateSystems/nix-installer-action@main
+          with:
+            extra-conf: |
+              trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+              substituters = https://cache.nixos.org https://k-framework.cachix.org
 
-      # Install Cachix
-      - uses: cachix/cachix-action@v12
-        with:
-          name: k-framework
-          extraPullNames: k-framework-binary
+        # Install Cachix
+        - uses: cachix/cachix-action@v12
+          with:
+            name: k-framework
+            extraPullNames: k-framework-binary
 
-      - name: Install KUP and Kontrol
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          
-          echo "Installing kup..."
-          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
-            --option extra-substituters 'https://k-framework.cachix.org' \
-            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
-            --experimental-features 'nix-command flakes'
-          
-          export PATH="$HOME/.nix-profile/bin:$PATH"
-          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
-          
-          echo "Installing Kontrol..."
-          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
-          
-          echo "Verifying Kontrol installation..."
-          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          kontrol version || { echo "kontrol not working properly"; exit 1; }
-          
-      - name: Download Setup Results
-        uses: actions/download-artifact@v3
-        with:
-          name: setup-verification-results
-          path: .
+        - name: Install KUP and Kontrol
+          env:
+            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+          run: |
+            git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+            
+            echo "Installing kup..."
+            GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+              --option extra-substituters 'https://k-framework.cachix.org' \
+              --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+              --experimental-features 'nix-command flakes'
+            
+            export PATH="$HOME/.nix-profile/bin:$PATH"
+            echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+            
+            echo "Installing Kontrol..."
+            GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+            
+            echo "Verifying Kontrol installation..."
+            which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+            kontrol version || { echo "kontrol not working properly"; exit 1; }
 
-      - name: Run RepoToken Tests
-        run: |
-          mkdir -p verification-results
-          echo "Building Kontrol project..."
-          kontrol build --verbose
-          
-          echo "Running RepoToken tests..."
-          kontrol prove \
-            --verbose \
-            --include "src%test%kontrol%RepoTokenListInvariantsTest.*" \
-            --config-profile tests
+        - name: Cache Kontrol Build
+          uses: actions/cache@v3
+          with:
+            path: |
+              .build
+              .kontrol
+            key: kontrol-cache-${{ github.sha }}
+            restore-keys: |
+              kontrol-cache-
 
-      - name: Upload RepoToken Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: repo-token-verification-results
-          path: |
-            verification-results/
-            .build/
-            .kontrol/
-          retention-days: 5
+        - name: Restore or Initialize Kontrol State
+          run: |
+            if [ -d ".build" ] && [ -d ".kontrol" ]; then
+              echo "Restored Kontrol state from cache"
+              ls -la .build
+              ls -la .kontrol
+            else
+              echo "No cached state found, initializing..."
+              mkdir -p .build .kontrol
+              kontrol build --verbose
+            fi
 
+        - name: Run RepoToken Tests
+          run: |
+            mkdir -p verification-results
+            
+            echo "Running RepoToken tests..."
+            kontrol prove \
+              --verbose \
+              --include "src%test%kontrol%RepoTokenListInvariantsTest.*" \
+              --config-profile tests
+
+        - name: Upload RepoToken Results
+          if: always()
+          uses: actions/upload-artifact@v3
+          with:
+            name: repo-token-verification-results
+            path: |
+              verification-results/
+            retention-days: 5
   term-auction-tests:
     needs: setup-verification
     runs-on: ubuntu-latest
     timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
     steps:
-      # Copy all installation steps from repo-token-tests
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -267,17 +279,31 @@ jobs:
           which kontrol || { echo "kontrol not found in PATH"; exit 1; }
           kontrol version || { echo "kontrol not working properly"; exit 1; }
 
-      - name: Download Setup Results
-        uses: actions/download-artifact@v3
+      - name: Cache Kontrol Build
+        uses: actions/cache@v3
         with:
-          name: setup-verification-results
-          path: .
+          path: |
+            .build
+            .kontrol
+          key: kontrol-cache-${{ github.sha }}
+          restore-keys: |
+            kontrol-cache-
+
+      - name: Restore or Initialize Kontrol State
+        run: |
+          if [ -d ".build" ] && [ -d ".kontrol" ]; then
+            echo "Restored Kontrol state from cache"
+            ls -la .build
+            ls -la .kontrol
+          else
+            echo "No cached state found, initializing..."
+            mkdir -p .build .kontrol
+            kontrol build --verbose
+          fi
 
       - name: Run TermAuction Tests
         run: |
           mkdir -p verification-results
-          echo "Building Kontrol project..."
-          kontrol build --verbose
           
           echo "Running TermAuction tests..."
           kontrol prove \
@@ -292,8 +318,6 @@ jobs:
           name: term-auction-verification-results
           path: |
             verification-results/
-            .build/
-            .kontrol/
           retention-days: 5
 
   results-summary:
@@ -309,14 +333,37 @@ jobs:
       - name: Generate Summary
         run: |
           echo "# Kontrol Verification Summary" > summary.md
+          
           echo "## Setup Verification" >> summary.md
-          find all-results/setup-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No setup results found" >> summary.md
+          if [ -d "all-results/setup-verification-results" ]; then
+            echo "\`\`\`" >> summary.md
+            find all-results/setup-verification-results -type f -exec cat {} \; >> summary.md || echo "No setup results found"
+            echo "\`\`\`" >> summary.md
+          else
+            echo "No setup verification results found" >> summary.md
+          fi
           
           echo "## RepoToken Tests" >> summary.md
-          find all-results/repo-token-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No RepoToken results found" >> summary.md
+          if [ -d "all-results/repo-token-verification-results" ]; then
+            echo "\`\`\`" >> summary.md
+            find all-results/repo-token-verification-results -type f -exec cat {} \; >> summary.md || echo "No RepoToken results found"
+            echo "\`\`\`" >> summary.md
+          else
+            echo "No RepoToken verification results found" >> summary.md
+          fi
           
           echo "## TermAuction Tests" >> summary.md
-          find all-results/term-auction-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No TermAuction results found" >> summary.md
+          if [ -d "all-results/term-auction-verification-results" ]; then
+            echo "\`\`\`" >> summary.md
+            find all-results/term-auction-verification-results -type f -exec cat {} \; >> summary.md || echo "No TermAuction results found"
+            echo "\`\`\`" >> summary.md
+          else
+            echo "No TermAuction verification results found" >> summary.md
+          fi
+          
+          # Add timestamp
+          echo -e "\n## Run Information" >> summary.md
+          echo "Generated at: $(date)" >> summary.md
 
       - name: Upload Summary
         uses: actions/upload-artifact@v3
