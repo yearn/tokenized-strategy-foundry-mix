@@ -68,40 +68,84 @@ jobs:
           export PATH=$PATH:$HOME/.nix-profile/bin
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
           
+          echo "Verifying kup installation..."
+          which kup || { echo "kup not found in PATH"; exit 1; }
+          kup list || { echo "kup not working properly"; exit 1; }
+          
           echo "Installing Kontrol..."
           GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
           
-          echo "Verifying installations..."
-          kontrol version
+          echo "Verifying Kontrol installation..."
+          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+          echo "Kontrol version:"
+          kontrol version || { echo "kontrol not working properly"; exit 1; }
+
+      - name: Check Kontrol Configuration
+        run: |
+          echo "Checking Kontrol configuration..."
+          
+          # Check for config file
+          if [ -f "./kontrol.toml" ]; then
+            echo "Found kontrol.toml:"
+            cat ./kontrol.toml
+          else
+            echo "kontrol.toml not found, checking for kontrol.json..."
+            if [ -f "./kontrol.json" ]; then
+              echo "Found kontrol.json:"
+              cat ./kontrol.json
+            else
+              echo "No Kontrol configuration file found"
+              echo "Creating default configuration..."
+              kontrol init
+            fi
+          fi
+          
+          # Show available profiles
+          echo "Available configuration profiles:"
+          kontrol prove --list-profiles || echo "No profiles configured"
 
       - name: Run Formal Verification with Kontrol
         run: |
           mkdir -p verification-results
-          verified_count=0
           
-          for spec in src/test/kontrol/*.k; do
-            if [ -f "$spec" ]; then
-              echo "Verifying $(basename "$spec")..."
-              
-              if kontrol prove "$spec" \
-                 --contract-dir ./src/contracts \
-                 --output-dir ./verification-results \
-                 --verbose; then
-                echo "✓ Verification successful for $spec"
-                ((verified_count++))
-              else
-                echo "✗ Verification failed for $spec"
-                cat "./verification-results/$(basename "$spec" .k).out" 2>/dev/null || echo "No output file found"
-                exit 1
-              fi
-            fi
-          done
+          # Debug: Show working directory and files
+          echo "Current directory: $(pwd)"
+          echo "Contracts directory content:"
+          ls -R ./src/contracts
+          echo "Specification directory content:"
+          ls -R ./src/test/kontrol
           
-          if [ $verified_count -eq 0 ]; then
-            echo "No specification files found to verify"
+          # Step 1: Build Kontrol project
+          echo "Building Kontrol project..."
+          kontrol build || {
+            echo "Failed to build Kontrol project"
             exit 1
-          else
-            echo "Successfully verified $verified_count specification(s)"
+          }
+          
+          # Step 2: Run setup profile
+          echo "Running setup profile..."
+          kontrol prove --config-profile setup || {
+            echo "Setup profile verification failed"
+            kontrol list
+            exit 1
+          }
+          
+          # Step 3: Run tests profile
+          echo "Running tests profile..."
+          kontrol prove --config-profile tests || {
+            echo "Tests profile verification failed"
+            kontrol list
+            exit 1
+          }
+          
+          # Step 4: Show verification results
+          echo "Listing all verification results..."
+          kontrol list | tee verification-results/final-results.txt
+          
+          # Check if any verifications failed
+          if ! grep -q "Status: proved" verification-results/final-results.txt; then
+            echo "Some verifications failed. Check the results above."
+            exit 1
           fi
 
       - name: Upload Verification Results
@@ -109,5 +153,8 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: kontrol-verification-results
-          path: verification-results/
+          path: |
+            verification-results/
+            .build/
+            .kontrol/
           retention-days: 5
