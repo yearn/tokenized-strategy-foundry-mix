@@ -2,6 +2,9 @@ name: CI
 
 on: [push]
 
+env:
+  NIX_INSTALLABLE_PACKAGE: github:runtimeverification/kup#kup
+
 jobs:
   foundry-test:
     runs-on: ubuntu-latest
@@ -76,7 +79,7 @@ jobs:
             --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
             --experimental-features 'nix-command flakes'
           
-          export PATH=$PATH:$HOME/.nix-profile/bin
+          export PATH="$HOME/.nix-profile/bin:$PATH"
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
           
           echo "Verifying kup installation..."
@@ -98,7 +101,7 @@ jobs:
           
           echo "Running setup verification..."
           kontrol prove --config-profile setup --verbose
-        
+
       - name: Upload Setup Results
         if: always()
         uses: actions/upload-artifact@v3
@@ -115,9 +118,69 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
     steps:
-      # Copy all setup steps from setup-verification job
-      # (Previous steps remain identical until verification)
-      
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install forge-std and build
+        run: |
+          forge install foundry-rs/forge-std --no-commit
+          forge build --build-info --force
+          forge remappings > remappings.txt
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
+
+      # Install Nix
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+            substituters = https://cache.nixos.org https://k-framework.cachix.org
+
+      # Install Cachix
+      - uses: cachix/cachix-action@v12
+        with:
+          name: k-framework
+          extraPullNames: k-framework-binary
+
+      - name: Install KUP and Kontrol
+        env:
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+        run: |
+          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          
+          echo "Installing kup..."
+          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+            --option extra-substituters 'https://k-framework.cachix.org' \
+            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+            --experimental-features 'nix-command flakes'
+          
+          export PATH="$HOME/.nix-profile/bin:$PATH"
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+          
+          echo "Installing Kontrol..."
+          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+          
+          echo "Verifying Kontrol installation..."
+          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+          kontrol version || { echo "kontrol not working properly"; exit 1; }
+          
+      - name: Download Setup Results
+        uses: actions/download-artifact@v3
+        with:
+          name: setup-verification-results
+          path: .
+
       - name: Run RepoToken Tests
         run: |
           mkdir -p verification-results
@@ -129,7 +192,7 @@ jobs:
             --verbose \
             --include "src%test%kontrol%RepoTokenListInvariantsTest.*" \
             --config-profile tests
-        
+
       - name: Upload RepoToken Results
         if: always()
         uses: actions/upload-artifact@v3
@@ -146,9 +209,70 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
     steps:
-      # Copy all setup steps from setup-verification job
-      # (Previous steps remain identical until verification)
-      
+      # Copy all installation steps from repo-token-tests
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install forge-std and build
+        run: |
+          forge install foundry-rs/forge-std --no-commit
+          forge build --build-info --force
+          forge remappings > remappings.txt
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
+
+      # Install Nix
+      - uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: |
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+            substituters = https://cache.nixos.org https://k-framework.cachix.org
+
+      # Install Cachix
+      - uses: cachix/cachix-action@v12
+        with:
+          name: k-framework
+          extraPullNames: k-framework-binary
+
+      - name: Install KUP and Kontrol
+        env:
+          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+        run: |
+          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+          
+          echo "Installing kup..."
+          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+            --option extra-substituters 'https://k-framework.cachix.org' \
+            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+            --experimental-features 'nix-command flakes'
+          
+          export PATH="$HOME/.nix-profile/bin:$PATH"
+          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+          
+          echo "Installing Kontrol..."
+          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+          
+          echo "Verifying Kontrol installation..."
+          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+          kontrol version || { echo "kontrol not working properly"; exit 1; }
+
+      - name: Download Setup Results
+        uses: actions/download-artifact@v3
+        with:
+          name: setup-verification-results
+          path: .
+
       - name: Run TermAuction Tests
         run: |
           mkdir -p verification-results
@@ -160,7 +284,7 @@ jobs:
             --verbose \
             --include "src%test%kontrol%TermAuctionListInvariantsTest.*" \
             --config-profile tests
-        
+
       - name: Upload TermAuction Results
         if: always()
         uses: actions/upload-artifact@v3
