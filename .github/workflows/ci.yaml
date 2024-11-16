@@ -111,7 +111,7 @@ jobs:
           # Debug: Show working directory and files
           echo "Current directory: $(pwd)"
           echo "Contracts directory content:"
-          ls -R ./src/contracts
+          ls -R ./src
           echo "Specification directory content:"
           ls -R ./src/test/kontrol
           
