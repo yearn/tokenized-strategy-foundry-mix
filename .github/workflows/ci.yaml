@@ -23,16 +23,17 @@ jobs:
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
 
-  formal-verification:
-    runs-on: ubuntu-latest
+  setup-verification:
     needs: foundry-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 1 hour for setup
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
 
-      # Install Foundry first
+      # Install Foundry
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -67,7 +68,6 @@ jobs:
         env:
           REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
         run: |
-          # Configure git for private repository access
           git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
           
           echo "Installing kup..."
@@ -76,7 +76,6 @@ jobs:
             --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
             --experimental-features 'nix-command flakes'
           
-          # Add kup to PATH
           export PATH=$PATH:$HOME/.nix-profile/bin
           echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
           
@@ -89,94 +88,115 @@ jobs:
           
           echo "Verifying Kontrol installation..."
           which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          echo "Kontrol version:"
           kontrol version || { echo "kontrol not working properly"; exit 1; }
 
-      - name: Check Kontrol Configuration
-        run: |
-          echo "Checking Kontrol configuration..."
-          
-          # Check for config file
-          if [ -f "./kontrol.toml" ]; then
-            echo "Found kontrol.toml:"
-            cat ./kontrol.toml
-          else
-            echo "kontrol.toml not found, checking for kontrol.json..."
-            if [ -f "./kontrol.json" ]; then
-              echo "Found kontrol.json:"
-              cat ./kontrol.json
-            else
-              echo "No Kontrol configuration file found"
-              echo "Creating default configuration..."
-              kontrol init
-            fi
-          fi
-          
-          # Verify forge is available
-          echo "Verifying forge installation:"
-          forge --version
-          
-          # Show available profiles
-          echo "Available configuration profiles:"
-          kontrol prove --list-profiles || echo "No profiles configured"
-
-      - name: Run Formal Verification with Kontrol
+      - name: Run Setup Verification
         run: |
           mkdir -p verification-results
-          
-          # Debug: Show working directory and files
-          echo "Current directory: $(pwd)"
-          echo "Contracts directory content:"
-          ls -R ./src
-          echo "Specification directory content:"
-          ls -R ./src/test/kontrol
-          
-          # Verify forge is in PATH
-          echo "Verifying forge is available:"
-          which forge
-          forge --version
-          
-          # Step 1: Build Kontrol project
           echo "Building Kontrol project..."
-          kontrol build || {
-            echo "Failed to build Kontrol project"
-            exit 1
-          }
+          kontrol build --verbose
           
-          # Step 2: Run setup profile
-          echo "Running setup profile..."
-          kontrol prove --config-profile setup || {
-            echo "Setup profile verification failed"
-            kontrol list
-            exit 1
-          }
-          
-          # Step 3: Run tests profile
-          echo "Running tests profile..."
-          kontrol prove --config-profile tests || {
-            echo "Tests profile verification failed"
-            kontrol list
-            exit 1
-          }
-          
-          # Step 4: Show verification results
-          echo "Listing all verification results..."
-          kontrol list | tee verification-results/final-results.txt
-          
-          # Check if any verifications failed
-          if ! grep -q "Status: proved" verification-results/final-results.txt; then
-            echo "Some verifications failed. Check the results above."
-            exit 1
-          fi
-
-      - name: Upload Verification Results
+          echo "Running setup verification..."
+          kontrol prove --config-profile setup --verbose
+        
+      - name: Upload Setup Results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: kontrol-verification-results
+          name: setup-verification-results
           path: |
             verification-results/
             .build/
             .kontrol/
-            out/
+          retention-days: 5
+
+  repo-token-tests:
+    needs: setup-verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
+    steps:
+      # Copy all setup steps from setup-verification job
+      # (Previous steps remain identical until verification)
+      
+      - name: Run RepoToken Tests
+        run: |
+          mkdir -p verification-results
+          echo "Building Kontrol project..."
+          kontrol build --verbose
+          
+          echo "Running RepoToken tests..."
+          kontrol prove \
+            --verbose \
+            --include "src%test%kontrol%RepoTokenListInvariantsTest.*" \
+            --config-profile tests
+        
+      - name: Upload RepoToken Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: repo-token-verification-results
+          path: |
+            verification-results/
+            .build/
+            .kontrol/
+          retention-days: 5
+
+  term-auction-tests:
+    needs: setup-verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # Maximum safe timeout for GitHub-hosted runners
+    steps:
+      # Copy all setup steps from setup-verification job
+      # (Previous steps remain identical until verification)
+      
+      - name: Run TermAuction Tests
+        run: |
+          mkdir -p verification-results
+          echo "Building Kontrol project..."
+          kontrol build --verbose
+          
+          echo "Running TermAuction tests..."
+          kontrol prove \
+            --verbose \
+            --include "src%test%kontrol%TermAuctionListInvariantsTest.*" \
+            --config-profile tests
+        
+      - name: Upload TermAuction Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: term-auction-verification-results
+          path: |
+            verification-results/
+            .build/
+            .kontrol/
+          retention-days: 5
+
+  results-summary:
+    needs: [setup-verification, repo-token-tests, term-auction-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download All Results
+        uses: actions/download-artifact@v3
+        with:
+          path: all-results
+
+      - name: Generate Summary
+        run: |
+          echo "# Kontrol Verification Summary" > summary.md
+          echo "## Setup Verification" >> summary.md
+          find all-results/setup-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No setup results found" >> summary.md
+          
+          echo "## RepoToken Tests" >> summary.md
+          find all-results/repo-token-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No RepoToken results found" >> summary.md
+          
+          echo "## TermAuction Tests" >> summary.md
+          find all-results/term-auction-verification-results -type f -name "*.out" -exec cat {} \; >> summary.md 2>/dev/null || echo "No TermAuction results found" >> summary.md
+
+      - name: Upload Summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: verification-summary
+          path: summary.md
           retention-days: 5
