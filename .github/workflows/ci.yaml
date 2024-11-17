@@ -257,12 +257,19 @@ jobs:
             
             # Function to run verification with memory monitoring
             run_verification() {
-              # Start memory monitoring in background
               while true; do
                 free -h >> verification-results/memory-usage.log
                 sleep 30
               done &
               MONITOR_PID=$!
+              
+              # Ensure proofs directory exists and is clean
+              mkdir -p out/proofs
+              rm -rf out/proofs/*
+              
+              # Build project first
+              echo "Building Kontrol project..."
+              kontrol build --verbose
               
               # List of test functions to run separately
               TESTS=(
@@ -274,16 +281,30 @@ jobs:
               # Run each test separately
               for test in "${TESTS[@]}"; do
                 echo "Running test: $test"
+                
+                # Clean proof directory for each test
+                rm -rf "out/proofs/src%test%kontrol%RepoTokenListInvariantsTest.$test"*
+                
+                # Run individual test
                 kontrol prove \
                   --verbose \
                   --debug \
                   --include "src%test%kontrol%RepoTokenListInvariantsTest.$test" \
                   --config-profile tests \
+                  --build-dir ./out \
+                  --proofs-dir ./out/proofs \
                   2>&1 | tee -a verification-results/verification.log
                 
                 TEST_RESULT=$?
                 if [ $TEST_RESULT -ne 0 ]; then
                   echo "Test $test failed with exit code $TEST_RESULT"
+                  
+                  # Debug information
+                  echo "Contents of proof directory:"
+                  ls -la out/proofs
+                  echo "Contents of build directory:"
+                  ls -la out
+                  
                   return $TEST_RESULT
                 fi
                 
@@ -292,47 +313,9 @@ jobs:
                 sleep 10
               done
               
-              # Stop memory monitoring
               kill $MONITOR_PID
               return 0
             }
-            
-            # Clean up function
-            cleanup() {
-              echo "Cleaning up..."
-              # Save debug information
-              tar czf verification-results/debug-state.tar.gz \
-                .build .kontrol out/proofs verification-results \
-                2>/dev/null || true
-            }
-            
-            # Set trap for cleanup
-            trap cleanup EXIT
-            
-            # Run verification with retry logic
-            MAX_RETRIES=3
-            RETRY_COUNT=0
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
-              
-              if run_verification; then
-                echo "Verification successful!"
-                exit 0
-              else
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-                echo "Verification failed. Exit code: $?"
-                
-                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "Cleaning up and retrying..."
-                  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-                  sleep 30
-                fi
-              fi
-            done
-            
-            echo "All retry attempts failed"
-            exit 1
 
         - name: Analyze Verification Results
           if: always()
@@ -471,7 +454,6 @@ jobs:
           run: |
             mkdir -p verification-results
             
-            # Function to run verification with memory monitoring
             run_verification() {
               while true; do
                 free -h >> verification-results/memory-usage.log
@@ -479,30 +461,48 @@ jobs:
               done &
               MONITOR_PID=$!
               
-              # List of test functions to run separately
+              # Ensure proofs directory exists and is clean
+              mkdir -p out/proofs
+              rm -rf out/proofs/*
+              
+              # Build project first
+              echo "Building Kontrol project..."
+              kontrol build --verbose
+              
               TESTS=(
                 "testInsertPendingNewOffer(bytes32,address)"
                 "testInsertPendingDuplicateOffer(bytes32,(address,uint256,address,address),address)"
                 "testRemoveCompleted(address)"
               )
               
-              # Run each test separately
               for test in "${TESTS[@]}"; do
                 echo "Running test: $test"
+                
+                # Clean proof directory for each test
+                rm -rf "out/proofs/src%test%kontrol%TermAuctionListInvariantsTest.$test"*
+                
                 kontrol prove \
                   --verbose \
                   --debug \
                   --include "src%test%kontrol%TermAuctionListInvariantsTest.$test" \
                   --config-profile tests \
+                  --build-dir ./out \
+                  --proofs-dir ./out/proofs \
                   2>&1 | tee -a verification-results/verification.log
                 
                 TEST_RESULT=$?
                 if [ $TEST_RESULT -ne 0 ]; then
                   echo "Test $test failed with exit code $TEST_RESULT"
+                  
+                  # Debug information
+                  echo "Contents of proof directory:"
+                  ls -la out/proofs
+                  echo "Contents of build directory:"
+                  ls -la out
+                  
                   return $TEST_RESULT
                 fi
                 
-                # Clear caches between tests
                 sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
                 sleep 10
               done
@@ -510,39 +510,6 @@ jobs:
               kill $MONITOR_PID
               return 0
             }
-            
-            cleanup() {
-              echo "Cleaning up..."
-              tar czf verification-results/debug-state.tar.gz \
-                .build .kontrol out/proofs verification-results \
-                2>/dev/null || true
-            }
-            
-            trap cleanup EXIT
-            
-            MAX_RETRIES=3
-            RETRY_COUNT=0
-            
-            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
-              
-              if run_verification; then
-                echo "Verification successful!"
-                exit 0
-              else
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-                echo "Verification failed. Exit code: $?"
-                
-                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                  echo "Cleaning up and retrying..."
-                  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-                  sleep 30
-                fi
-              fi
-            done
-            
-            echo "All retry attempts failed"
-            exit 1
 
         - name: Analyze Verification Results
           if: always()
