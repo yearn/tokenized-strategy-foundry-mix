@@ -144,434 +144,434 @@ jobs:
           path: |
             verification-results/
           retention-days: 5
-repo-token-tests:
-    needs: setup-verification
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
+  repo-token-tests:
+      needs: setup-verification
+      runs-on: ubuntu-latest
+      timeout-minutes: 350
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+            submodules: recursive
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly
 
-      - name: Install forge-std and build
-        run: |
-          forge install foundry-rs/forge-std --no-commit
-          forge build --build-info --force
-          forge remappings > remappings.txt
+        - name: Install forge-std and build
+          run: |
+            forge install foundry-rs/forge-std --no-commit
+            forge build --build-info --force
+            forge remappings > remappings.txt
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
-            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
+        - name: Install System Dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+              z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
 
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: |
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
-            substituters = https://cache.nixos.org https://k-framework.cachix.org
+        - uses: DeterminateSystems/nix-installer-action@main
+          with:
+            extra-conf: |
+              trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+              substituters = https://cache.nixos.org https://k-framework.cachix.org
 
-      - uses: cachix/cachix-action@v12
-        with:
-          name: k-framework
-          extraPullNames: k-framework-binary
+        - uses: cachix/cachix-action@v12
+          with:
+            name: k-framework
+            extraPullNames: k-framework-binary
 
-      - name: Install KUP and Kontrol
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          
-          echo "Installing kup..."
-          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
-            --option extra-substituters 'https://k-framework.cachix.org' \
-            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
-            --experimental-features 'nix-command flakes'
-          
-          export PATH="$HOME/.nix-profile/bin:$PATH"
-          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
-          
-          echo "Installing Kontrol..."
-          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
-          
-          echo "Verifying Kontrol installation..."
-          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          kontrol version || { echo "kontrol not working properly"; exit 1; }
-
-      - name: Configure System Resources
-        run: |
-          # Show available memory
-          echo "Available memory:"
-          free -h
-          
-          # Clear system cache
-          sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-          
-          # Configure swap
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          
-          echo "Memory after swap configuration:"
-          free -h
-
-      - name: Cache Kontrol Build
-        uses: actions/cache@v3
-        with:
-          path: |
-            .build
-            .kontrol
-            out/proofs
-          key: kontrol-cache-${{ github.sha }}
-          restore-keys: |
-            kontrol-cache-
-
-      - name: Prepare Verification Environment
-        run: |
-          mkdir -p .build .kontrol "out/proofs"
-          chmod -R 755 .build .kontrol "out/proofs"
-          rm -rf out/proofs/*
-          
-          # Clean any previous build artifacts
-          rm -rf out/kompiled
-          
-          if [ -d ".build" ] && [ -d ".kontrol" ]; then
-            echo "Restored Kontrol state from cache"
-            ls -la .build
-            ls -la .kontrol
-          else
-            echo "No cached state found, initializing..."
-            kontrol build --verbose
-          fi
-
-      - name: Run RepoToken Tests with Memory Management
-        run: |
-          mkdir -p verification-results
-          
-          # Function to run verification with memory monitoring
-          run_verification() {
-            # Start memory monitoring in background
-            while true; do
-              free -h >> verification-results/memory-usage.log
-              sleep 30
-            done &
-            MONITOR_PID=$!
+        - name: Install KUP and Kontrol
+          env:
+            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+          run: |
+            git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
             
-            # List of test functions to run separately
-            TESTS=(
-              "testInsertSortedNewToken()"
-              "testInsertSortedDuplicateToken(address)"
-              "testRemoveAndRedeemMaturedTokens()"
-            )
+            echo "Installing kup..."
+            GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+              --option extra-substituters 'https://k-framework.cachix.org' \
+              --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+              --experimental-features 'nix-command flakes'
             
-            # Run each test separately
-            for test in "${TESTS[@]}"; do
-              echo "Running test: $test"
-              kontrol prove \
-                --verbose \
-                --debug \
-                --include "src%test%kontrol%RepoTokenListInvariantsTest.$test" \
-                --config-profile tests \
-                2>&1 | tee -a verification-results/verification.log
+            export PATH="$HOME/.nix-profile/bin:$PATH"
+            echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+            
+            echo "Installing Kontrol..."
+            GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+            
+            echo "Verifying Kontrol installation..."
+            which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+            kontrol version || { echo "kontrol not working properly"; exit 1; }
+
+        - name: Configure System Resources
+          run: |
+            # Show available memory
+            echo "Available memory:"
+            free -h
+            
+            # Clear system cache
+            sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+            
+            # Configure swap
+            sudo fallocate -l 8G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+            
+            echo "Memory after swap configuration:"
+            free -h
+
+        - name: Cache Kontrol Build
+          uses: actions/cache@v3
+          with:
+            path: |
+              .build
+              .kontrol
+              out/proofs
+            key: kontrol-cache-${{ github.sha }}
+            restore-keys: |
+              kontrol-cache-
+
+        - name: Prepare Verification Environment
+          run: |
+            mkdir -p .build .kontrol "out/proofs"
+            chmod -R 755 .build .kontrol "out/proofs"
+            rm -rf out/proofs/*
+            
+            # Clean any previous build artifacts
+            rm -rf out/kompiled
+            
+            if [ -d ".build" ] && [ -d ".kontrol" ]; then
+              echo "Restored Kontrol state from cache"
+              ls -la .build
+              ls -la .kontrol
+            else
+              echo "No cached state found, initializing..."
+              kontrol build --verbose
+            fi
+
+        - name: Run RepoToken Tests with Memory Management
+          run: |
+            mkdir -p verification-results
+            
+            # Function to run verification with memory monitoring
+            run_verification() {
+              # Start memory monitoring in background
+              while true; do
+                free -h >> verification-results/memory-usage.log
+                sleep 30
+              done &
+              MONITOR_PID=$!
               
-              TEST_RESULT=$?
-              if [ $TEST_RESULT -ne 0 ]; then
-                echo "Test $test failed with exit code $TEST_RESULT"
-                return $TEST_RESULT
+              # List of test functions to run separately
+              TESTS=(
+                "testInsertSortedNewToken()"
+                "testInsertSortedDuplicateToken(address)"
+                "testRemoveAndRedeemMaturedTokens()"
+              )
+              
+              # Run each test separately
+              for test in "${TESTS[@]}"; do
+                echo "Running test: $test"
+                kontrol prove \
+                  --verbose \
+                  --debug \
+                  --include "src%test%kontrol%RepoTokenListInvariantsTest.$test" \
+                  --config-profile tests \
+                  2>&1 | tee -a verification-results/verification.log
+                
+                TEST_RESULT=$?
+                if [ $TEST_RESULT -ne 0 ]; then
+                  echo "Test $test failed with exit code $TEST_RESULT"
+                  return $TEST_RESULT
+                fi
+                
+                # Clear caches between tests
+                sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+                sleep 10
+              done
+              
+              # Stop memory monitoring
+              kill $MONITOR_PID
+              return 0
+            }
+            
+            # Clean up function
+            cleanup() {
+              echo "Cleaning up..."
+              # Save debug information
+              tar czf verification-results/debug-state.tar.gz \
+                .build .kontrol out/proofs verification-results \
+                2>/dev/null || true
+            }
+            
+            # Set trap for cleanup
+            trap cleanup EXIT
+            
+            # Run verification with retry logic
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+              
+              if run_verification; then
+                echo "Verification successful!"
+                exit 0
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "Verification failed. Exit code: $?"
+                
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Cleaning up and retrying..."
+                  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+                  sleep 30
+                fi
               fi
-              
-              # Clear caches between tests
-              sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-              sleep 10
             done
             
-            # Stop memory monitoring
-            kill $MONITOR_PID
-            return 0
-          }
-          
-          # Clean up function
-          cleanup() {
-            echo "Cleaning up..."
-            # Save debug information
-            tar czf verification-results/debug-state.tar.gz \
-              .build .kontrol out/proofs verification-results \
-              2>/dev/null || true
-          }
-          
-          # Set trap for cleanup
-          trap cleanup EXIT
-          
-          # Run verification with retry logic
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+            echo "All retry attempts failed"
+            exit 1
+
+        - name: Analyze Verification Results
+          if: always()
+          run: |
+            echo "Analyzing verification results..."
             
-            if run_verification; then
-              echo "Verification successful!"
-              exit 0
+            if [ -f "verification-results/verification.log" ]; then
+              echo "Last 50 lines of verification log:"
+              tail -n 50 verification-results/verification.log
+              
+              echo "Memory usage during verification:"
+              cat verification-results/memory-usage.log
+              
+              if grep -q "Out of memory" verification-results/verification.log; then
+                echo "Out of memory condition detected"
+              fi
+            fi
+
+        - name: Upload Results
+          if: always()
+          uses: actions/upload-artifact@v3
+          with:
+            name: repo-token-verification-results
+            path: |
+              verification-results/
+              out/proofs/
+              .build/
+              .kontrol/
+            retention-days: 5
+  term-auction-tests:
+      needs: setup-verification
+      runs-on: ubuntu-latest
+      timeout-minutes: 350
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+            submodules: recursive
+
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly
+
+        - name: Install forge-std and build
+          run: |
+            forge install foundry-rs/forge-std --no-commit
+            forge build --build-info --force
+            forge remappings > remappings.txt
+
+        - name: Install System Dependencies
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
+              z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
+
+        - uses: DeterminateSystems/nix-installer-action@main
+          with:
+            extra-conf: |
+              trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
+              substituters = https://cache.nixos.org https://k-framework.cachix.org
+
+        - uses: cachix/cachix-action@v12
+          with:
+            name: k-framework
+            extraPullNames: k-framework-binary
+
+        - name: Install KUP and Kontrol
+          env:
+            REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
+          run: |
+            git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
+            
+            echo "Installing kup..."
+            GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
+              --option extra-substituters 'https://k-framework.cachix.org' \
+              --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
+              --experimental-features 'nix-command flakes'
+            
+            export PATH="$HOME/.nix-profile/bin:$PATH"
+            echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
+            
+            echo "Installing Kontrol..."
+            GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
+            
+            echo "Verifying Kontrol installation..."
+            which kontrol || { echo "kontrol not found in PATH"; exit 1; }
+            kontrol version || { echo "kontrol not working properly"; exit 1; }
+
+        - name: Configure System Resources
+          run: |
+            echo "Available memory:"
+            free -h
+            
+            sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+            
+            sudo fallocate -l 8G /swapfile
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile
+            sudo swapon /swapfile
+            
+            echo "Memory after swap configuration:"
+            free -h
+
+        - name: Cache Kontrol Build
+          uses: actions/cache@v3
+          with:
+            path: |
+              .build
+              .kontrol
+              out/proofs
+            key: kontrol-cache-${{ github.sha }}
+            restore-keys: |
+              kontrol-cache-
+
+        - name: Prepare Verification Environment
+          run: |
+            # Create necessary directories
+            mkdir -p .build .kontrol "out/proofs"
+            chmod -R 755 .build .kontrol "out/proofs"
+            
+            # Clean stale files
+            rm -rf out/proofs/*
+            rm -rf out/kompiled
+            
+            if [ -d ".build" ] && [ -d ".kontrol" ]; then
+              echo "Restored Kontrol state from cache"
+              ls -la .build
+              ls -la .kontrol
             else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "Verification failed. Exit code: $?"
-              
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "Cleaning up and retrying..."
-                sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+              echo "No cached state found, initializing..."
+              kontrol build --verbose
+            fi
+
+        - name: Run TermAuction Tests with Memory Management
+          run: |
+            mkdir -p verification-results
+            
+            # Function to run verification with memory monitoring
+            run_verification() {
+              while true; do
+                free -h >> verification-results/memory-usage.log
                 sleep 30
-              fi
-            fi
-          done
-          
-          echo "All retry attempts failed"
-          exit 1
-
-      - name: Analyze Verification Results
-        if: always()
-        run: |
-          echo "Analyzing verification results..."
-          
-          if [ -f "verification-results/verification.log" ]; then
-            echo "Last 50 lines of verification log:"
-            tail -n 50 verification-results/verification.log
-            
-            echo "Memory usage during verification:"
-            cat verification-results/memory-usage.log
-            
-            if grep -q "Out of memory" verification-results/verification.log; then
-              echo "Out of memory condition detected"
-            fi
-          fi
-
-      - name: Upload Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: repo-token-verification-results
-          path: |
-            verification-results/
-            out/proofs/
-            .build/
-            .kontrol/
-          retention-days: 5
-term-auction-tests:
-    needs: setup-verification
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: recursive
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - name: Install forge-std and build
-        run: |
-          forge install foundry-rs/forge-std --no-commit
-          forge build --build-info --force
-          forge remappings > remappings.txt
-
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl gcc git g++ cmake maven openjdk-11-jdk flex \
-            z3 libz3-dev libsecp256k1-dev python3 python3-pip build-essential
-
-      - uses: DeterminateSystems/nix-installer-action@main
-        with:
-          extra-conf: |
-            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE= k-framework-binary.cachix.org-1:pJedQ8iG19BW3v/DMMmiRVtwRBGO3fyMv2Ws0OpBADs=
-            substituters = https://cache.nixos.org https://k-framework.cachix.org
-
-      - uses: cachix/cachix-action@v12
-        with:
-          name: k-framework
-          extraPullNames: k-framework-binary
-
-      - name: Install KUP and Kontrol
-        env:
-          REPOSITORY_TOKEN: ${{ secrets.REPOSITORY_TOKEN }}
-        run: |
-          git config --global url."https://${REPOSITORY_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          
-          echo "Installing kup..."
-          GC_DONT_GC=1 nix profile install github:runtimeverification/kup#kup \
-            --option extra-substituters 'https://k-framework.cachix.org' \
-            --option extra-trusted-public-keys 'k-framework.cachix.org-1:jeyMXB2h28gpNRjuVkehg+zLj62ma1RnyyopA/20yFE=' \
-            --experimental-features 'nix-command flakes'
-          
-          export PATH="$HOME/.nix-profile/bin:$PATH"
-          echo "$HOME/.nix-profile/bin" >> $GITHUB_PATH
-          
-          echo "Installing Kontrol..."
-          GITHUB_TOKEN=$REPOSITORY_TOKEN kup install kontrol
-          
-          echo "Verifying Kontrol installation..."
-          which kontrol || { echo "kontrol not found in PATH"; exit 1; }
-          kontrol version || { echo "kontrol not working properly"; exit 1; }
-
-      - name: Configure System Resources
-        run: |
-          echo "Available memory:"
-          free -h
-          
-          sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-          
-          sudo fallocate -l 8G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          
-          echo "Memory after swap configuration:"
-          free -h
-
-      - name: Cache Kontrol Build
-        uses: actions/cache@v3
-        with:
-          path: |
-            .build
-            .kontrol
-            out/proofs
-          key: kontrol-cache-${{ github.sha }}
-          restore-keys: |
-            kontrol-cache-
-
-      - name: Prepare Verification Environment
-        run: |
-          # Create necessary directories
-          mkdir -p .build .kontrol "out/proofs"
-          chmod -R 755 .build .kontrol "out/proofs"
-          
-          # Clean stale files
-          rm -rf out/proofs/*
-          rm -rf out/kompiled
-          
-          if [ -d ".build" ] && [ -d ".kontrol" ]; then
-            echo "Restored Kontrol state from cache"
-            ls -la .build
-            ls -la .kontrol
-          else
-            echo "No cached state found, initializing..."
-            kontrol build --verbose
-          fi
-
-      - name: Run TermAuction Tests with Memory Management
-        run: |
-          mkdir -p verification-results
-          
-          # Function to run verification with memory monitoring
-          run_verification() {
-            while true; do
-              free -h >> verification-results/memory-usage.log
-              sleep 30
-            done &
-            MONITOR_PID=$!
-            
-            # List of test functions to run separately
-            TESTS=(
-              "testInsertPendingNewOffer(bytes32,address)"
-              "testInsertPendingDuplicateOffer(bytes32,(address,uint256,address,address),address)"
-              "testRemoveCompleted(address)"
-            )
-            
-            # Run each test separately
-            for test in "${TESTS[@]}"; do
-              echo "Running test: $test"
-              kontrol prove \
-                --verbose \
-                --debug \
-                --include "src%test%kontrol%TermAuctionListInvariantsTest.$test" \
-                --config-profile tests \
-                2>&1 | tee -a verification-results/verification.log
+              done &
+              MONITOR_PID=$!
               
-              TEST_RESULT=$?
-              if [ $TEST_RESULT -ne 0 ]; then
-                echo "Test $test failed with exit code $TEST_RESULT"
-                return $TEST_RESULT
-              fi
+              # List of test functions to run separately
+              TESTS=(
+                "testInsertPendingNewOffer(bytes32,address)"
+                "testInsertPendingDuplicateOffer(bytes32,(address,uint256,address,address),address)"
+                "testRemoveCompleted(address)"
+              )
               
-              # Clear caches between tests
-              sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-              sleep 10
+              # Run each test separately
+              for test in "${TESTS[@]}"; do
+                echo "Running test: $test"
+                kontrol prove \
+                  --verbose \
+                  --debug \
+                  --include "src%test%kontrol%TermAuctionListInvariantsTest.$test" \
+                  --config-profile tests \
+                  2>&1 | tee -a verification-results/verification.log
+                
+                TEST_RESULT=$?
+                if [ $TEST_RESULT -ne 0 ]; then
+                  echo "Test $test failed with exit code $TEST_RESULT"
+                  return $TEST_RESULT
+                fi
+                
+                # Clear caches between tests
+                sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+                sleep 10
+              done
+              
+              kill $MONITOR_PID
+              return 0
+            }
+            
+            cleanup() {
+              echo "Cleaning up..."
+              tar czf verification-results/debug-state.tar.gz \
+                .build .kontrol out/proofs verification-results \
+                2>/dev/null || true
+            }
+            
+            trap cleanup EXIT
+            
+            MAX_RETRIES=3
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+              
+              if run_verification; then
+                echo "Verification successful!"
+                exit 0
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "Verification failed. Exit code: $?"
+                
+                if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                  echo "Cleaning up and retrying..."
+                  sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
+                  sleep 30
+                fi
+              fi
             done
             
-            kill $MONITOR_PID
-            return 0
-          }
-          
-          cleanup() {
-            echo "Cleaning up..."
-            tar czf verification-results/debug-state.tar.gz \
-              .build .kontrol out/proofs verification-results \
-              2>/dev/null || true
-          }
-          
-          trap cleanup EXIT
-          
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            echo "Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES"
+            echo "All retry attempts failed"
+            exit 1
+
+        - name: Analyze Verification Results
+          if: always()
+          run: |
+            echo "Analyzing verification results..."
             
-            if run_verification; then
-              echo "Verification successful!"
-              exit 0
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              echo "Verification failed. Exit code: $?"
+            if [ -f "verification-results/verification.log" ]; then
+              echo "Last 50 lines of verification log:"
+              tail -n 50 verification-results/verification.log
               
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "Cleaning up and retrying..."
-                sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches'
-                sleep 30
+              echo "Memory usage during verification:"
+              cat verification-results/memory-usage.log
+              
+              if grep -q "Out of memory" verification-results/verification.log; then
+                echo "Out of memory condition detected"
               fi
             fi
-          done
-          
-          echo "All retry attempts failed"
-          exit 1
 
-      - name: Analyze Verification Results
-        if: always()
-        run: |
-          echo "Analyzing verification results..."
-          
-          if [ -f "verification-results/verification.log" ]; then
-            echo "Last 50 lines of verification log:"
-            tail -n 50 verification-results/verification.log
-            
-            echo "Memory usage during verification:"
-            cat verification-results/memory-usage.log
-            
-            if grep -q "Out of memory" verification-results/verification.log; then
-              echo "Out of memory condition detected"
-            fi
-          fi
-
-      - name: Upload Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: term-auction-verification-results
-          path: |
-            verification-results/
-            out/proofs/
-            .build/
-            .kontrol/
-          retention-days: 5
+        - name: Upload Results
+          if: always()
+          uses: actions/upload-artifact@v3
+          with:
+            name: term-auction-verification-results
+            path: |
+              verification-results/
+              out/proofs/
+              .build/
+              .kontrol/
+            retention-days: 5
 
   results-summary:
     needs: [setup-verification, repo-token-tests, term-auction-tests]
