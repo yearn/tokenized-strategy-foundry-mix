@@ -26,9 +26,6 @@ contract DeployGovernance is Script {
         address governor = vm.envAddress("GOVERNOR");
         uint256 saltNonce = block.number;
 
-        Strategy strategyContract = Strategy(strategy);
-        strategyContract.setPendingGovernor(factory);
-
         factory.deploySafe(proposer, strategy, governor, saltNonce);
 
         vm.stopBroadcast();
