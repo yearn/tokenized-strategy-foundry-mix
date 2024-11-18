@@ -1,0 +1,26 @@
+name: CI
+
+on: [push]
+
+jobs:
+  foundry-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - name: Install forge-std
+        run: |
+          forge install foundry-rs/forge-std --no-commit
+          forge remappings > remappings.txt
+      - name: Run non-Kontrol tests
+        run: |
+          forge test --no-match-path "src/test/kontrol/*" -vvv
+      - name: Run snapshot without Kontrol tests
+        run: forge snapshot --no-match-path "src/test/kontrol/*"
+
+  
