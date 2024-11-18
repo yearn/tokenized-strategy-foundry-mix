@@ -1,4 +1,5 @@
 import "forge-std/Script.sol";
+import "../src/Strategy.sol";
 
 interface TermVaultGovernanceFactory {
     function deploySafe(
@@ -24,6 +25,9 @@ contract DeployGovernance is Script {
         address strategy = vm.envAddress("STRATEGY");
         address governor = vm.envAddress("GOVERNOR");
         uint256 saltNonce = block.number;
+
+        Strategy strategy = Strategy(strategy);
+        strategy.setPendingGovernor(governor);
 
         factory.deploySafe(proposer, strategy, governor, saltNonce);
 

@@ -128,6 +128,7 @@ contract DeployStrategy is Script {
 
     function run() external {
         uint256 deployerPK = vm.envUint("PRIVATE_KEY");
+        uint256 governorDeployerPK = vm.envUint("GOVERNOR_DEPLOYER_KEY");
 
         // Set up the RPC URL (optional if you're using the default foundry config)
         string memory rpcUrl = vm.envString("RPC_URL");
@@ -143,7 +144,7 @@ contract DeployStrategy is Script {
 
         TermVaultEventEmitter eventEmitter = _deployEventEmitter();
 
-        address deployer = vm.addr(deployerPK);
+        address deployer = vm.addr(governorDeployerPK);
 
         Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter), deployer);
 
@@ -158,8 +159,6 @@ contract DeployStrategy is Script {
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         console.log("set pending management");
         console.log(strategyManagement);
-
-        strategy.setPendingGovernor(governorRoleAddress);
 
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));

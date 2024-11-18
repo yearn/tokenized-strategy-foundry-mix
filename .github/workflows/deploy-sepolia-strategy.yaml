@@ -46,6 +46,7 @@ jobs:
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          GOVERNOR_DEPLOYER_KEY: ${{ secrets.GOVERNANCE_DEPLOYER_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}
           YEARN_VAULT_ADDRESS: ${{ vars.YEARN_VAULT_ADDRESS }}
