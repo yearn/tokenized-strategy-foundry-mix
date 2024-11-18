@@ -137,6 +137,7 @@ contract DeployStrategy is Script {
         // Retrieve environment variables
         string memory name = vm.envString("STRATEGY_NAME");
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
+        address newGovernor = vm.envAddress("NEW_GOVERNOR");
         bool isTest = vm.envBool("IS_TEST");
 
 
@@ -155,7 +156,6 @@ contract DeployStrategy is Script {
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         console.log("set pending management");
         console.log(strategyManagement);
-
 
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
