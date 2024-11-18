@@ -137,7 +137,6 @@ contract DeployStrategy is Script {
         // Retrieve environment variables
         string memory name = vm.envString("STRATEGY_NAME");
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
-        address newGovernor = vm.envAddress("NEW_GOVERNOR");
         bool isTest = vm.envBool("IS_TEST");
 
 
