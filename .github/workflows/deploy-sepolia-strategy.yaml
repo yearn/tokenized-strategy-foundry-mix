@@ -10,10 +10,6 @@ on:
         description: 'Yearn strategy name'
         required: true
         default: '0x'
-      governorRoleAddress:
-        description: 'Governor role address'
-        required: true
-        default: '0x'
       discountRateMarkup:
         description: 'Discount rate markup'
         required: false
