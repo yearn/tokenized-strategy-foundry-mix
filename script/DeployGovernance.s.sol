@@ -27,6 +27,7 @@ contract DeployGovernance is Script {
         uint256 saltNonce = block.number;
 
         Strategy strategyContract = Strategy(strategy);
+        strategyContract.acceptGovernor();
         strategyContract.setPendingGovernor(governor);
 
         factory.deploySafe(proposer, strategy, governor, saltNonce);
