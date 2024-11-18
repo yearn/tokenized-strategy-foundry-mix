@@ -143,7 +143,7 @@ contract DeployStrategy is Script {
 
         TermVaultEventEmitter eventEmitter = _deployEventEmitter();
 
-        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter), deployer);
+        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter));
 
         Strategy strategy = new Strategy(
             name,
