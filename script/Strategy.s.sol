@@ -137,12 +137,15 @@ contract DeployStrategy is Script {
         // Retrieve environment variables
         string memory name = vm.envString("STRATEGY_NAME");
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
+        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         bool isTest = vm.envBool("IS_TEST");
 
 
         TermVaultEventEmitter eventEmitter = _deployEventEmitter();
 
-        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter));
+        address deployer = vm.addr(deployerPK);
+
+        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter), deployer);
 
         Strategy strategy = new Strategy(
             name,
@@ -156,6 +159,8 @@ contract DeployStrategy is Script {
         console.log("set pending management");
         console.log(strategyManagement);
 
+        strategy.setPendingGovernor(governorRoleAddress);
+
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
             console.log("paired strategy contract with event emitter");
@@ -164,11 +169,10 @@ contract DeployStrategy is Script {
         vm.stopBroadcast();
     }
 
-    function buildStrategyParams(address eventEmitter) internal returns(Strategy.StrategyParams memory) {
+    function buildStrategyParams(address eventEmitter, address deployer) internal returns(Strategy.StrategyParams memory) {
         address asset = vm.envAddress("ASSET_ADDRESS");
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
-        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envAddress("TERM_CONTROLLER_ADDRESS");
         uint256 discountRateMarkup = vm.envUint("DISCOUNT_RATE_MARKUP");
         uint256 timeToMaturityThreshold = vm.envUint("TIME_TO_MATURITY_THRESHOLD");
@@ -182,7 +186,7 @@ contract DeployStrategy is Script {
             yearnVaultAddress,
             discountRateAdapterAddress,
             address(eventEmitter),
-            governorRoleAddress,
+            deployer,
             termController,
             repoTokenConcentrationLimit,
             timeToMaturityThreshold,
