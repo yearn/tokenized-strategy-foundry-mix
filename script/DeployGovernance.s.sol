@@ -5,8 +5,7 @@ interface TermVaultGovernanceFactory {
     function deploySafe(
         address proposer,
         address strategy,
-        address governor,
-        uint256 saltNonce
+        address governor
     ) external;
 }
 
