@@ -24,9 +24,8 @@ contract DeployGovernance is Script {
         address proposer = vm.envAddress("PROPOSER");
         address strategy = vm.envAddress("STRATEGY");
         address governor = vm.envAddress("GOVERNOR");
-        uint256 saltNonce = block.number;
 
-        factory.deploySafe(proposer, strategy, governor, saltNonce);
+        factory.deploySafe(proposer, strategy, governor);
 
         vm.stopBroadcast();
     }
