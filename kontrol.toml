@@ -1,7 +1,7 @@
 [build.default]
 foundry-project-root       = '.'
-regen                      = true
-rekompile                  = true
+regen                      = false
+rekompile                  = false
 verbose                    = false
 debug                      = false
 require                    = 'src/test/kontrol/term-lemmas.k'
@@ -47,7 +47,7 @@ ast                        = true
 
 [prove.tests]
 foundry-project-root       = '.'
-verbose                    = false
+verbose                    = true
 debug                      = false
 max-depth                  = 100000
 max-iterations             = 10000
