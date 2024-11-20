@@ -19,6 +19,9 @@ contract DeployGovernance is Script {
      * @return addressArray An array of addresses parsed from the input string.
      */
     function stringToAddressArray(string memory _input) public pure returns (address[] memory) {
+        if (_input == "") {
+            return new address[](0);
+        }
         // Step 1: Split the input string by commas
         string[] memory parts = splitString(_input, ",");
         

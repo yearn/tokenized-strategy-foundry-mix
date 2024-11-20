@@ -17,7 +17,7 @@ on:
       governorVaults:
         description: 'Governor vaults as comma separated'
         required: false
-        default: ' '
+        default: ''
     
 jobs:
   deploy:
