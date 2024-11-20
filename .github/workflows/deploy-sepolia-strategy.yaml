@@ -74,6 +74,6 @@ jobs:
           GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNANCE_FACTORY }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
           NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
-          COLLATERAL_TOKENS: ${{ github.event.inputs.collateralTokens }}
+          COLLATERAL_TOKEN_ADDRESSES: ${{ github.event.inputs.collateralTokens }}
           MIN_COLLATERAL_RATIOS: ${{ github.event.inputs.minCollateralRatios }}
   
