@@ -138,7 +138,7 @@ contract DeployStrategy is Script {
         string memory name = vm.envString("STRATEGY_NAME");
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
         address[] memory collateralTokens = stringToAddressArray(vm.envString("COLLATERAL_TOKEN_ADDRESSES"));
-        uint256[] memory minCollateralRatios = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIO"));
+        uint256[] memory minCollateralRatios = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIOS"));
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
 
         bool isTest = vm.envBool("IS_TEST");
