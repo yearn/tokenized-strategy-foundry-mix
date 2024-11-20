@@ -14,6 +14,10 @@ on:
         description: 'Governor role address'
         required: true
         default: '0x'
+      governorVaults:
+        description: 'Governor vaults as comma separated'
+        required: false
+        default: ''
     
 jobs:
   deploy:
@@ -38,6 +42,7 @@ jobs:
           PROPOSER: ${{ github.event.inputs.proposer }}
           STRATEGY: ${{ github.event.inputs.strategy }}
           GOVERNOR: ${{ github.event.inputs.governorRoleAddress }}
+          GOVERNOR_VAULTS: ${{ github.event.inputs.governorVaults }}
           GOVERNANCE_FACTORY: ${{ vars.GOVERNANCE_FACTORY }}
 
 
