@@ -14,7 +14,8 @@ contract DeployStrategy is Script {
      * @return addressArray An array of addresses parsed from the input string.
      */
     function stringToAddressArray(string memory _input) public pure returns (address[] memory) {
-        if (_input == "") {
+        // Check if the input string is empty
+        if (bytes(_input).length == 0) {
             return new address[](0);
         }
         // Step 1: Split the input string by commas
@@ -35,7 +36,8 @@ contract DeployStrategy is Script {
      * @return uintArray An array of uint256 parsed from the input string.
      */
     function stringToUintArray(string memory _input) public pure returns (uint256[] memory) {
-        if (_input == "") {
+        // Check if the input string is empty
+        if (bytes(_input).length == 0) {
             return new uint256[](0);
         }
         // Step 1: Split the input string by commas
