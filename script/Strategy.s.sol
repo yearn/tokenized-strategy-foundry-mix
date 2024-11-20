@@ -155,11 +155,6 @@ contract DeployStrategy is Script {
             params
         );
 
-        for (uint256 i = 0; i < collateralTokens.length; i++) {
-            strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);
-        }
-
-
         console.log("deployed strategy contract to");
         console.log(address(strategy));
 
@@ -167,14 +162,18 @@ contract DeployStrategy is Script {
         console.log("set pending management");
         console.log(strategyManagement);
 
-        strategy.setPendingGovernor(governorRoleAddress);
-        console.log("set pending governor");
-        console.log(governorRoleAddress);
-
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
             console.log("paired strategy contract with event emitter");
         }
+
+        for (uint256 i = 0; i < collateralTokens.length; i++) {
+            strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);
+        }
+
+        strategy.setPendingGovernor(governorRoleAddress);
+        console.log("set pending governor");
+        console.log(governorRoleAddress);
         
         vm.stopBroadcast();
     }
