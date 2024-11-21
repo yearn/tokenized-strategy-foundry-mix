@@ -1,4 +1,5 @@
 [profile.default]
+evm_version = 'shanghai'
 src = 'src'
 out = 'out'
 libs = ['lib']

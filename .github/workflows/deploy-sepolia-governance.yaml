@@ -1,0 +1,50 @@
+name: "[sepolia-deploy] deploy governance for strategy"
+on:
+  workflow_dispatch:
+    inputs:
+      proposer:
+        description: 'Proposer address'
+        required: true
+        default: '0x'
+      strategy:
+        description: 'Strategy Address'
+        required: true
+        default: '0x'
+      governorRoleAddress:
+        description: 'Governor role address'
+        required: true
+        default: '0x'
+      governorVaults:
+        description: 'Governor vaults as comma separated'
+        required: false
+        default: ''
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: sepolia
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge script script/DeployGovernance.s.sol:DeployGovernance --rpc-url $RPC_URL --broadcast --gas-price  500000000000   --verify --verbosity 4
+        env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.GOVERNANCE_DEPLOYER_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          PROPOSER: ${{ github.event.inputs.proposer }}
+          STRATEGY: ${{ github.event.inputs.strategy }}
+          GOVERNOR: ${{ github.event.inputs.governorRoleAddress }}
+          VAULT_GOVERNORS: ${{ github.event.inputs.governorVaults }}
+          GOVERNANCE_FACTORY: ${{ vars.GOVERNANCE_FACTORY }}
+
+
+
+  

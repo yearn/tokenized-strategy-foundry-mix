@@ -14,6 +14,10 @@ contract DeployStrategy is Script {
      * @return addressArray An array of addresses parsed from the input string.
      */
     function stringToAddressArray(string memory _input) public pure returns (address[] memory) {
+        // Check if the input string is empty
+        if (bytes(_input).length == 0) {
+            return new address[](0);
+        }
         // Step 1: Split the input string by commas
         string[] memory parts = splitString(_input, ",");
         
@@ -32,6 +36,10 @@ contract DeployStrategy is Script {
      * @return uintArray An array of uint256 parsed from the input string.
      */
     function stringToUintArray(string memory _input) public pure returns (uint256[] memory) {
+        // Check if the input string is empty
+        if (bytes(_input).length == 0) {
+            return new uint256[](0);
+        }
         // Step 1: Split the input string by commas
         string[] memory parts = splitString(_input, ",");
         
@@ -137,12 +145,19 @@ contract DeployStrategy is Script {
         // Retrieve environment variables
         string memory name = vm.envString("STRATEGY_NAME");
         address strategyManagement = vm.envAddress("STRATEGY_MANAGEMENT_ADDRESS");
+        address[] memory collateralTokens = stringToAddressArray(vm.envString("COLLATERAL_TOKEN_ADDRESSES"));
+        uint256[] memory minCollateralRatios = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIOS"));
+        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
+        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
+
         bool isTest = vm.envBool("IS_TEST");
 
 
         TermVaultEventEmitter eventEmitter = _deployEventEmitter();
 
-        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter));
+        address deployer = vm.addr(deployerPK);
+
+        Strategy.StrategyParams memory params = buildStrategyParams(address(eventEmitter), deployer);
 
         Strategy strategy = new Strategy(
             name,
@@ -152,24 +167,33 @@ contract DeployStrategy is Script {
         console.log("deployed strategy contract to");
         console.log(address(strategy));
 
+        ITokenizedStrategy(address(strategy)).setProfitMaxUnlockTime(profitMaxUnlockTime);
+
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         console.log("set pending management");
         console.log(strategyManagement);
-
 
         if (isTest) {
             eventEmitter.pairVaultContract(address(strategy));
             console.log("paired strategy contract with event emitter");
         }
+
+        for (uint256 i = 0; i < collateralTokens.length; i++) {
+            strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);
+        }
+
+
+        strategy.setPendingGovernor(governorRoleAddress);
+        console.log("set pending governor");
+        console.log(governorRoleAddress);
         
         vm.stopBroadcast();
     }
 
-    function buildStrategyParams(address eventEmitter) internal returns(Strategy.StrategyParams memory) {
+    function buildStrategyParams(address eventEmitter, address deployer) internal returns(Strategy.StrategyParams memory) {
         address asset = vm.envAddress("ASSET_ADDRESS");
         address yearnVaultAddress = vm.envAddress("YEARN_VAULT_ADDRESS");
         address discountRateAdapterAddress = vm.envAddress("DISCOUNT_RATE_ADAPTER_ADDRESS");
-        address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         address termController = vm.envAddress("TERM_CONTROLLER_ADDRESS");
         uint256 discountRateMarkup = vm.envUint("DISCOUNT_RATE_MARKUP");
         uint256 timeToMaturityThreshold = vm.envUint("TIME_TO_MATURITY_THRESHOLD");
@@ -183,7 +207,7 @@ contract DeployStrategy is Script {
             yearnVaultAddress,
             discountRateAdapterAddress,
             address(eventEmitter),
-            governorRoleAddress,
+            deployer,
             termController,
             repoTokenConcentrationLimit,
             timeToMaturityThreshold,

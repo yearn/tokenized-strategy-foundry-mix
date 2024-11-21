@@ -162,8 +162,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         _revokeRole(GOVERNOR_ROLE, strategyState.governorAddress);
         _grantRole(GOVERNOR_ROLE, pendingGovernor);
         strategyState.governorAddress = pendingGovernor;
-        pendingGovernor = address(0);
         TERM_VAULT_EVENT_EMITTER.emitNewGovernor(pendingGovernor);
+        pendingGovernor = address(0);
     }
 
     /**
