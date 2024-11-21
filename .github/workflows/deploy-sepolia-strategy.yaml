@@ -30,6 +30,10 @@ on:
         description: 'Required reserve ratio'
         required: false
         default: '0.01'
+      profitMaxUnlock:
+        description: 'Profit max unlock time'
+        required: false
+        default: '0'
       collateralTokens:
         description: 'Collateral tokens comma separated'
         required: false
@@ -76,4 +80,5 @@ jobs:
           NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
           COLLATERAL_TOKEN_ADDRESSES: ${{ github.event.inputs.collateralTokens }}
           MIN_COLLATERAL_RATIOS: ${{ github.event.inputs.minCollateralRatios }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlock }}
   

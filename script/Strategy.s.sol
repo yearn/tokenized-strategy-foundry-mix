@@ -148,6 +148,7 @@ contract DeployStrategy is Script {
         address[] memory collateralTokens = stringToAddressArray(vm.envString("COLLATERAL_TOKEN_ADDRESSES"));
         uint256[] memory minCollateralRatios = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIOS"));
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
+        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
 
         bool isTest = vm.envBool("IS_TEST");
 
@@ -166,6 +167,8 @@ contract DeployStrategy is Script {
         console.log("deployed strategy contract to");
         console.log(address(strategy));
 
+        ITokenizedStrategy(address(strategy)).setProfitMaxUnlockTime(profitMaxUnlockTime);
+
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         console.log("set pending management");
         console.log(strategyManagement);
@@ -178,6 +181,7 @@ contract DeployStrategy is Script {
         for (uint256 i = 0; i < collateralTokens.length; i++) {
             strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);
         }
+
 
         strategy.setPendingGovernor(governorRoleAddress);
         console.log("set pending governor");
