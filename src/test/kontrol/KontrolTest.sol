@@ -11,7 +11,7 @@ contract KontrolTest is Test, KontrolCheats {
     // Note: 2 ** 35 takes us to year 3058
     uint256 constant timeUpperBound = 2 ** 35;
 
-    function infoAssert(bool condition, string memory message) external {
+    function infoAssert(bool condition, string memory message) external pure {
         if (!condition) {
             revert(message);
         }
@@ -35,27 +35,75 @@ contract KontrolTest is Test, KontrolCheats {
         }
     }
 
+    function _loadData(
+        address contractAddress,
+        uint256 slot,
+        uint256 offset,
+        uint256 width
+    ) internal view returns (uint256) {
+        // `offset` and `width` must not overflow the slot
+        assert(offset + width <= 32);
+
+        // Slot read mask
+        uint256 mask;
+        unchecked {
+            mask = (2 ** (8 * width)) - 1;
+        }
+        // Value right shift
+        uint256 shift = 8 * offset;
+
+        // Current slot value
+        uint256 slotValue = uint256(vm.load(contractAddress, bytes32(slot)));
+
+        // Isolate and return data to retrieve
+        return mask & (slotValue >> shift);
+    }
+
+    function _storeData(address contractAddress, uint256 slot, uint256 offset, uint256 width, uint256 value) internal {
+        // `offset` and `width` must not overflow the slot
+        assert(offset + width <= 32);
+        // and `value` must fit into the designated part
+        assert(width == 32 || value < 2 ** (8 * width));
+
+        // Slot update mask
+        uint256 maskLeft;
+        unchecked {
+            maskLeft = ~((2 ** (8 * (offset + width))) - 1);
+        }
+        uint256 maskRight = (2 ** (8 * offset)) - 1;
+        uint256 mask = maskLeft | maskRight;
+
+        value = (2 ** (8 * offset)) * value;
+
+        // Current slot value
+        uint256 slotValue = uint256(vm.load(contractAddress, bytes32(slot)));
+        // Updated slot value
+        slotValue = value | (mask & slotValue);
+
+        vm.store(contractAddress, bytes32(slot), bytes32(slotValue));
+    }
+
     function _loadUInt256(address contractAddress, uint256 slot) internal view returns (uint256) {
-        return uint256(vm.load(contractAddress, bytes32(slot)));
+        return _loadData(contractAddress, slot, 0, 32);
     }
 
     function _loadAddress(address contractAddress, uint256 slot) internal view returns (address) {
-        return address(uint160(uint256(vm.load(contractAddress, bytes32(slot)))));
-    }
-
-    function _storeBytes32(address contractAddress, uint256 slot, bytes32 value) internal {
-        vm.store(contractAddress, bytes32(slot), value);
+        return address(uint160(_loadData(contractAddress, slot, 0, 20)));
     }
 
     function _storeUInt256(address contractAddress, uint256 slot, uint256 value) internal {
-        vm.store(contractAddress, bytes32(slot), bytes32(value));
+        _storeData(contractAddress, slot, 0, 32, value);
     }
 
     function _storeAddress(address contractAddress, uint256 slot, address value) internal {
-        vm.store(contractAddress, bytes32(slot), bytes32(uint256(uint160(value))));
+        _storeData(contractAddress, slot, 0, 20, uint160(value));
     }
 
-    function _assumeNoOverflow(uint256 augend, uint256 addend) internal {
+    function _storeBytes32(address contractAddress, uint256 slot, bytes32 value) internal {
+        _storeUInt256(contractAddress, slot, uint256(value));
+    }
+
+    function _assumeNoOverflow(uint256 augend, uint256 addend) internal pure {
         unchecked {
             vm.assume(augend < augend + addend);
         }

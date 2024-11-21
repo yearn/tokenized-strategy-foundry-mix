@@ -1,7 +1,7 @@
 [build.default]
 foundry-project-root       = '.'
-regen                      = true
-rekompile                  = true
+regen                      = false
+rekompile                  = false
 verbose                    = false
 debug                      = false
 require                    = 'src/test/kontrol/term-lemmas.k'
@@ -38,7 +38,7 @@ break-on-basic-blocks      = false
 break-on-cheatcodes        = false
 auto_abstract              = true
 run-constructor            = false
-bmc-depth                  = 3
+bmc-depth                  = 2
 match-test                 = [
         "RepoTokenListInvariantsTest.setUp",
         "TermAuctionListInvariantsTest.setUp",
@@ -47,7 +47,7 @@ ast                        = true
 
 [prove.tests]
 foundry-project-root       = '.'
-verbose                    = false
+verbose                    = true
 debug                      = false
 max-depth                  = 100000
 max-iterations             = 10000
@@ -78,9 +78,19 @@ match-test                 = [
         "RepoTokenListInvariantsTest.testInsertSortedNewToken",
         "RepoTokenListInvariantsTest.testInsertSortedDuplicateToken",
         "RepoTokenListInvariantsTest.testRemoveAndRedeemMaturedTokens",
+        "RepoTokenListInvariantsTest.testGetCumulativeDataEmpty",
+        "RepoTokenListInvariantsTest.testGetPresentValueEmpty",
+        "RepoTokenListInvariantsTest.testGetPresentTotalValue",
+        "RepoTokenListInvariantsTest.testGetCumulativeRepoTokenData",
         "TermAuctionListInvariantsTest.testInsertPendingNewOffer",
         "TermAuctionListInvariantsTest.testInsertPendingDuplicateOffer",
         "TermAuctionListInvariantsTest.testRemoveCompleted",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataEmpty",
+        "TermAuctionListInvariantsTest.testGetPresentValueEmpty",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataNoCompletedAuctions",
+        "TermAuctionListInvariantsTest.testGetCumulativeDataCompletedAuctions",
+        "TermAuctionListInvariantsTest.testGetCumulativeOfferData",
+        "TermAuctionListInvariantsTest.testGetPresentTotalValue",
     ]
 ast                        = true
 

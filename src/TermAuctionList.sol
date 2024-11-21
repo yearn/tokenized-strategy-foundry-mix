@@ -242,8 +242,6 @@ library TermAuctionList {
      * @param repoTokenListData The repoToken list data
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
-     * @param prevTermController The previous term controller
-     * @param currTermController The current term controller
      * @param repoTokenToMatch The address of the repoToken to match (optional)
      * @return totalValue The total present value of the offers
      *
@@ -257,8 +255,6 @@ library TermAuctionList {
         RepoTokenListData storage repoTokenListData,
         ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision,
-        ITermController prevTermController,
-        ITermController currTermController,
         address repoTokenToMatch
     ) internal view returns (uint256 totalValue) {
         // Return 0 if the list is empty
@@ -282,7 +278,7 @@ library TermAuctionList {
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
+            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
                 if (edgeCaseAuction != address(offer.termAuction)) {
                     uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
                         offer.repoToken,
@@ -357,7 +353,7 @@ library TermAuctionList {
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-                if (repoTokenListData.discountRates[offer.repoToken] == 0 && offer.termAuction.auctionCompleted()) {
+                if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
                     // use normalized repoToken amount if repoToken is not in the list
                     if (edgeCaseAuction != address(offer.termAuction)) {
                         offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(

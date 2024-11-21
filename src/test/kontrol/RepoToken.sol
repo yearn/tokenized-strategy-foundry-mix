@@ -48,7 +48,7 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         _storeUInt256(address(this), termRepoCollateralManagerSlot, uint256(uint160(address(termRepoCollateralManager))));
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return 18;
     }
 
