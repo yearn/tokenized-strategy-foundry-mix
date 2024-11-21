@@ -1,0 +1,20 @@
+name: CD
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      - run: forge install
+      - run: forge doc
+      - run: CREATE_PR=true ./publish-docs.sh
