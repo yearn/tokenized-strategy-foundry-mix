@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 import "forge-std/Script.sol";
 import "../src/Strategy.sol";
 
-interface TermVaultGovernanceFactory {
+interface TermStrategyGovernanceFactory {
     function deploySafe(
         address proposer,
         address strategy,
@@ -109,7 +109,7 @@ contract DeployGovernance is Script {
 
         vm.startBroadcast(deployerPK);
 
-        TermVaultGovernanceFactory factory = TermVaultGovernanceFactory(vm.envAddress("GOVERNANCE_FACTORY"));
+        TermStrategyGovernanceFactory factory = TermStrategyGovernanceFactory(vm.envAddress("GOVERNANCE_FACTORY"));
         address proposer = vm.envAddress("PROPOSER");
         address strategy = vm.envAddress("STRATEGY");
         address governor = vm.envAddress("GOVERNOR");

@@ -18,16 +18,24 @@ on:
         description: 'Profit max unlock time'
         required: true
         default: '0'
-      roleManager:
-        description: 'Role Manager'
-        required: false
-        default: '0x'
-      roleNumber:
-        description: 'sum of roles'
-        required: false
-        default: '0'
       depositLimit:
         description: 'Deposit limit'
+        required: false
+        default: '0'
+      defaultRefund:
+        description: 'Default refund'
+        required: false
+        default: '0'
+      defaultMaxFee:
+        description: 'Default max fee'
+        required: false
+        default: '0'
+      defaultMaxGain:
+        description: 'Default max gain'
+        required: false
+        default: '0'
+      defaultMaxLoss:
+        description: 'Default max loss'
         required: false
         default: '0'
 
@@ -57,12 +65,14 @@ jobs:
           ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
           VAULT_NAME: ${{ github.event.inputs.vaultName }}
           VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
-          FEE_MANAGER: ${{ vars.FEE_MANAGER }}
           FEE_RECIPIENT: ${{ vars.FEE_RECIPIENT }}
           DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
-          IS_TEST: true
-          ROLE_MANAGER: ${{ github.event.inputs.roleManager }}
-          ROLE_NUM: ${{ github.event.inputs.roleNumber }}
+          VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
+          KEEPER: ${{ vars.KEEPER }}
           PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
-          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+          DEFAULT_REFUND: ${{ github.event.inputs.defaultRefund }}
+          DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
+          DEFAULT_MAX_GAIN: ${{ github.event.inputs.defaultMaxGain }}
+          DEFAULT_MAX_LOSS: ${{ github.event.inputs.defaultMaxLoss }}
+
   
