@@ -47,7 +47,7 @@ jobs:
           VAULT: ${{ github.event.inputs.vault }}
           ACCOUNTANT: ${{ github.event.inputs.accountant }}
           GOVERNOR: ${{ github.event.inputs.governorRoleAddress }}
-          GOVERNANCE_FACTORY: ${{ vars.GOVERNANCE_FACTORY }}
+          GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
 
 
 
