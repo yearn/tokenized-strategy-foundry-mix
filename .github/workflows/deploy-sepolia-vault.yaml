@@ -22,16 +22,8 @@ on:
         description: 'Deposit limit'
         required: false
         default: '0'
-      defaultManagement:
-        description: 'Default management fee'
-        required: false
-        default: '0'
       defaultPerformance:
         description: 'Default performance fee'
-        required: false
-        default: '0'
-      defaultRefund:
-        description: 'Default refund'
         required: false
         default: '0'
       defaultMaxFee:
@@ -78,9 +70,7 @@ jobs:
           VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
           KEEPER: ${{ vars.KEEPER }}
           PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
-          DEFAULT_MANAGEMENT: ${{ github.event.inputs.defaultManagement }}
           DEFAULT_PERFORMANCE: ${{ github.event.inputs.defaultPerformance }}
-          DEFAULT_REFUND: ${{ github.event.inputs.defaultRefund }}
           DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
           DEFAULT_MAX_GAIN: ${{ github.event.inputs.defaultMaxGain }}
           DEFAULT_MAX_LOSS: ${{ github.event.inputs.defaultMaxLoss }}

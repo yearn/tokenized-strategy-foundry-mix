@@ -70,24 +70,29 @@ contract SetupVaultManagement is Script {
     }
 
     function _setAccountantParams(Accountant accountant, address vaultGovernanceFactory) internal {
-        uint16 defaultManagement = uint16(vm.envOr("DEFAULT_MANAGEMENT", uint256(0)));
-        uint16 defaultPerformance = uint16(vm.envOr("DEFAULT_PERFORMANCE", uint256(0)));
         uint16 defaultRefund = uint16(vm.envOr("DEFAULT_REFUND", uint256(0)));
         uint16 defaultMaxFee = uint16(vm.envOr("DEFAULT_MAX_FEE", uint256(0)));
         uint16 defaultMaxGain = uint16(vm.envOr("DEFAULT_MAX_GAIN", uint256(0)));
         uint16 defaultMaxLoss = uint16(vm.envOr("DEFAULT_MAX_LOSS", uint256(0)));
         address newFeeRecipient = vm.envAddress("FEE_RECIPIENT");
 
-        accountant.updateDefaultConfig(defaultManagement, defaultPerformance, defaultRefund, defaultMaxFee, defaultMaxGain, defaultMaxLoss);
+        accountant.updateDefaultConfig(uint16(0), defaultPerformance, uint16(0), defaultMaxFee, defaultMaxGain, defaultMaxLoss);
         console.log("set default config for accountant");
-        console.log(defaultManagement);
+        console.log("default performance");
         console.log(defaultPerformance);
-        console.log(defaultRefund);
+        console.log("default max fee");
         console.log(defaultMaxFee);
+        console.log("default max gain");
         console.log(defaultMaxGain);
+        console.log("default max loss");
         console.log(defaultMaxLoss);
 
         accountant.setFutureFeeManager(vaultGovernanceFactory);
+        console.log("set future fee manager");
+        console.log(vaultGovernanceFactory);
+
         accountant.setFeeRecipient(newFeeRecipient);
+        console.log("set fee recipient");
+        console.log(newFeeRecipient);
     }
 }
