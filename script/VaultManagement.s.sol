@@ -88,7 +88,6 @@ contract SetupVaultManagement is Script {
     function _transferVaultManagement() internal {
         vault.transfer_role_manager(vaultGovernanceFactory);
         vault.set_role(deployer, 0);
-        vault.accept_role_manager();
     }
 
     function _configureAccountant() internal {
