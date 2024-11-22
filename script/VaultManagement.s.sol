@@ -90,7 +90,7 @@ contract SetupVaultManagement is Script {
         vault.set_role(deployer, 0);
     }
 
-    function _configureAccountant() internal {
+    function _configureAccountant(address vault) internal {
         // Load fee parameters
         uint16 defaultPerformance = uint16(vm.envOr("DEFAULT_PERFORMANCE", uint256(0)));
         uint16 defaultMaxFee = uint16(vm.envOr("DEFAULT_MAX_FEE", uint256(0)));
@@ -113,6 +113,8 @@ contract SetupVaultManagement is Script {
         console.log("default max fee", defaultMaxFee);
         console.log("default max gain", defaultMaxGain);
         console.log("default max loss", defaultMaxLoss);
+
+        accountant.addVault(vault);
 
         accountant.setFutureFeeManager(vaultGovernanceFactory);
         console.log("set future fee manager", vaultGovernanceFactory);
