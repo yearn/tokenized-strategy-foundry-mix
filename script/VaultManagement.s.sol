@@ -49,6 +49,8 @@ contract SetupVaultManagement is Script {
         uint256 depositLimit = vm.envOr("DEPOSIT_LIMIT",uint256(0));
         address keeper = vm.envAddress("KEEPER_ADDRESS");
 
+        vault.set_role(deployer, 16383);
+
         vault.set_role(keeper, 112);
         console.log("set role for keeper");
 
@@ -66,6 +68,7 @@ contract SetupVaultManagement is Script {
         console.log("set auto allocate to true");
 
         vault.transfer_role_manager(vaultGovernanceFactory);
+        vault.set_role(deployer, 0);
         vault.accept_role_manager();
     }
 
