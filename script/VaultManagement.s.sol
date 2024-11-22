@@ -70,7 +70,7 @@ contract SetupVaultManagement is Script {
     }
 
     function _setAccountantParams(Accountant accountant, address vaultGovernanceFactory) internal {
-        uint16 defaultRefund = uint16(vm.envOr("DEFAULT_REFUND", uint256(0)));
+        uint16 defaultPerformance = uint16(vm.envOr("DEFAULT_PERFORMANCE", uint256(0)));
         uint16 defaultMaxFee = uint16(vm.envOr("DEFAULT_MAX_FEE", uint256(0)));
         uint16 defaultMaxGain = uint16(vm.envOr("DEFAULT_MAX_GAIN", uint256(0)));
         uint16 defaultMaxLoss = uint16(vm.envOr("DEFAULT_MAX_LOSS", uint256(0)));
