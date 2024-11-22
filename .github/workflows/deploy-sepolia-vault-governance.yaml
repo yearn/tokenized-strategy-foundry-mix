@@ -18,10 +18,6 @@ on:
         description: 'Governor role address'
         required: true
         default: '0x'
-      governorVaults:
-        description: 'Governor vaults as comma separated'
-        required: false
-        default: ''
     
 jobs:
   deploy:
