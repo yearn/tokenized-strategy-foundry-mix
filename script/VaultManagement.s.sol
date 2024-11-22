@@ -39,13 +39,13 @@ contract SetupVaultManagement is Script {
         console.log("deployed accountant contract to");
         console.log(address(accountant));
 
-        _setVaultParams(vault, accountantAddress, vaultGovernanceFactory);
+        _setVaultParams(vault, accountantAddress, vaultGovernanceFactory, deployer);
         _setAccountantParams(accountant, vaultGovernanceFactory);
 
         vm.stopBroadcast();
     }
 
-    function _setVaultParams(IVault vault, address accountant, address vaultGovernanceFactory) internal {
+    function _setVaultParams(IVault vault, address accountant, address vaultGovernanceFactory, address deployer) internal {
         uint256 depositLimit = vm.envOr("DEPOSIT_LIMIT",uint256(0));
         address keeper = vm.envAddress("KEEPER_ADDRESS");
 
