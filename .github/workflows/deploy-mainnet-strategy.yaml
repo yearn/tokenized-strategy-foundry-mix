@@ -75,6 +75,7 @@ jobs:
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
+          KEEPER_ADDRESS: ${{ vars.KEEPER }}
           GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNANCE_FACTORY }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
           NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}

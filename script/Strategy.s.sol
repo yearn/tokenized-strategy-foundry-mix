@@ -149,6 +149,7 @@ contract DeployStrategy is Script {
         uint256[] memory minCollateralRatios = stringToUintArray(vm.envString("MIN_COLLATERAL_RATIOS"));
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
+        address keeper = vm.envAddress("KEEPER_ADDRESS");
 
         bool isTest = vm.envBool("IS_TEST");
 
@@ -170,6 +171,7 @@ contract DeployStrategy is Script {
         ITokenizedStrategy(address(strategy)).setProfitMaxUnlockTime(profitMaxUnlockTime);
 
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
+        ITokenizedStrategy(address(strategy)).setKeeper(keeper);
         console.log("set pending management");
         console.log(strategyManagement);
 
