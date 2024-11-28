@@ -175,10 +175,9 @@ contract DeployStrategy is Script {
         console.log("set pending management");
         console.log(strategyManagement);
 
-        if (isTest) {
-            eventEmitter.pairVaultContract(address(strategy));
-            console.log("paired strategy contract with event emitter");
-        }
+        eventEmitter.pairVaultContract(address(strategy));
+        console.log("paired strategy contract with event emitter");
+        
 
         for (uint256 i = 0; i < collateralTokens.length; i++) {
             strategy.setCollateralTokenParams(collateralTokens[i], minCollateralRatios[i]);

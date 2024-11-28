@@ -1,4 +1,4 @@
-name: "[sepolia-deploy] deploy governance for vault"
+name: "[mainnet-deploy] deploy governance for vault"
 on:
   workflow_dispatch:
     inputs:
@@ -23,7 +23,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: 
-      name: sepolia
+      name: mainnet
       url: https://term-finance.github.io/yearn-v3-term-vault/
     steps:
       - uses: actions/checkout@master
