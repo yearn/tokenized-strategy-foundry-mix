@@ -22,5 +22,9 @@ jobs:
           forge test --no-match-path "src/test/kontrol/*" -vvv
       - name: Run snapshot without Kontrol tests
         run: forge snapshot --no-match-path "src/test/kontrol/*"
-
+      - name: Run coverage without Kontrol tests
+        run: forge coverage --report lcov --no-match-path "src/test/kontrol/*"
+      - uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
   
