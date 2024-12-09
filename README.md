@@ -1,5 +1,9 @@
 # Tokenized Strategy Mix for Yearn V3 strategies
 
+![CI](https://github.com/term-finance/yearn-v3-term-vault/actions/workflows/ci.yaml/badge.svg?branch=master)
+
+[![codecov](https://codecov.io/gh/term-finance/yearn-v3-term-vault/graph/badge.svg?token=rSmJK0e9nG)](https://codecov.io/gh/term-finance/yearn-v3-term-vault)
+
 This repo will allow you to write, test and deploy V3 "Tokenized Strategies" using [Foundry](https://book.getfoundry.sh/).
 
 You will only need to override the three functions in Strategy.sol of `_deployFunds`, `_freeFunds` and `_harvestAndReport`. With the option to also override `_tend`, `_tendTrigger`, `availableDepositLimit`, `availableWithdrawLimit` and `_emergencyWithdraw` if desired.
