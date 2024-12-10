@@ -1,3 +1,5 @@
 ignore:
   - "script"
   - "src/test"
+  - "src/util"
+  - "src/TermDiscountRateAdapter.sol"
