@@ -69,6 +69,7 @@ jobs:
           DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
           VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
           KEEPER_ADDRESS: ${{ vars.KEEPER }}
+          STRATEGY_ADDER: ${{ vars.STRATEGY_ADDER }}
           PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
           DEFAULT_PERFORMANCE: ${{ github.event.inputs.defaultPerformance }}
           DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
