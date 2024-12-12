@@ -59,6 +59,7 @@ contract SetupVaultManagement is Script {
 
     function _configureVault() internal {
         address keeper = vm.envAddress("KEEPER_ADDRESS");
+        address strategyAdder = vm.envAddress("STRATEGY_ADDER_ADDRESS");
         uint256 depositLimit = vm.envOr("DEPOSIT_LIMIT", uint256(0));
 
         // Set deployer roles
@@ -77,6 +78,8 @@ contract SetupVaultManagement is Script {
 
         vault.set_use_default_queue(true);
         console.log("set use default queue to true");
+
+        vault.set_role(strategyAdder, 129);
 
         // Transfer management
         _transferVaultManagement();
