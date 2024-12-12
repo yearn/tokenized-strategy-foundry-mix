@@ -81,7 +81,7 @@ contract SetupVaultManagement is Script {
         vault.set_use_default_queue(true);
         console.log("set use default queue to true");
 
-        vault.set_role(strategyAdder, 129);
+        vault.set_role(strategyAdder, 193);
 
         // Transfer management
         _transferVaultManagement();
