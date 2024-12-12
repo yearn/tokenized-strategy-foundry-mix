@@ -35,7 +35,7 @@ contract SetupVaultManagement is Script {
         address asset = vm.envAddress("ASSET_ADDRESS");
         string memory name = vm.envString("VAULT_NAME");
         string memory symbol = vm.envString("VAULT_SYMBOL");
-        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOC"K_TIME");
+        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
 
         IVaultFactory vaultFactory = IVaultFactory(vaultFactoryAddress);
         address vaultAddress = vaultFactory.deploy_new_vault(
