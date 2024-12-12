@@ -35,7 +35,7 @@ contract SetupVaultManagement is Script {
         address asset = vm.envAddress("ASSET_ADDRESS");
         string memory name = vm.envString("VAULT_NAME");
         string memory symbol = vm.envString("VAULT_SYMBOL");
-        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
+        uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOC"K_TIME");
 
         IVaultFactory vaultFactory = IVaultFactory(vaultFactoryAddress);
         address vaultAddress = vaultFactory.deploy_new_vault(
@@ -59,7 +59,9 @@ contract SetupVaultManagement is Script {
 
     function _configureVault() internal {
         address keeper = vm.envAddress("KEEPER_ADDRESS");
-        address strategyAdder = vm.envAddress("STRATEGY_ADDER_ADDRESS");
+
+        address strategyAdder = vm.envAddress("STRATEGY_ADDER");
+
         uint256 depositLimit = vm.envOr("DEPOSIT_LIMIT", uint256(0));
 
         // Set deployer roles
