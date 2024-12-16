@@ -55,7 +55,7 @@ jobs:
       - run: forge install
       - run: forge build
       - run: forge tree
-      - run: forge script script/VaultManagement.s.sol:SetupVaultManagement --rpc-url $RPC_URL --broadcast --verify --debug --verbosity 4
+      - run: forge script script/VaultManagement.s.sol:SetupVaultManagement --rpc-url $RPC_URL --broadcast --verify --verbosity 4
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
