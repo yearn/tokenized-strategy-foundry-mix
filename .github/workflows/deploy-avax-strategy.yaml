@@ -1,0 +1,85 @@
+name: "[mainnet-deploy] deploy strategy"
+on:
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: 'Asset address'
+        required: true
+        default: '0x'
+      strategyName:
+        description: 'Yearn strategy name'
+        required: true
+        default: '0x'
+      strategyManagementAddress:
+        description: 'Strategy management address'
+        required: true
+        default: '0x'
+      discountRateMarkup:
+        description: 'Discount rate markup'
+        required: false
+        default: '0.01'
+      timeToMaturityThreshold:
+        description: 'Time to maturity threshold'
+        required: false
+        default: '0'
+      repoTokenConcentrationLimit:
+        description: 'Repo token concentration limit'
+        required: false
+        default: '0.01'
+      requiredReserveRatio:
+        description: 'Required reserve ratio'
+        required: false
+        default: '0.01'
+      profitMaxUnlock:
+        description: 'Profit max unlock time'
+        required: false
+        default: '0'
+      collateralTokens:
+        description: 'Collateral tokens comma separated'
+        required: false
+        default: '0x'
+      minCollateralRatios:
+        description: 'Minimum collateral ratio comma separated'
+        required: false
+        default: '0.01'
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: mainnet
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge tree
+      - run: forge script script/Strategy.s.sol:DeployStrategy --rpc-url $RPC_URL --broadcast --gas-price  500000000000  --verify --verbosity 4
+        env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          GOVERNOR_DEPLOYER_KEY: ${{ secrets.GOVERNANCE_DEPLOYER_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          ASSET_ADDRESS: ${{ github.event.inputs.asset }}
+          YEARN_VAULT_ADDRESS: ${{ vars.YEARN_VAULT_ADDRESS }}
+          IS_TEST: true
+          STRATEGY_NAME: ${{ github.event.inputs.strategyName }}
+          TERM_CONTROLLER_ADDRESS: ${{ vars.TERM_CONTROLLER_ADDRESS }}
+          DISCOUNT_RATE_ADAPTER_ADDRESS: ${{ vars.DISCOUNT_RATE_ADAPTER_ADDRESS }}
+          DISCOUNT_RATE_MARKUP: ${{ github.event.inputs.discountRateMarkup }}
+          TIME_TO_MATURITY_THRESHOLD: ${{ github.event.inputs.timeToMaturityThreshold }}
+          REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
+          ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
+          DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
+          KEEPER_ADDRESS: ${{ vars.KEEPER }}
+          GOVERNOR_ROLE_ADDRESS: ${{ vars.GOVERNANCE_FACTORY }}
+          STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
+          NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
+          COLLATERAL_TOKEN_ADDRESSES: ${{ github.event.inputs.collateralTokens }}
+          MIN_COLLATERAL_RATIOS: ${{ github.event.inputs.minCollateralRatios }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlock }}
+  
