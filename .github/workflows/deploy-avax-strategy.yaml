@@ -1,4 +1,4 @@
-name: "[mainnet-deploy] deploy strategy"
+name: "[avalanche-deploy] deploy strategy"
 on:
   workflow_dispatch:
     inputs:
@@ -47,7 +47,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: 
-      name: mainnet
+      name: avalanche
       url: https://term-finance.github.io/yearn-v3-term-vault/
     steps:
       - uses: actions/checkout@master
