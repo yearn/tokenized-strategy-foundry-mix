@@ -1,0 +1,4 @@
+{
+    "include": ["./src", "./scripts"],
+    "files": ["./hardhat.config.ts"]
+}
