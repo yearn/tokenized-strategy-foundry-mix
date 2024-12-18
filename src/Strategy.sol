@@ -538,7 +538,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     function _withdrawAsset(uint256 amount) private {
         YEARN_VAULT.withdraw(
-            YEARN_VAULT.convertToShares(amount),
+            amount,
             address(this),
             address(this)
         );
