@@ -150,6 +150,7 @@ contract DeployStrategy is Script {
         address governorRoleAddress = vm.envAddress("GOVERNOR_ROLE_ADDRESS");
         uint256 profitMaxUnlockTime = vm.envUint("PROFIT_MAX_UNLOCK_TIME");
         address keeper = vm.envAddress("KEEPER_ADDRESS");
+        address feeRecipient = vm.envAddress("FEE_RECIPIENT");
 
         bool isTest = vm.envBool("IS_TEST");
 
@@ -172,6 +173,7 @@ contract DeployStrategy is Script {
 
         ITokenizedStrategy(address(strategy)).setPendingManagement(strategyManagement);
         ITokenizedStrategy(address(strategy)).setKeeper(keeper);
+        ITokenizedStrategy(address(strategy)).setPerformanceFeeRecipient(feeRecipient);
         console.log("set pending management");
         console.log(strategyManagement);
 

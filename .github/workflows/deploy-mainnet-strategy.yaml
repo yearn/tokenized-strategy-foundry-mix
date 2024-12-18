@@ -14,10 +14,10 @@ on:
         description: 'Strategy management address'
         required: true
         default: '0x'
-      discountRateMarkup:
-        description: 'Discount rate markup'
+      feeRecipient:
+        description: 'FeeRecipient address'
         required: false
-        default: '0.01'
+        default: '0x'
       timeToMaturityThreshold:
         description: 'Time to maturity threshold'
         required: false
@@ -70,7 +70,7 @@ jobs:
           STRATEGY_NAME: ${{ github.event.inputs.strategyName }}
           TERM_CONTROLLER_ADDRESS: ${{ vars.TERM_CONTROLLER_ADDRESS }}
           DISCOUNT_RATE_ADAPTER_ADDRESS: ${{ vars.DISCOUNT_RATE_ADAPTER_ADDRESS }}
-          DISCOUNT_RATE_MARKUP: ${{ github.event.inputs.discountRateMarkup }}
+          DISCOUNT_RATE_MARKUP: ${{ vars.DISCOUNT_RATE_MARKUP }}
           TIME_TO_MATURITY_THRESHOLD: ${{ github.event.inputs.timeToMaturityThreshold }}
           REPOTOKEN_CONCENTRATION_LIMIT: ${{ github.event.inputs.repoTokenConcentrationLimit }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
@@ -82,4 +82,5 @@ jobs:
           COLLATERAL_TOKEN_ADDRESSES: ${{ github.event.inputs.collateralTokens }}
           MIN_COLLATERAL_RATIOS: ${{ github.event.inputs.minCollateralRatios }}
           PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlock }}
+          FEE_RECIPIENT: ${{ github.event.inputs.feeRecipient }}
   
