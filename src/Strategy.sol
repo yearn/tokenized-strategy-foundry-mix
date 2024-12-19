@@ -102,6 +102,8 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
 
     RepoTokenListData internal repoTokenListData;
     TermAuctionListData internal termAuctionListData;
+    string internal tokenSymbol;
+
 
 
     StrategyState public strategyState;
@@ -288,6 +290,9 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     /*//////////////////////////////////////////////////////////////
                     VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function symbol() external view returns (string memory) {
+        return tokenSymbol;
+    }
 
     /**
      * @notice Calculates the total value of all assets managed by the strategy
@@ -1170,6 +1175,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      */
     constructor(
         string memory _name,
+        string memory _symbol,
         StrategyParams memory _params
     ) BaseStrategy(_params._asset, _name) {
         YEARN_VAULT = IERC4626(_params._yearnVault);
@@ -1177,6 +1183,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         PURCHASE_TOKEN_PRECISION = 10 ** ERC20(asset).decimals();
 
         IERC20(_params._asset).safeApprove(_params._yearnVault, type(uint256).max);
+        tokenSymbol = _symbol;
 
         strategyState = StrategyState({
             assetVault: address(YEARN_VAULT),

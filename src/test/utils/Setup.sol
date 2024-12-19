@@ -154,6 +154,7 @@ contract Setup is ExtendedTest, IEvents {
         );
         Strategy strat = new Strategy(
                     "Tokenized Strategy", 
+                    "tS",
                     params
                 );
         

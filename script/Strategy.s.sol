@@ -163,6 +163,7 @@ contract DeployStrategy is Script {
 
         Strategy strategy = new Strategy(
             name,
+            "symbol",
             params
         );
 
