@@ -1,4 +1,4 @@
-name: "[mainnet-deploy] deploy strategy"
+name: "[mainnet-deploy] deploy strategy (hardhat)"
 on:
   workflow_dispatch:
     inputs:
