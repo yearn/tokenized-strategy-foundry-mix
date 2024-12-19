@@ -8,12 +8,25 @@ dotenv.config();
 
 function stringToAddressArray(input: string): string[] {
   if (!input) return [];
-  return input.split(",").map((addr) => addr.trim());
+  return input.split(",").map((addr) => {
+    const trimmed = addr.trim();
+    if (!hre.ethers.isAddress(trimmed)) {
+      throw new Error(`Invalid address: ${trimmed}`);
+    }
+    return trimmed;
+  });
 }
 
 function stringToUintArray(input: string): number[] {
   if (!input) return [];
-  return input.split(",").map((num) => parseInt(num.trim()));
+  return input.split(",").map((num) => {
+    const trimmed = num.trim();
+    const parsed = parseInt(trimmed);
+    if (isNaN(parsed) || parsed.toString() !== trimmed) {
+      throw new Error(`Invalid number: ${trimmed}`);
+    }
+    return parsed;
+  });
 }
 
 async function checkUnderlyingVaultAsset(
