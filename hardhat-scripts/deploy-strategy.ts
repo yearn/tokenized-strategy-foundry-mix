@@ -167,6 +167,9 @@ async function main() {
     process.env.MIN_COLLATERAL_RATIOS!
   );
 
+  if (collateralTokens.length !== minCollateralRatios.length) {
+    throw new Error("COLLATERAL_TOKEN_ADDRESSES and MIN_COLLATERAL_RATIOS must have the same number of entries.");
+  }
   for (let i = 0; i < collateralTokens.length; i++) {
     await strategy.setCollateralTokenParams(
       collateralTokens[i],
