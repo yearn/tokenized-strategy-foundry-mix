@@ -5,6 +5,7 @@
         "@nomicfoundation/hardhat-ethers": "^3.0.8",
         "@nomicfoundation/hardhat-foundry": "^1.1.3",
         "dotenv": "^16.4.7",
+        "env-cmd": "^10.1.0",
         "ethers": "^6.13.4",
         "hardhat": "^2.22.17",
         "prettier": "^2.5.1",
@@ -18,7 +19,9 @@
         "format": "prettier --write 'src/**/*.(sol|json)'",
         "format:check": "prettier --check 'src/**/*.*(sol|json)'",
         "lint": "solhint 'src/**/*.sol'",
-        "lint:fix": "solhint --fix 'src/**/*.sol'"
+        "lint:fix": "solhint --fix 'src/**/*.sol'",
+        "sepolia:deploy-strategy": "env-cmd -f sepolia.env hardhat run --network sepolia scripts/deploy-strategy.js",
+        "mainnet:deploy-strategy": "env-cmd -f mainnet.env hardhat run --network mainnet scripts/deploy-strategy.js"
     },
     "packageManager": "yarn@1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72"
 }
