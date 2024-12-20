@@ -1,6 +1,25 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-foundry";
 import "@nomicfoundation/hardhat-ethers";
+import { task } from "hardhat/config";
+import path from "path";
+import glob from "glob";
+
+task("compile", "Compiles the project, excluding specific files", async (_, { run }) => {
+  const excludedPaths = [
+    path.resolve(__dirname, "src/test/*.sol"),
+  ];
+
+  const allFiles = glob.sync(path.resolve(__dirname, "src/*.sol"));
+  const filesToCompile = allFiles.filter(
+    (file) => !excludedPaths.some((excluded) => file.startsWith(excluded))
+  );
+
+  console.log("Files to compile:", filesToCompile);
+
+  await run("compile:solidity", { sources: filesToCompile, force: false, quiet: false });
+});
+
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.23",
@@ -10,6 +29,9 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+  paths: {
+    sources: "./src", // Specify the main directory for source files
   },
   networks: {
     sepolia: {

@@ -1,4 +1,11 @@
 {
-    "include": ["./src", "./scripts"],
-    "files": ["./hardhat.config.ts"]
+    "include": ["./src"],
+    "files": ["./hardhat.config.ts"],
+    "compilerOptions": {
+
+    "esModuleInterop": true,
+
+    // other options
+
+  }
 }
