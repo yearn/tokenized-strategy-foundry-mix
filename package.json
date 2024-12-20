@@ -22,8 +22,8 @@
         "format:check": "prettier --check 'src/**/*.*(sol|json)'",
         "lint": "solhint 'src/**/*.sol'",
         "lint:fix": "solhint --fix 'src/**/*.sol'",
-        "sepolia:deploy-strategy": "hardhat run --network sepolia hardhat-scripts/deploy-strategy.js",
-        "mainnet:deploy-strategy": "hardhat run --network mainnet hardhat-scripts/deploy-strategy.js"
+        "sepolia:deploy-strategy": "hardhat run --network sepolia hardhat-scripts/deploy-strategy.ts",
+        "mainnet:deploy-strategy": "hardhat run --network mainnet hardhat-scripts/deploy-strategy.ts"
     },
     "packageManager": "yarn@1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72"
 }
