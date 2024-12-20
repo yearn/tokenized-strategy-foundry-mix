@@ -14,6 +14,7 @@
         "solc": "0.8.23",
         "solhint": "^3.3.7",
         "solhint-plugin-prettier": "^0.0.5",
+        "ts-node": "^10.9.2",
         "typescript": "^5.7.2"
     },
     "scripts": {
