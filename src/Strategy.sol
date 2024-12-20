@@ -577,8 +577,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
      * and the present value of all pending offers to calculate the total asset value.
      */
     function _totalAssetValue(uint256 liquidBalance) internal view returns (uint256 totalValue) {
-        ITermController prevTermController = strategyState.prevTermController;
-        ITermController currTermController = strategyState.currTermController;
         
         return
             liquidBalance +
