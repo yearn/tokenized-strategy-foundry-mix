@@ -4,6 +4,15 @@
     "compilerOptions": {
 
     "esModuleInterop": true,
+    "baseUrl": "./",
+    "paths": {
+
+            "@openzeppelin/*": ["./lib/openzeppelin-contracts/*"],
+            "@tokenized-strategy/*": ["./lib/tokenized-strategy/src/*"],
+            "@periphery/*": ["./lib/tokenized-strategy-periphery/src/*"],
+            "@yearn-vaults/*": ["./lib/yearn-vaults-v3/contracts/*"],
+            "vault-periphery/*": ["./lib/vault-periphery/*"]         
+    }
 
     // other options
 
