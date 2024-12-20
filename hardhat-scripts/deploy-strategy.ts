@@ -60,7 +60,7 @@ async function buildStrategyParams(
     process.env.REPOTOKEN_CONCENTRATION_LIMIT!;
   const newRequiredReserveRatio = process.env.NEW_REQUIRED_RESERVE_RATIO!;
 
-  await checkUnderlyingVaultAsset(asset, yearnVaultAddress, managedSigner);
+  //await checkUnderlyingVaultAsset(asset, yearnVaultAddress, managedSigner);
 
   return {
     asset,
