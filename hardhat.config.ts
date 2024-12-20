@@ -49,13 +49,6 @@ const config: HardhatUserConfig = {
   paths: {
     sources: "./src", // Specify the main directory for source files
   },
-  solidity: "0.8.23",
-  paths: {
-    sources: "./src",          // Your contract source directory
-    libraries: "./lib",        // Point Hardhat to Foundry's lib folder
-    cache: "./cache",          // Keep Foundry and Hardhat caches separate
-    artifacts: "./artifacts",  // Keep artifacts separate
-  },
 
   networks: {
     sepolia: {
