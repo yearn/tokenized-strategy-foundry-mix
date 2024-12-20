@@ -54,6 +54,8 @@ jobs:
         with:
           fetch-depth: 0
       - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge remappings > remappings.txt
       - id: nodeversion
         run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> $GITHUB_OUTPUT
       - run: corepack enable

@@ -4,6 +4,22 @@ import "@nomicfoundation/hardhat-ethers";
 import { task } from "hardhat/config";
 import path from "path";
 import glob from "glob";
+import fs from "fs";
+
+const remappings = fs
+  .readFileSync("remappings.txt", "utf-8")
+  .split("\n")
+  .filter((line) => line.trim() !== "") // Remove empty lines
+  .map((line) => line.trim().split("="));
+
+const resolveImportPath = (importPath: string): string => {
+  for (const [prefix, target] of remappings) {
+    if (importPath.startsWith(prefix)) {
+      return path.join(target, importPath.slice(prefix.length));
+    }
+  }
+  return importPath;
+};
 
 task("compile", "Compiles the project, excluding specific files", async (_, { run }) => {
   const excludedPaths = [
@@ -33,6 +49,14 @@ const config: HardhatUserConfig = {
   paths: {
     sources: "./src", // Specify the main directory for source files
   },
+  solidity: "0.8.23",
+  paths: {
+    sources: "./src",          // Your contract source directory
+    libraries: "./lib",        // Point Hardhat to Foundry's lib folder
+    cache: "./cache",          // Keep Foundry and Hardhat caches separate
+    artifacts: "./artifacts",  // Keep artifacts separate
+  },
+
   networks: {
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
