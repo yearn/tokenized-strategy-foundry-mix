@@ -10,6 +10,10 @@ on:
         description: 'Yearn strategy name'
         required: true
         default: '0x'
+      symbol:
+        description: 'Yearn token symbol'
+        required: true
+        default: '0x'
       strategyManagementAddress:
         description: 'Strategy management address'
         required: true
@@ -78,8 +82,9 @@ jobs:
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
           STRATEGY_NAME: ${{ github.event.inputs.strategyName }}
-          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlock }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ vars.PROFIT_MAX_UNLOCK_TIME }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
+          SYMBOL: ${{ github.event.inputs.symbol }}
           KEEPER_ADDRESS: ${{ vars.KEEPER }}
           FEE_RECIPIENT: ${{ github.event.inputs.feeRecipient }}
           COLLATERAL_TOKEN_ADDRESSES: ${{ github.event.inputs.collateralTokens }}
