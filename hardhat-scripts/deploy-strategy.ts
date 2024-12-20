@@ -130,6 +130,7 @@ async function main() {
   const Strategy = (await hre.ethers.getContractFactory("Strategy")).connect(
     managedSigner ?? null
   );
+  console.log(`Deploying strategy with (${process.env.STRATEGY_NAME}, ${process.env.SYMBOL})`);
   const strategy = await Strategy.deploy(process.env.STRATEGY_NAME!, process.env.SYMBOL!, params);
   await strategy.deployed();
 
