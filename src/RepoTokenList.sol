@@ -340,7 +340,6 @@ library RepoTokenList {
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
      * @return validRepoToken Whether the repoToken is valid
-     * @return discountRate The discount rate to be applied to the validated repoToken 
      * @return redemptionTimestamp The redemption timestamp of the validated repoToken     
      */
     function validateAndInsertRepoToken(
@@ -348,14 +347,14 @@ library RepoTokenList {
         ITermRepoToken repoToken,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
-    ) internal returns (bool validRepoToken, uint256 discountRate, uint256 redemptionTimestamp) {
-        discountRate = listData.discountRates[address(repoToken)];
+    ) internal returns (bool validRepoToken, uint256 redemptionTimestamp) {
+        uint256 discountRate = listData.discountRates[address(repoToken)];
         if (discountRate != INVALID_AUCTION_RATE) {
             (redemptionTimestamp, , ,) = repoToken.config();
 
             // skip matured repoTokens
             if (redemptionTimestamp < block.timestamp) {
-                return (false, discountRate, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
+                return (false, redemptionTimestamp); //revert InvalidRepoToken(address(repoToken));
             }
 
             uint256 oracleRate;
@@ -374,20 +373,20 @@ library RepoTokenList {
                 discountRate = rate == 0 ? ZERO_AUCTION_RATE : rate;
             } catch {
                 discountRate = INVALID_AUCTION_RATE;
-                return (false, discountRate, redemptionTimestamp);
+                return (false, redemptionTimestamp);
             }
 
             bool isRepoTokenValid;
 
             (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
             if (!isRepoTokenValid) {
-                return (false, discountRate, redemptionTimestamp);
+                return (false, redemptionTimestamp);
             }
             insertSorted(listData, address(repoToken));
             listData.discountRates[address(repoToken)] = discountRate;
         }
 
-        return (true, discountRate, redemptionTimestamp);
+        return (true, redemptionTimestamp);
     }
 
     /**

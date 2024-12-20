@@ -1084,7 +1084,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
         }
 
         // Validate and insert the repoToken into the list, retrieve auction rate and redemption timestamp
-        (bool isRepoTokenValid , , uint256 redemptionTimestamp) = repoTokenListData
+        (bool isRepoTokenValid , uint256 redemptionTimestamp) = repoTokenListData
             .validateAndInsertRepoToken(
                 ITermRepoToken(repoToken),
                 strategyState.discountRateAdapter,
