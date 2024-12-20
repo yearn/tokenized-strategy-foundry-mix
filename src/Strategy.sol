@@ -177,7 +177,6 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
     ) external onlyRole(GOVERNOR_ROLE) {
         require(newTermControllerAddr != address(0));
         require(ITermController(newTermControllerAddr).getProtocolReserveAddress() != address(0));
-        ITermController newTermController = ITermController(newTermControllerAddr);
         address currentIteration = repoTokenListData.head;
         while (currentIteration != address(0)) {
             if (!_isTermDeployed(currentIteration)) {
@@ -191,7 +190,7 @@ contract Strategy is BaseStrategy, Pausable, AccessControl {
             newTermControllerAddr
         );
         strategyState.prevTermController = ITermController(current);
-        strategyState.currTermController = newTermController;
+        strategyState.currTermController = ITermController(newTermControllerAddr);
     }
 
     /**
