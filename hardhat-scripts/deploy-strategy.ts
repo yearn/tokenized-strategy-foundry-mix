@@ -1,5 +1,5 @@
 import hre from "hardhat";
-import "@nomicfoundation/hardhat-ethers";
+import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
 import { Signer } from "ethers";
@@ -10,7 +10,7 @@ function stringToAddressArray(input: string): string[] {
   if (!input) return [];
   return input.split(",").map((addr) => {
     const trimmed = addr.trim();
-    if (!hre.ethers.isAddress(trimmed)) {
+    if (!hre.ethers.utils.isAddress(trimmed)) {
       throw new Error(`Invalid address: ${trimmed}`);
     }
     return trimmed;
