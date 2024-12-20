@@ -7,7 +7,7 @@ import glob from "glob";
 
 task("compile", "Compiles the project, excluding specific files", async (_, { run }) => {
   const excludedPaths = [
-    path.resolve(__dirname, "src/test/*.sol"),
+    path.resolve(__dirname, "src/test/kontrol/*.sol"),
   ];
 
   const allFiles = glob.sync(path.resolve(__dirname, "src/*.sol"));
