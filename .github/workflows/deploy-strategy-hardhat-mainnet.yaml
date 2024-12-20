@@ -53,6 +53,7 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 0
+      - uses: foundry-rs/foundry-toolchain@v1
       - id: nodeversion
         run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> $GITHUB_OUTPUT
       - run: corepack enable
