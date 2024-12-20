@@ -143,9 +143,8 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
     }
     
 
-    function _validateAuctionExistence(AuctionMetadata[] memory auctionMetadata, bytes32 termAuctionId) private view returns(bool auctionExists) {
+    function _validateAuctionExistence(AuctionMetadata[] memory auctionMetadata, bytes32 termAuctionId) private pure returns(bool auctionExists) {
         // Check if the termAuctionId exists in the metadata
-        bool auctionExists;
         for (uint256 i = 0; i < auctionMetadata.length; i++) {
             if (auctionMetadata[i].termAuctionId == termAuctionId) {
                 auctionExists = true;
