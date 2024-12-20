@@ -106,7 +106,7 @@ async function deployEventEmitter(managedSigner: Signer) {
 
   return hre.ethers.getContractAt(
     "TermVaultEventEmitter",
-    await eventEmitterProxy.getAddress(),
+    eventEmitterProxy.address,
     managedSigner
   );
 }
@@ -121,7 +121,7 @@ async function main() {
 
   // Build strategy parameters
   const params = await buildStrategyParams(
-    await eventEmitter.getAddress(),
+    eventEmitter.address,
     deployer.address,
     managedSigner
   );
@@ -138,7 +138,7 @@ async function main() {
   // Post-deployment setup
   const strategyContract = await hre.ethers.getContractAt(
     "ITokenizedStrategy",
-    await strategy.getAddress(),
+    strategy.address,
     managedSigner
   );
 
@@ -156,7 +156,7 @@ async function main() {
     process.env.STRATEGY_MANAGEMENT_ADDRESS
   );
 
-  await eventEmitter.pairVaultContract(await strategy.getAddress());
+  await eventEmitter.pairVaultContract(strategy.address);
   console.log("Paired strategy with event emitter");
 
   // Set collateral token parameters
