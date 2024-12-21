@@ -198,7 +198,31 @@ console.log("Hardhat found artifact:", {
         discountRateMarkup: params.discountRateMarkup.toString()
     }
   });
-  const strategy = await connectedStrategy.deploy(strategyName!, strategySymbol!, params);
+  // Create a struct that exactly matches the constructor's tuple type
+  const deployParams = {
+    _name: strategyName,
+    _symbol: strategySymbol,
+    _params: {
+        asset: params.asset,
+        yearnVaultAddress: params.yearnVaultAddress,
+        discountRateAdapterAddress: params.discountRateAdapterAddress,
+        eventEmitter: params.eventEmitter,
+        deployer: params.deployer,
+        termController: params.termController,
+        repoTokenConcentrationLimit: params.repoTokenConcentrationLimit,
+        timeToMaturityThreshold: params.timeToMaturityThreshold,
+        newRequiredReserveRatio: params.newRequiredReserveRatio,
+        discountRateMarkup: params.discountRateMarkup
+    }
+  };
+
+  // Try deploying with the exact parameter names matching the ABI
+  const strategy = await connectedStrategy.deploy(
+    deployParams._name,
+    deployParams._symbol,
+    deployParams._params
+  );
+
   console.log(JSON.stringify(strategy));
   await strategy.deployed();
 
