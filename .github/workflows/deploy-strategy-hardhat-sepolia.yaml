@@ -63,6 +63,7 @@ jobs:
       - run: yarn install
       - run: rm -rf src/test/kontrol/
       - run: yarn hardhat compile
+      - run: yarn hardhat typechain
       - run: yarn sepolia:deploy-strategy
         env:
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}

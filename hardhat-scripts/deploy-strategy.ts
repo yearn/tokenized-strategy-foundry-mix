@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import { Signer } from "ethers";
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Strategy } from '../typechain-types/src/Strategy';
+type StrategyParamsStruct = Strategy.StrategyParamsStruct;
 
 
 dotenv.config();
@@ -49,34 +51,33 @@ async function checkUnderlyingVaultAsset(
 }
 
 async function buildStrategyParams(
-  eventEmitter: string,
+  _eventEmitter: string,
   deployer: string,
   managedSigner: Signer
 ) {
-  const asset = process.env.ASSET_ADDRESS!;
-  const yearnVaultAddress = process.env.YEARN_VAULT_ADDRESS!;
-  const discountRateAdapterAddress = process.env.DISCOUNT_RATE_ADAPTER_ADDRESS!;
-  const termController = process.env.TERM_CONTROLLER_ADDRESS!;
-  const discountRateMarkup = process.env.DISCOUNT_RATE_MARKUP!;
-  const timeToMaturityThreshold = process.env.TIME_TO_MATURITY_THRESHOLD!;
-  const repoTokenConcentrationLimit =
-    process.env.REPOTOKEN_CONCENTRATION_LIMIT!;
-  const newRequiredReserveRatio = process.env.NEW_REQUIRED_RESERVE_RATIO!;
+  const _asset = process.env.ASSET_ADDRESS!;
+  const _yearnVault = process.env.YEARN_VAULT_ADDRESS!;
+  const _discountRateAdapter = process.env.DISCOUNT_RATE_ADAPTER_ADDRESS!;
+  const _termController = process.env.TERM_CONTROLLER_ADDRESS!;
+  const _discountRateMarkup = ethers.BigNumber.from(process.env.DISCOUNT_RATE_MARKUP!);
+  const _timeToMaturityThreshold = ethers.BigNumber.from(process.env.TIME_TO_MATURITY_THRESHOLD!);
+  const _repoTokenConcentrationLimit = ethers.BigNumber.from(process.env.REPOTOKEN_CONCENTRATION_LIMIT!);
+  const _requiredReserveRatio = ethers.BigNumber.from(process.env.NEW_REQUIRED_RESERVE_RATIO!);
 
-  await checkUnderlyingVaultAsset(asset, yearnVaultAddress, managedSigner);
+  await checkUnderlyingVaultAsset(_asset, _yearnVault, managedSigner);
 
   return {
-    asset,
-    yearnVaultAddress,
-    discountRateAdapterAddress,
-    eventEmitter,
-    deployer,
-    termController,
-    repoTokenConcentrationLimit,
-    timeToMaturityThreshold,
-    newRequiredReserveRatio,
-    discountRateMarkup,
-  };
+    _asset,
+    _yearnVault,
+    _discountRateAdapter,
+    _eventEmitter,
+    _governorAddress: deployer,
+    _termController,
+    _repoTokenConcentrationLimit,
+    _timeToMaturityThreshold,
+    _requiredReserveRatio,
+    _discountRateMarkup,
+  } as StrategyParamsStruct;
 }
 
 async function deployEventEmitter(managedSigner: Signer) {
@@ -179,18 +180,6 @@ for (const artifactPath of possibleArtifactPaths) {
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
   console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
     // Log the exact values we're passing
-  console.log("Deploying with:", {
-    strategyName,
-    strategySymbol,
-    params: {
-        ...params,
-        // Convert BigNumber values to strings for logging
-        repoTokenConcentrationLimit: params.repoTokenConcentrationLimit.toString(),
-        timeToMaturityThreshold: params.timeToMaturityThreshold.toString(),
-        newRequiredReserveRatio: params.newRequiredReserveRatio.toString(),
-        discountRateMarkup: params.discountRateMarkup.toString()
-    }
-  });
   console.log("About to deploy with params:", {
     funcFragment: Strategy.interface.deploy,
     args: [strategyName, strategySymbol, params]

@@ -5,6 +5,10 @@ import { task } from "hardhat/config";
 import path from "path";
 import glob from "glob";
 import fs from "fs";
+import "hardhat-abi-exporter";
+import "@typechain/hardhat";
+
+
 
 const remappings = fs
   .readFileSync("remappings.txt", "utf-8")
@@ -45,6 +49,16 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+  abiExporter: {
+    runOnCompile: true,
+    clear: true,
+    flat: false,
+    format: "json",
+  },
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v5",
   },
   paths: {
     sources: "./src",           // Where your contracts are
