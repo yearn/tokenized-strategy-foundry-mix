@@ -66,6 +66,7 @@ jobs:
           cache: yarn
       - run: yarn install
       - run: rm -rf src/test/kontrol/
+      - run: yarn hardhat compile
       - run: yarn mainnet:deploy-strategy
         env:
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}

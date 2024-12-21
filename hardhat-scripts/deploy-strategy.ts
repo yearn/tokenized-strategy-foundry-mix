@@ -1,4 +1,4 @@
-import hre from "hardhat";
+import { ethers } from "hardhat";  // Use direct ethers import
 import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
@@ -13,7 +13,7 @@ function stringToAddressArray(input: string): string[] {
   if (!input) return [];
   return input.split(",").map((addr) => {
     const trimmed = addr.trim();
-    if (!hre.ethers.utils.isAddress(trimmed)) {
+    if (!ethers.utils.isAddress(trimmed)) {
       throw new Error(`Invalid address: ${trimmed}`);
     }
     return trimmed;
@@ -37,7 +37,7 @@ async function checkUnderlyingVaultAsset(
   underlyingVault: string,
   managedSigner: Signer
 ) {
-  const vault = await hre.ethers.getContractAt(
+  const vault = await ethers.getContractAt(
     "IERC4626",
     underlyingVault,
     managedSigner
@@ -84,14 +84,14 @@ async function deployEventEmitter(managedSigner: Signer) {
   const devops = process.env.DEVOPS_ADDRESS!;
 
   const EventEmitter = (
-    await hre.ethers.getContractFactory("TermVaultEventEmitter")
+    await ethers.getContractFactory("TermVaultEventEmitter")
   ).connect(managedSigner);
   const eventEmitterImpl = await EventEmitter.deploy();
   await eventEmitterImpl.deployed();
 
   console.log("Deployed event emitter impl to:", eventEmitterImpl.address);
 
-  const Proxy = (await hre.ethers.getContractFactory("ERC1967Proxy")).connect(
+  const Proxy = (await ethers.getContractFactory("ERC1967Proxy")).connect(
     managedSigner
   );
   const initData = EventEmitter.interface.encodeFunctionData("initialize", [
@@ -107,7 +107,7 @@ async function deployEventEmitter(managedSigner: Signer) {
 
   console.log("Deployed event emitter proxy to:", eventEmitterProxy.address);
 
-  return hre.ethers.getContractAt(
+  return ethers.getContractAt(
     "TermVaultEventEmitter",
     eventEmitterProxy.address,
     managedSigner
@@ -115,7 +115,6 @@ async function deployEventEmitter(managedSigner: Signer) {
 }
 
 async function main() {
-  await hre.run('compile');
   // Try both Foundry and Hardhat artifact locations
 const possibleArtifactPaths = [
   path.join(process.cwd(), 'out/Strategy.sol/Strategy.json'),
@@ -137,18 +136,8 @@ for (const artifactPath of possibleArtifactPaths) {
   }
 }
 
-// Log how Hardhat sees the contract
-const artifactNames = await hre.artifacts.getAllFullyQualifiedNames();
-console.log("All available artifacts:", artifactNames);
-
-// Try getting the factory with explicit artifact loading
-const artifact = await hre.artifacts.readArtifact("Strategy");
-console.log("Hardhat found artifact:", {
-  name: artifact.contractName,
-  sourceName: artifact.sourceName
-});
   // Get the deployer's address and setup managed signer
-  const [deployer] = await hre.ethers.getSigners();
+  const [deployer] = await ethers.getSigners();
   const managedSigner = new NonceManager(deployer as any) as unknown as Signer;
 
   // Deploy EventEmitter first
@@ -163,9 +152,13 @@ console.log("Hardhat found artifact:", {
   console.log(JSON.stringify(params));
   console.log(await managedSigner.getAddress())
 
-  // Deploy Strategy
-  const strategyArtifact = await hre.artifacts.readArtifact("Strategy");
-  const Strategy = await hre.ethers.getContractFactoryFromArtifact(strategyArtifact);
+  // Match your working pattern exactly
+  const Strategy = await ethers.getContractFactory(
+    "Strategy",
+    {
+      signer: managedSigner,
+    }
+  );
 
   const connectedStrategy = Strategy.connect(
     managedSigner
@@ -199,29 +192,14 @@ console.log("Hardhat found artifact:", {
     }
   });
   // Create a struct that exactly matches the constructor's tuple type
-  const deployParams = {
-    _name: strategyName,
-    _symbol: strategySymbol,
-    _params: {
-        asset: params.asset,
-        yearnVaultAddress: params.yearnVaultAddress,
-        discountRateAdapterAddress: params.discountRateAdapterAddress,
-        eventEmitter: params.eventEmitter,
-        deployer: params.deployer,
-        termController: params.termController,
-        repoTokenConcentrationLimit: params.repoTokenConcentrationLimit,
-        timeToMaturityThreshold: params.timeToMaturityThreshold,
-        newRequiredReserveRatio: params.newRequiredReserveRatio,
-        discountRateMarkup: params.discountRateMarkup
-    }
-  };
-
-  // Try deploying with the exact parameter names matching the ABI
-  const strategy = await connectedStrategy.deploy(
-    deployParams._name,
-    deployParams._symbol,
-    deployParams._params
+  const strategy = await Strategy.deploy(
+    strategyName,
+    strategySymbol,
+    params
   );
+
+  await strategy.deployed();
+  
 
   console.log(JSON.stringify(strategy));
   await strategy.deployed();
@@ -229,7 +207,7 @@ console.log("Hardhat found artifact:", {
   console.log("Deployed strategy to:", strategy.address);
 
   // Post-deployment setup
-  const strategyContract = await hre.ethers.getContractAt(
+  const strategyContract = await ethers.getContractAt(
     "ITokenizedStrategy",
     strategy.address,
     managedSigner
