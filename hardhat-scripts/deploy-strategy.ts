@@ -22,15 +22,15 @@ function stringToAddressArray(input: string): string[] {
   });
 }
 
-function stringToUintArray(input: string): number[] {
+function stringToUintArray(input: string): string[] {  // Changed return type to string[]
   if (!input) return [];
   return input.split(",").map((num) => {
     const trimmed = num.trim();
-    const parsed = parseInt(trimmed);
-    if (isNaN(parsed) || parsed.toString() !== trimmed) {
+    // Just validate that it's a valid number string but return the string
+    if (isNaN(Number(trimmed))) {
       throw new Error(`Invalid number: ${trimmed}`);
     }
-    return parsed;
+    return trimmed;  // Return the string instead of parsing to number
   });
 }
 
