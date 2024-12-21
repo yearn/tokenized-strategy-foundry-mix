@@ -191,6 +191,21 @@ for (const artifactPath of possibleArtifactPaths) {
         discountRateMarkup: params.discountRateMarkup.toString()
     }
   });
+  console.log("About to deploy with params:", {
+    funcFragment: Strategy.interface.deploy,
+    args: [strategyName, strategySymbol, params]
+  });
+  
+  const deployTx = await Strategy.getDeployTransaction(
+    strategyName,
+    strategySymbol,
+    params
+  );
+  console.log("Deploy transaction:", {
+    from: deployTx.from,
+    data: deployTx.data?.toString().substring(0, 100) + '...' // Just first 100 chars
+  });
+  
   // Create a struct that exactly matches the constructor's tuple type
   const strategy = await Strategy.deploy(
     strategyName,
