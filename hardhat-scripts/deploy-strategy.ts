@@ -125,6 +125,7 @@ async function main() {
     deployer.address,
     managedSigner
   );
+  console.log(JSON.stringify(params));
 
   // Deploy Strategy
   const Strategy = (await hre.ethers.getContractFactory("Strategy")).connect(
