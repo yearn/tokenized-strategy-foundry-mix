@@ -126,11 +126,13 @@ async function main() {
     managedSigner
   );
   console.log(JSON.stringify(params));
+  console.log(await managedSigner.getAddress())
 
   // Deploy Strategy
   const Strategy = (await hre.ethers.getContractFactory("Strategy")).connect(
-    managedSigner ?? null
+    managedSigner
   );
+
   const strategyMeta = process.env.STRATEGY_META!;
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
   console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
