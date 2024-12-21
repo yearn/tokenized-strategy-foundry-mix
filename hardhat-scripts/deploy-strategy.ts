@@ -44,7 +44,7 @@ async function checkUnderlyingVaultAsset(
   );
   const underlyingAsset = await vault.asset();
   if (underlyingAsset.toLowerCase() !== asset.toLowerCase()) {
-    throw new Error("Underlying asset does not match asset");
+    throw new Error(`Underlying asset (${underlyingAsset}) does not match asset (${asset})`);
   }
 }
 
