@@ -164,7 +164,8 @@ console.log("Hardhat found artifact:", {
   console.log(await managedSigner.getAddress())
 
   // Deploy Strategy
-  const Strategy = await hre.ethers.getContractFactory("src/Strategy.sol:Strategy");
+  const strategyArtifact = await hre.artifacts.readArtifact("Strategy");
+  const Strategy = await hre.ethers.getContractFactoryFromArtifact(strategyArtifact);
 
   const connectedStrategy = Strategy.connect(
     managedSigner
