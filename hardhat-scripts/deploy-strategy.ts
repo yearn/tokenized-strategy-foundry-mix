@@ -161,39 +161,10 @@ for (const artifactPath of possibleArtifactPaths) {
     }
   );
 
-  const connectedStrategy = Strategy.connect(
-    managedSigner
-  );
-  // Log the deployment attempt
-  console.log("Strategy factory created with:", {
-    hasAbi: !!connectedStrategy.interface,
-    hasBytecode: !!connectedStrategy.bytecode,
-    signer: await managedSigner.getAddress()
-  });
-
-  console.log("Constructor ABI:", Strategy.interface.deploy);
-
-
-
-
   const strategyMeta = process.env.STRATEGY_META!;
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
   console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
-    // Log the exact values we're passing
-  console.log("About to deploy with params:", {
-    funcFragment: Strategy.interface.deploy,
-    args: [strategyName, strategySymbol, params]
-  });
-  
-  const deployTx = await Strategy.getDeployTransaction(
-    strategyName,
-    strategySymbol,
-    params
-  );
-  console.log("Deploy transaction:", {
-    from: deployTx.from,
-    data: deployTx.data?.toString().substring(0, 100) + '...' // Just first 100 chars
-  });
+
   
   // Create a struct that exactly matches the constructor's tuple type
   const strategy = await Strategy.deploy(
@@ -204,10 +175,6 @@ for (const artifactPath of possibleArtifactPaths) {
 
   await strategy.deployed();
   
-
-  console.log(JSON.stringify(strategy));
-  await strategy.deployed();
-
   console.log("Deployed strategy to:", strategy.address);
 
   // Post-deployment setup
@@ -220,19 +187,29 @@ for (const artifactPath of possibleArtifactPaths) {
   await strategyContract.setProfitMaxUnlockTime(
     process.env.PROFIT_MAX_UNLOCK_TIME!
   );
-  await strategyContract.setPendingManagement(
+  const tx1 = await strategyContract.setProfitMaxUnlockTime(
+    process.env.PROFIT_MAX_UNLOCK_TIME!
+  );
+  await tx1.wait();
+  console.log("Set profit max unlock time to:", process.env.PROFIT_MAX_UNLOCK_TIME, "Transaction hash:", tx1.hash);
+
+  const tx2 = await strategyContract.setPendingManagement(
     process.env.STRATEGY_MANAGEMENT_ADDRESS!
   );
-  await strategyContract.setKeeper(process.env.KEEPER_ADDRESS!);
-  await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
+  await tx2.wait();
+  console.log("Set pending management to:", process.env.STRATEGY_MANAGEMENT_ADDRESS, "Transaction hash:", tx2.hash);
 
-  console.log(
-    "Set pending management to:",
-    process.env.STRATEGY_MANAGEMENT_ADDRESS
-  );
+  const tx3 = await strategyContract.setKeeper(process.env.KEEPER_ADDRESS!);
+  await tx3.wait();
+  console.log("Set keeper to:", process.env.KEEPER_ADDRESS, "Transaction hash:", tx3.hash);
 
-  await eventEmitter.pairVaultContract(strategy.address);
-  console.log("Paired strategy with event emitter");
+  const tx4 = await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
+  await tx4.wait();
+  console.log("Set performance fee recipient to:", process.env.FEE_RECIPIENT, "Transaction hash:", tx4.hash);
+
+  const tx5 = await eventEmitter.pairVaultContract(strategy.address);
+  await tx5.wait();
+  console.log("Paired strategy with event emitter. Transaction hash:", tx5.hash);
 
   // Set collateral token parameters
   const collateralTokens = stringToAddressArray(
