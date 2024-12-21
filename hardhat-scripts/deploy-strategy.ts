@@ -59,10 +59,10 @@ async function buildStrategyParams(
   const _yearnVault = process.env.YEARN_VAULT_ADDRESS!;
   const _discountRateAdapter = process.env.DISCOUNT_RATE_ADAPTER_ADDRESS!;
   const _termController = process.env.TERM_CONTROLLER_ADDRESS!;
-  const _discountRateMarkup = ethers.BigNumber.from(process.env.DISCOUNT_RATE_MARKUP!);
-  const _timeToMaturityThreshold = ethers.BigNumber.from(process.env.TIME_TO_MATURITY_THRESHOLD!);
-  const _repoTokenConcentrationLimit = ethers.BigNumber.from(process.env.REPOTOKEN_CONCENTRATION_LIMIT!);
-  const _requiredReserveRatio = ethers.BigNumber.from(process.env.NEW_REQUIRED_RESERVE_RATIO!);
+  const _discountRateMarkup = process.env.DISCOUNT_RATE_MARKUP!;
+  const _timeToMaturityThreshold = process.env.TIME_TO_MATURITY_THRESHOLD!;
+  const _repoTokenConcentrationLimit = process.env.REPOTOKEN_CONCENTRATION_LIMIT!;
+  const _requiredReserveRatio = process.env.NEW_REQUIRED_RESERVE_RATIO!;
 
   await checkUnderlyingVaultAsset(_asset, _yearnVault, managedSigner);
 
