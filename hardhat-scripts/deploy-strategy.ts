@@ -112,6 +112,7 @@ async function deployEventEmitter(managedSigner: Signer) {
 }
 
 async function main() {
+  await hre.run('compile');
   // Get the deployer's address and setup managed signer
   const [deployer] = await hre.ethers.getSigners();
   const managedSigner = new NonceManager(deployer as any) as unknown as Signer;
