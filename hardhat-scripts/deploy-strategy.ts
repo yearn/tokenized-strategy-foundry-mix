@@ -130,7 +130,7 @@ async function main() {
   console.log(await managedSigner.getAddress())
 
   // Deploy Strategy
-  const Strategy = await hre.ethers.getContractFactory("src/Strategy.sol:Strategy");
+  const Strategy = await hre.ethers.getContractFactory("out/Strategy.sol:Strategy");
 
   const connectedStrategy = Strategy.connect(
     managedSigner

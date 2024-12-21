@@ -47,9 +47,10 @@ const config: HardhatUserConfig = {
     },
   },
   paths: {
-    sources: "./src", // Specify the main directory for source files
+    sources: "./src",           // Where your contracts are
+    artifacts: "./artifacts",   // Where compiled artifacts go
+    cache: "./cache"           // Cache directory
   },
-
   networks: {
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
