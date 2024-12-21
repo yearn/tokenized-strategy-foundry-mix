@@ -177,10 +177,27 @@ console.log("Hardhat found artifact:", {
     signer: await managedSigner.getAddress()
   });
 
+  console.log("Constructor ABI:", Strategy.interface.deploy);
+
+
+
 
   const strategyMeta = process.env.STRATEGY_META!;
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
   console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
+    // Log the exact values we're passing
+  console.log("Deploying with:", {
+    strategyName,
+    strategySymbol,
+    params: {
+        ...params,
+        // Convert BigNumber values to strings for logging
+        repoTokenConcentrationLimit: params.repoTokenConcentrationLimit.toString(),
+        timeToMaturityThreshold: params.timeToMaturityThreshold.toString(),
+        newRequiredReserveRatio: params.newRequiredReserveRatio.toString(),
+        discountRateMarkup: params.discountRateMarkup.toString()
+    }
+  });
   const strategy = await connectedStrategy.deploy(strategyName!, strategySymbol!, params);
   console.log(JSON.stringify(strategy));
   await strategy.deployed();
