@@ -116,27 +116,6 @@ async function deployEventEmitter(managedSigner: Signer) {
 }
 
 async function main() {
-  // Try both Foundry and Hardhat artifact locations
-const possibleArtifactPaths = [
-  path.join(process.cwd(), 'out/Strategy.sol/Strategy.json'),
-  path.join(process.cwd(), 'artifacts/src/Strategy.sol/Strategy.json')
-];
-
-// Check each path
-for (const artifactPath of possibleArtifactPaths) {
-  console.log(`Checking ${artifactPath}`);
-  try {
-    const exists = await fs.access(artifactPath).then(() => true).catch(() => false);
-    if (exists) {
-      console.log(`Found artifact at: ${artifactPath}`);
-      const artifact = JSON.parse(await fs.readFile(artifactPath, 'utf8'));
-      console.log(`Artifact contains: `, Object.keys(artifact));
-    }
-  } catch (e) {
-    console.log(`Error with ${artifactPath}:`, e);
-  }
-}
-
   // Get the deployer's address and setup managed signer
   const [deployer] = await ethers.getSigners();
   const managedSigner = new NonceManager(deployer as any) as unknown as Signer;
@@ -151,7 +130,6 @@ for (const artifactPath of possibleArtifactPaths) {
     managedSigner
   );
   console.log(JSON.stringify(params));
-  console.log(await managedSigner.getAddress())
 
   // Match your working pattern exactly
   const Strategy = await ethers.getContractFactory(
