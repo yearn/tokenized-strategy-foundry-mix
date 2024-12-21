@@ -3,6 +3,9 @@ import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
 import { Signer } from "ethers";
+import { promises as fs } from 'fs';
+import path from 'path';
+
 
 dotenv.config();
 
@@ -113,6 +116,37 @@ async function deployEventEmitter(managedSigner: Signer) {
 
 async function main() {
   await hre.run('compile');
+  // Try both Foundry and Hardhat artifact locations
+const possibleArtifactPaths = [
+  path.join(process.cwd(), 'out/Strategy.sol/Strategy.json'),
+  path.join(process.cwd(), 'artifacts/src/Strategy.sol/Strategy.json')
+];
+
+// Check each path
+for (const artifactPath of possibleArtifactPaths) {
+  console.log(`Checking ${artifactPath}`);
+  try {
+    const exists = await fs.access(artifactPath).then(() => true).catch(() => false);
+    if (exists) {
+      console.log(`Found artifact at: ${artifactPath}`);
+      const artifact = JSON.parse(await fs.readFile(artifactPath, 'utf8'));
+      console.log(`Artifact contains: `, Object.keys(artifact));
+    }
+  } catch (e) {
+    console.log(`Error with ${artifactPath}:`, e);
+  }
+}
+
+// Log how Hardhat sees the contract
+const artifactNames = await hre.artifacts.getAllFullyQualifiedNames();
+console.log("All available artifacts:", artifactNames);
+
+// Try getting the factory with explicit artifact loading
+const artifact = await hre.artifacts.readArtifact("Strategy");
+console.log("Hardhat found artifact:", {
+  name: artifact.contractName,
+  sourceName: artifact.sourceName
+});
   // Get the deployer's address and setup managed signer
   const [deployer] = await hre.ethers.getSigners();
   const managedSigner = new NonceManager(deployer as any) as unknown as Signer;
