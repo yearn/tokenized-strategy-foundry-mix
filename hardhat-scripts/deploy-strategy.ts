@@ -170,6 +170,13 @@ console.log("Hardhat found artifact:", {
   const connectedStrategy = Strategy.connect(
     managedSigner
   );
+  // Log the deployment attempt
+  console.log("Strategy factory created with:", {
+    hasAbi: !!connectedStrategy.interface,
+    hasBytecode: !!connectedStrategy.bytecode,
+    signer: await managedSigner.getAddress()
+  });
+
 
   const strategyMeta = process.env.STRATEGY_META!;
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
