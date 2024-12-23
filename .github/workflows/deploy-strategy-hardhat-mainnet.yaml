@@ -30,10 +30,6 @@ on:
         description: 'Required reserve ratio'
         required: false
         default: '0.01'
-      profitMaxUnlock:
-        description: 'Profit max unlock time'
-        required: false
-        default: '0'
       collateralTokens:
         description: 'Collateral tokens comma separated'
         required: false
