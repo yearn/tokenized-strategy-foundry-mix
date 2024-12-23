@@ -83,15 +83,18 @@ async function buildStrategyParams(
 async function deployEventEmitter(managedSigner: Signer) {
   const admin = process.env.ADMIN_ADDRESS!;
   const devops = process.env.DEVOPS_ADDRESS!;
+  let eventEmitterImpl = process.env.EVENT_EMITTER_ADDRESS;
 
   const EventEmitter = (
     await ethers.getContractFactory("TermVaultEventEmitter")
   ).connect(managedSigner);
-  const eventEmitterImpl = await EventEmitter.deploy();
-  await eventEmitterImpl.deployed();
-
-  console.log("Deployed event emitter impl to:", eventEmitterImpl.address);
-
+  if (!eventEmitterImpl) {
+    const eventEmitterImplContract = await EventEmitter.deploy();
+    await eventEmitterImplContract.deployed();
+    console.log("Deployed event emitter impl to:", eventEmitterImplContract.address);
+    eventEmitterImpl = eventEmitterImplContract.address;
+  }
+  
   const Proxy = (await ethers.getContractFactory("ERC1967Proxy")).connect(
     managedSigner
   );
@@ -101,10 +104,11 @@ async function deployEventEmitter(managedSigner: Signer) {
   ]);
 
   const eventEmitterProxy = await Proxy.deploy(
-    eventEmitterImpl.address,
+    eventEmitterImpl,
     initData
   );
   await eventEmitterProxy.deployed();
+  console.log("Using event emitter impl at:", eventEmitterImpl);
 
   console.log("Deployed event emitter proxy to:", eventEmitterProxy.address);
 
