@@ -5,6 +5,10 @@ import { task } from "hardhat/config";
 import path from "path";
 import glob from "glob";
 import fs from "fs";
+import "hardhat-abi-exporter";
+import "@typechain/hardhat";
+
+
 
 const remappings = fs
   .readFileSync("remappings.txt", "utf-8")
@@ -46,10 +50,21 @@ const config: HardhatUserConfig = {
       },
     },
   },
-  paths: {
-    sources: "./src", // Specify the main directory for source files
+  abiExporter: {
+    runOnCompile: true,
+    clear: true,
+    flat: false,
+    format: "json",
   },
-
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v5",
+  },
+  paths: {
+    sources: "./src",           // Where your contracts are
+    artifacts: "./artifacts",   // Where compiled artifacts go
+    cache: "./cache"           // Cache directory
+  },
   networks: {
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",

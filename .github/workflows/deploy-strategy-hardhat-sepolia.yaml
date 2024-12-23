@@ -6,14 +6,10 @@ on:
         description: 'Asset address'
         required: true
         default: '0x'
-      strategyName:
-        description: 'Yearn strategy name'
+      strategyMeta:
+        description: 'Yearn strategy name and token symbol separated by a comma'
         required: true
-        default: '0x'
-      symbol:
-        description: 'Yearn token symbol'
-        required: true
-        default: '0x'
+        default: 'SomeName,SOMESYMBOL'
       strategyManagementAddress:
         description: 'Strategy management address'
         required: true
@@ -55,6 +51,7 @@ jobs:
           fetch-depth: 0
       - uses: foundry-rs/foundry-toolchain@v1
       - run: forge install
+      - run: forge build
       - run: forge remappings > remappings.txt
       - id: nodeversion
         run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> $GITHUB_OUTPUT
@@ -65,6 +62,8 @@ jobs:
           cache: yarn
       - run: yarn install
       - run: rm -rf src/test/kontrol/
+      - run: yarn hardhat compile
+      - run: yarn hardhat typechain
       - run: yarn sepolia:deploy-strategy
         env:
           ASSET_ADDRESS: ${{ github.event.inputs.asset }}
@@ -77,8 +76,7 @@ jobs:
           NEW_REQUIRED_RESERVE_RATIO: ${{ github.event.inputs.requiredReserveRatio }}
           ADMIN_ADDRESS: ${{ vars.ADMIN_ADDRESS }}
           DEVOPS_ADDRESS: ${{ vars.DEVOPS_ADDRESS }}
-          STRATEGY_NAME: ${{ github.event.inputs.strategyName }}
-          SYMBOL: ${{ github.event.inputs.symbol }}
+          STRATEGY_META: ${{ github.event.inputs.strategyMeta }}
           PROFIT_MAX_UNLOCK_TIME: ${{ vars.PROFIT_MAX_UNLOCK_TIME }}
           STRATEGY_MANAGEMENT_ADDRESS: ${{ github.event.inputs.strategyManagementAddress }}
           KEEPER_ADDRESS: ${{ vars.KEEPER }}

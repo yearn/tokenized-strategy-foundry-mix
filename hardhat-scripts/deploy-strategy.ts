@@ -1,8 +1,13 @@
-import hre from "hardhat";
+import { ethers } from "hardhat";  // Use direct ethers import
 import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
 import { Signer } from "ethers";
+import { promises as fs } from 'fs';
+import path from 'path';
+import { Strategy } from '../typechain-types/src/Strategy';
+type StrategyParamsStruct = Strategy.StrategyParamsStruct;
+
 
 dotenv.config();
 
@@ -10,22 +15,22 @@ function stringToAddressArray(input: string): string[] {
   if (!input) return [];
   return input.split(",").map((addr) => {
     const trimmed = addr.trim();
-    if (!hre.ethers.utils.isAddress(trimmed)) {
+    if (!ethers.utils.isAddress(trimmed)) {
       throw new Error(`Invalid address: ${trimmed}`);
     }
     return trimmed;
   });
 }
 
-function stringToUintArray(input: string): number[] {
+function stringToUintArray(input: string): string[] {  // Changed return type to string[]
   if (!input) return [];
   return input.split(",").map((num) => {
     const trimmed = num.trim();
-    const parsed = parseInt(trimmed);
-    if (isNaN(parsed) || parsed.toString() !== trimmed) {
+    // Just validate that it's a valid number string but return the string
+    if (isNaN(Number(trimmed))) {
       throw new Error(`Invalid number: ${trimmed}`);
     }
-    return parsed;
+    return trimmed;  // Return the string instead of parsing to number
   });
 }
 
@@ -34,46 +39,45 @@ async function checkUnderlyingVaultAsset(
   underlyingVault: string,
   managedSigner: Signer
 ) {
-  const vault = await hre.ethers.getContractAt(
+  const vault = await ethers.getContractAt(
     "IERC4626",
     underlyingVault,
     managedSigner
   );
   const underlyingAsset = await vault.asset();
   if (underlyingAsset.toLowerCase() !== asset.toLowerCase()) {
-    throw new Error("Underlying asset does not match asset");
+    throw new Error(`Underlying asset (${underlyingAsset}) does not match asset (${asset})`);
   }
 }
 
 async function buildStrategyParams(
-  eventEmitter: string,
+  _eventEmitter: string,
   deployer: string,
   managedSigner: Signer
 ) {
-  const asset = process.env.ASSET_ADDRESS!;
-  const yearnVaultAddress = process.env.YEARN_VAULT_ADDRESS!;
-  const discountRateAdapterAddress = process.env.DISCOUNT_RATE_ADAPTER_ADDRESS!;
-  const termController = process.env.TERM_CONTROLLER_ADDRESS!;
-  const discountRateMarkup = process.env.DISCOUNT_RATE_MARKUP!;
-  const timeToMaturityThreshold = process.env.TIME_TO_MATURITY_THRESHOLD!;
-  const repoTokenConcentrationLimit =
-    process.env.REPOTOKEN_CONCENTRATION_LIMIT!;
-  const newRequiredReserveRatio = process.env.NEW_REQUIRED_RESERVE_RATIO!;
+  const _asset = process.env.ASSET_ADDRESS!;
+  const _yearnVault = process.env.YEARN_VAULT_ADDRESS!;
+  const _discountRateAdapter = process.env.DISCOUNT_RATE_ADAPTER_ADDRESS!;
+  const _termController = process.env.TERM_CONTROLLER_ADDRESS!;
+  const _discountRateMarkup = process.env.DISCOUNT_RATE_MARKUP!;
+  const _timeToMaturityThreshold = process.env.TIME_TO_MATURITY_THRESHOLD!;
+  const _repoTokenConcentrationLimit = process.env.REPOTOKEN_CONCENTRATION_LIMIT!;
+  const _requiredReserveRatio = process.env.NEW_REQUIRED_RESERVE_RATIO!;
 
-  await checkUnderlyingVaultAsset(asset, yearnVaultAddress, managedSigner);
+  await checkUnderlyingVaultAsset(_asset, _yearnVault, managedSigner);
 
   return {
-    asset,
-    yearnVaultAddress,
-    discountRateAdapterAddress,
-    eventEmitter,
-    deployer,
-    termController,
-    repoTokenConcentrationLimit,
-    timeToMaturityThreshold,
-    newRequiredReserveRatio,
-    discountRateMarkup,
-  };
+    _asset,
+    _yearnVault,
+    _discountRateAdapter,
+    _eventEmitter,
+    _governorAddress: deployer,
+    _termController,
+    _repoTokenConcentrationLimit,
+    _timeToMaturityThreshold,
+    _requiredReserveRatio,
+    _discountRateMarkup,
+  } as StrategyParamsStruct;
 }
 
 async function deployEventEmitter(managedSigner: Signer) {
@@ -81,14 +85,14 @@ async function deployEventEmitter(managedSigner: Signer) {
   const devops = process.env.DEVOPS_ADDRESS!;
 
   const EventEmitter = (
-    await hre.ethers.getContractFactory("TermVaultEventEmitter")
+    await ethers.getContractFactory("TermVaultEventEmitter")
   ).connect(managedSigner);
   const eventEmitterImpl = await EventEmitter.deploy();
   await eventEmitterImpl.deployed();
 
   console.log("Deployed event emitter impl to:", eventEmitterImpl.address);
 
-  const Proxy = (await hre.ethers.getContractFactory("ERC1967Proxy")).connect(
+  const Proxy = (await ethers.getContractFactory("ERC1967Proxy")).connect(
     managedSigner
   );
   const initData = EventEmitter.interface.encodeFunctionData("initialize", [
@@ -104,7 +108,7 @@ async function deployEventEmitter(managedSigner: Signer) {
 
   console.log("Deployed event emitter proxy to:", eventEmitterProxy.address);
 
-  return hre.ethers.getContractAt(
+  return ethers.getContractAt(
     "TermVaultEventEmitter",
     eventEmitterProxy.address,
     managedSigner
@@ -113,7 +117,7 @@ async function deployEventEmitter(managedSigner: Signer) {
 
 async function main() {
   // Get the deployer's address and setup managed signer
-  const [deployer] = await hre.ethers.getSigners();
+  const [deployer] = await ethers.getSigners();
   const managedSigner = new NonceManager(deployer as any) as unknown as Signer;
 
   // Deploy EventEmitter first
@@ -125,18 +129,34 @@ async function main() {
     deployer.address,
     managedSigner
   );
+  console.log(JSON.stringify(params));
 
-  // Deploy Strategy
-  const Strategy = (await hre.ethers.getContractFactory("Strategy")).connect(
-    managedSigner ?? null
+  // Match your working pattern exactly
+  const Strategy = await ethers.getContractFactory(
+    "Strategy",
+    {
+      signer: managedSigner,
+    }
   );
-  const strategy = await Strategy.deploy(process.env.STRATEGY_NAME!, process.env.SYMBOL!, params);
-  await strategy.deployed();
 
+  const strategyMeta = process.env.STRATEGY_META!;
+  const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
+  console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
+
+  
+  // Create a struct that exactly matches the constructor's tuple type
+  const strategy = await Strategy.deploy(
+    strategyName,
+    strategySymbol,
+    params
+  );
+
+  await strategy.deployed();
+  
   console.log("Deployed strategy to:", strategy.address);
 
   // Post-deployment setup
-  const strategyContract = await hre.ethers.getContractAt(
+  const strategyContract = await ethers.getContractAt(
     "ITokenizedStrategy",
     strategy.address,
     managedSigner
@@ -145,19 +165,29 @@ async function main() {
   await strategyContract.setProfitMaxUnlockTime(
     process.env.PROFIT_MAX_UNLOCK_TIME!
   );
-  await strategyContract.setPendingManagement(
+  const tx1 = await strategyContract.setProfitMaxUnlockTime(
+    process.env.PROFIT_MAX_UNLOCK_TIME!
+  );
+  await tx1.wait();
+  console.log("Set profit max unlock time to:", process.env.PROFIT_MAX_UNLOCK_TIME, "Transaction hash:", tx1.hash);
+
+  const tx2 = await strategyContract.setPendingManagement(
     process.env.STRATEGY_MANAGEMENT_ADDRESS!
   );
-  await strategyContract.setKeeper(process.env.KEEPER_ADDRESS!);
-  await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
+  await tx2.wait();
+  console.log("Set pending management to:", process.env.STRATEGY_MANAGEMENT_ADDRESS, "Transaction hash:", tx2.hash);
 
-  console.log(
-    "Set pending management to:",
-    process.env.STRATEGY_MANAGEMENT_ADDRESS
-  );
+  const tx3 = await strategyContract.setKeeper(process.env.KEEPER_ADDRESS!);
+  await tx3.wait();
+  console.log("Set keeper to:", process.env.KEEPER_ADDRESS, "Transaction hash:", tx3.hash);
 
-  await eventEmitter.pairVaultContract(strategy.address);
-  console.log("Paired strategy with event emitter");
+  const tx4 = await strategyContract.setPerformanceFeeRecipient(process.env.FEE_RECIPIENT!);
+  await tx4.wait();
+  console.log("Set performance fee recipient to:", process.env.FEE_RECIPIENT, "Transaction hash:", tx4.hash);
+
+  const tx5 = await eventEmitter.pairVaultContract(strategy.address);
+  await tx5.wait();
+  console.log("Paired strategy with event emitter. Transaction hash:", tx5.hash);
 
   // Set collateral token parameters
   const collateralTokens = stringToAddressArray(
