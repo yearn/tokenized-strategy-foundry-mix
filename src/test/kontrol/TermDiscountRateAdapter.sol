@@ -23,15 +23,22 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, KontrolTest {
         _discountRate[repoToken] = discountRate;
     }
 
-    function repoRedemptionHaircut(address repoToken) external view returns (uint256) {
+    function repoRedemptionHaircut(
+        address repoToken
+    ) external view returns (uint256) {
         return _repoRedemptionHaircut[repoToken];
     }
 
-    function getDiscountRate(address termController, address repoToken) external view returns (uint256) {
+    function getDiscountRate(
+        address termController,
+        address repoToken
+    ) external view returns (uint256) {
         return _discountRate[repoToken];
     }
 
-     function getDiscountRate( address repoToken) external view returns (uint256) {
+    function getDiscountRate(
+        address repoToken
+    ) external view returns (uint256) {
         return _discountRate[repoToken];
     }
 

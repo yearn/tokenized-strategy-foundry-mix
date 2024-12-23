@@ -62,7 +62,9 @@ interface ITermAuctionOfferLocker {
 
     function termRepoServicer() external view returns (address);
 
-    function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory);
+    function lockedOffer(
+        bytes32 id
+    ) external view returns (TermAuctionOffer memory);
 
     /// @param offerSubmissions An array of offer submissions
     /// @return A bytes32 array of unique on chain offer ids.

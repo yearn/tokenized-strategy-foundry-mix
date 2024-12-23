@@ -26,19 +26,27 @@ library RepoTokenUtils {
      */
     function calculatePresentValue(
         uint256 repoTokenAmountInBaseAssetPrecision,
-        uint256 purchaseTokenPrecision, 
-        uint256 redemptionTimestamp, 
+        uint256 purchaseTokenPrecision,
+        uint256 redemptionTimestamp,
         uint256 discountRate
     ) internal view returns (uint256 presentValue) {
-        uint256 timeLeftToMaturityDayFraction = block.timestamp > redemptionTimestamp ? 0 : 
-            ((redemptionTimestamp - block.timestamp) * purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
+        uint256 timeLeftToMaturityDayFraction = block.timestamp >
+            redemptionTimestamp
+            ? 0
+            : ((redemptionTimestamp - block.timestamp) *
+                purchaseTokenPrecision) / THREESIXTY_DAYCOUNT_SECONDS;
 
         // repoTokenAmountInBaseAssetPrecision / (1 + r * days / 360)
-        presentValue = 
-            (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) / 
-            (purchaseTokenPrecision + (discountRate * timeLeftToMaturityDayFraction / RATE_PRECISION));
+        presentValue =
+            (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) /
+            (purchaseTokenPrecision +
+                ((discountRate * timeLeftToMaturityDayFraction) /
+                    RATE_PRECISION));
 
-        return presentValue > repoTokenAmountInBaseAssetPrecision ? repoTokenAmountInBaseAssetPrecision : presentValue;
+        return
+            presentValue > repoTokenAmountInBaseAssetPrecision
+                ? repoTokenAmountInBaseAssetPrecision
+                : presentValue;
     }
 
     /**
@@ -50,17 +58,20 @@ library RepoTokenUtils {
      * @return repoTokenAmountInBaseAssetPrecision The normalized amount of the repoToken in base asset precision
      */
     function getNormalizedRepoTokenAmount(
-        address repoToken, 
-        uint256 repoTokenAmount, 
+        address repoToken,
+        uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision,
         uint256 repoRedemptionHaircut
     ) internal view returns (uint256 repoTokenAmountInBaseAssetPrecision) {
-        uint256 repoTokenPrecision = 10**ERC20(repoToken).decimals();
+        uint256 repoTokenPrecision = 10 ** ERC20(repoToken).decimals();
         uint256 redemptionValue = ITermRepoToken(repoToken).redemptionValue();
-        repoTokenAmountInBaseAssetPrecision =
-            repoRedemptionHaircut != 0 ?
-            (redemptionValue * repoRedemptionHaircut * repoTokenAmount * purchaseTokenPrecision) / 
-            (repoTokenPrecision * RATE_PRECISION * 1e18)
-            : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) / (repoTokenPrecision * RATE_PRECISION);
+        repoTokenAmountInBaseAssetPrecision = repoRedemptionHaircut != 0
+            ? (redemptionValue *
+                repoRedemptionHaircut *
+                repoTokenAmount *
+                purchaseTokenPrecision) /
+                (repoTokenPrecision * RATE_PRECISION * 1e18)
+            : (redemptionValue * repoTokenAmount * purchaseTokenPrecision) /
+                (repoTokenPrecision * RATE_PRECISION);
     }
 }

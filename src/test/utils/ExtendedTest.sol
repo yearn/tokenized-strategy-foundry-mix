@@ -85,12 +85,14 @@ contract ExtendedTest is Test {
     }
 
     function expectRoleRevert(bytes32 role) internal {
-        string memory revertMessage = string(abi.encodePacked(
-            "AccessControl: account ", 
-            address(this),
-            " is missing role ", 
-            role
-        ));
+        string memory revertMessage = string(
+            abi.encodePacked(
+                "AccessControl: account ",
+                address(this),
+                " is missing role ",
+                role
+            )
+        );
         vm.expectRevert(bytes(revertMessage));
     }
 }

@@ -15,9 +15,8 @@ import {Strategy} from "../Strategy.sol";
 import {ITermController} from "../interfaces/term/ITermController.sol";
 
 contract TestUSDCSellRepoToken is Setup {
-
     MockUSDC internal mockUSDC;
-    ERC20Mock internal mockCollateral; 
+    ERC20Mock internal mockCollateral;
     MockTermRepoToken internal repoToken1Week;
     MockTermRepoToken internal repoToken2Week;
     MockTermRepoToken internal repoToken4Week;
@@ -32,16 +31,32 @@ contract TestUSDCSellRepoToken is Setup {
         _setUp(ERC20(address(mockUSDC)));
 
         repoToken1Week = new MockTermRepoToken(
-            bytes32("test repo token 1"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp + 1 weeks
+            bytes32("test repo token 1"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 1 weeks
         );
         repoToken2Week = new MockTermRepoToken(
-            bytes32("test repo token 2"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp + 2 weeks
+            bytes32("test repo token 2"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 2 weeks
         );
         repoToken4Week = new MockTermRepoToken(
-            bytes32("test repo token 3"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp + 4 weeks
+            bytes32("test repo token 3"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 4 weeks
         );
         repoTokenMatured = new MockTermRepoToken(
-            bytes32("test repo token 4"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp - 1
+            bytes32("test repo token 4"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp - 1
         );
 
         termStrategy = Strategy(address(strategy));
@@ -53,7 +68,6 @@ contract TestUSDCSellRepoToken is Setup {
         termStrategy.setRequiredReserveRatio(0);
         termStrategy.setDiscountRateMarkup(0);
         vm.stopPrank();
-
     }
 
     function _initState() private {
@@ -84,33 +98,51 @@ contract TestUSDCSellRepoToken is Setup {
         vm.stopPrank();
 
         vm.prank(testUser);
-        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
-
-        uint256 expectedProceeds = termStrategy.calculateRepoTokenPresentValue(
-            address(repoToken1Week), 0.05e18, repoTokenSellAmount
+        termStrategy.sellRepoToken(
+            address(repoToken1Week),
+            repoTokenSellAmount
         );
 
-        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(address(repoToken1Week));
+        uint256 expectedProceeds = termStrategy.calculateRepoTokenPresentValue(
+            address(repoToken1Week),
+            0.05e18,
+            repoTokenSellAmount
+        );
+
+        uint256 repoTokenHoldingValue = termStrategy.getRepoTokenHoldingValue(
+            address(repoToken1Week)
+        );
 
         assertEq(repoTokenHoldingValue, expectedProceeds);
 
         assertEq(mockUSDC.balanceOf(testUser), expectedProceeds);
-        assertEq(termStrategy.totalLiquidBalance(), initialState.totalLiquidBalance - expectedProceeds);
+        assertEq(
+            termStrategy.totalLiquidBalance(),
+            initialState.totalLiquidBalance - expectedProceeds
+        );
         assertEq(termStrategy.totalAssetValue(), initialState.totalAssetValue);
 
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
 
-        (uint256 redemptionTimestamp, , ,) = ITermRepoToken(repoToken1Week).config();
+        (uint256 redemptionTimestamp, , , ) = ITermRepoToken(repoToken1Week)
+            .config();
 
         // TODO: validate this math (weighted time to maturity)
-        uint256 repoTokenBalanceInBaseAssetPrecision = 
-            (ITermRepoToken(repoToken1Week).redemptionValue() * repoTokenSellAmount * 1e6) / (1e18 * 1e18);
-        uint256 cumulativeWeightedTimeToMaturity = 
-            (redemptionTimestamp - block.timestamp) * repoTokenBalanceInBaseAssetPrecision;
-        uint256 expectedWeightedTimeToMaturity = 
-            cumulativeWeightedTimeToMaturity / (repoTokenBalanceInBaseAssetPrecision + termStrategy.totalLiquidBalance());
+        uint256 repoTokenBalanceInBaseAssetPrecision = (ITermRepoToken(
+            repoToken1Week
+        ).redemptionValue() *
+            repoTokenSellAmount *
+            1e6) / (1e18 * 1e18);
+        uint256 cumulativeWeightedTimeToMaturity = (redemptionTimestamp -
+            block.timestamp) * repoTokenBalanceInBaseAssetPrecision;
+        uint256 expectedWeightedTimeToMaturity = cumulativeWeightedTimeToMaturity /
+                (repoTokenBalanceInBaseAssetPrecision +
+                    termStrategy.totalLiquidBalance());
 
-  //      assertEq(weightedTimeToMaturity, expectedWeightedTimeToMaturity);
+        //      assertEq(weightedTimeToMaturity, expectedWeightedTimeToMaturity);
     }
 
     function testSellInvalidRepoToken() public {
@@ -136,8 +168,16 @@ contract TestUSDCSellRepoToken is Setup {
         vm.stopPrank();
 
         vm.prank(testUser);
-        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
-        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
+        termStrategy.sellRepoToken(
+            address(repoToken1Week),
+            repoTokenSellAmount
+        );
     }
 
     function testSellRepoTokenInvalidLiquidBalance() public {
@@ -162,8 +202,17 @@ contract TestUSDCSellRepoToken is Setup {
         vm.stopPrank();
 
         vm.prank(testUser);
-        vm.expectRevert(abi.encodeWithSelector(Strategy.InsufficientLiquidBalance.selector, 5e6, 5.1e6));
-        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Strategy.InsufficientLiquidBalance.selector,
+                5e6,
+                5.1e6
+            )
+        );
+        termStrategy.sellRepoToken(
+            address(repoToken1Week),
+            repoTokenSellAmount
+        );
     }
 
     function testSellRepoTokenBalanceBelowRequireReserveRatio() public {
@@ -189,8 +238,15 @@ contract TestUSDCSellRepoToken is Setup {
         vm.stopPrank();
 
         vm.prank(testUser);
-        vm.expectRevert(abi.encodeWithSelector(Strategy.BalanceBelowRequiredReserveRatio.selector));
-        termStrategy.sellRepoToken(address(repoToken1Week), repoTokenSellAmount);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Strategy.BalanceBelowRequiredReserveRatio.selector
+            )
+        );
+        termStrategy.sellRepoToken(
+            address(repoToken1Week),
+            repoTokenSellAmount
+        );
     }
 
     // Test with different precisions
@@ -201,25 +257,88 @@ contract TestUSDCSellRepoToken is Setup {
         // 28	996127    994200	987049
 
         // 7 days, 0.5 = 999028
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken1Week), 0.05e18, 1e18), 999028);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken1Week),
+                0.05e18,
+                1e18
+            ),
+            999028
+        );
         // 7 days, 0.075 = 99854
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken1Week), 0.075e18, 1e18), 998544);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken1Week),
+                0.075e18,
+                1e18
+            ),
+            998544
+        );
         // 7 days, 0.1687 = 996730
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken1Week), 0.1687e18, 1e18), 996730);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken1Week),
+                0.1687e18,
+                1e18
+            ),
+            996730
+        );
 
         // 14 days, 0.5 = 999028
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken2Week), 0.05e18, 1e18), 998059);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken2Week),
+                0.05e18,
+                1e18
+            ),
+            998059
+        );
         // 14 days, 0.075 = 99854
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken2Week), 0.075e18, 1e18), 997092);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken2Week),
+                0.075e18,
+                1e18
+            ),
+            997092
+        );
         // 14 days, 0.1687 = 996730
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken2Week), 0.1687e18, 1e18), 993482);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken2Week),
+                0.1687e18,
+                1e18
+            ),
+            993482
+        );
 
         // 28 days, 0.5 = 999028
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken4Week), 0.05e18, 1e18), 996127);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken4Week),
+                0.05e18,
+                1e18
+            ),
+            996127
+        );
         // 28 days, 0.075 = 99854
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken4Week), 0.075e18, 1e18), 994200);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken4Week),
+                0.075e18,
+                1e18
+            ),
+            994200
+        );
         // 28 days, 0.1687 = 996730
-        assertEq(termStrategy.calculateRepoTokenPresentValue(address(repoToken4Week), 0.1687e18, 1e18), 987049);
+        assertEq(
+            termStrategy.calculateRepoTokenPresentValue(
+                address(repoToken4Week),
+                0.1687e18,
+                1e18
+            ),
+            987049
+        );
     }
 
     function _sell1RepoToken(MockTermRepoToken rt1, uint256 amount1) private {
@@ -231,7 +350,10 @@ contract TestUSDCSellRepoToken is Setup {
         _sellRepoTokens(tokens, amounts, false, true, "");
     }
 
-    function _sell1RepoTokenNoMint(MockTermRepoToken rt1, uint256 amount1) private {
+    function _sell1RepoTokenNoMint(
+        MockTermRepoToken rt1,
+        uint256 amount1
+    ) private {
         address[] memory tokens = new address[](1);
         tokens[0] = address(rt1);
         uint256[] memory amounts = new uint256[](1);
@@ -240,7 +362,11 @@ contract TestUSDCSellRepoToken is Setup {
         _sellRepoTokens(tokens, amounts, false, false, "");
     }
 
-    function _sell1RepoTokenExpectRevert(MockTermRepoToken rt1, uint256 amount1, bytes memory err) private {
+    function _sell1RepoTokenExpectRevert(
+        MockTermRepoToken rt1,
+        uint256 amount1,
+        bytes memory err
+    ) private {
         address[] memory tokens = new address[](1);
         tokens[0] = address(rt1);
         uint256[] memory amounts = new uint256[](1);
@@ -249,7 +375,11 @@ contract TestUSDCSellRepoToken is Setup {
         _sellRepoTokens(tokens, amounts, true, true, err);
     }
 
-    function _sell1RepoTokenNoMintExpectRevert(MockTermRepoToken rt1, uint256 amount1, bytes memory err) private {
+    function _sell1RepoTokenNoMintExpectRevert(
+        MockTermRepoToken rt1,
+        uint256 amount1,
+        bytes memory err
+    ) private {
         address[] memory tokens = new address[](1);
         tokens[0] = address(rt1);
         uint256[] memory amounts = new uint256[](1);
@@ -259,10 +389,10 @@ contract TestUSDCSellRepoToken is Setup {
     }
 
     function _sell3RepoTokens(
-        MockTermRepoToken rt1, 
-        uint256 amount1, 
-        MockTermRepoToken rt2, 
-        uint256 amount2, 
+        MockTermRepoToken rt1,
+        uint256 amount1,
+        MockTermRepoToken rt2,
+        uint256 amount2,
         MockTermRepoToken rt3,
         uint256 amount3
     ) private {
@@ -279,9 +409,9 @@ contract TestUSDCSellRepoToken is Setup {
     }
 
     function _sell2RepoTokens(
-        MockTermRepoToken rt1, 
-        uint256 amount1, 
-        MockTermRepoToken rt2, 
+        MockTermRepoToken rt1,
+        uint256 amount1,
+        MockTermRepoToken rt2,
         uint256 amount2
     ) private {
         address[] memory tokens = new address[](2);
@@ -306,25 +436,41 @@ contract TestUSDCSellRepoToken is Setup {
         assertEq(holdings[2], address(repoToken4Week));
     }
 
-    function _sellRepoTokens(address[] memory tokens, uint256[] memory amounts, bool expectRevert, bool mintUnderlying, bytes memory err) private {
+    function _sellRepoTokens(
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bool expectRevert,
+        bool mintUnderlying,
+        bytes memory err
+    ) private {
         address testUser = vm.addr(0x11111);
 
         for (uint256 i; i < tokens.length; i++) {
             address token = tokens[i];
             uint256 amount = amounts[i];
 
-            termController.setOracleRate(MockTermRepoToken(token).termRepoId(), 0.05e18);
+            termController.setOracleRate(
+                MockTermRepoToken(token).termRepoId(),
+                0.05e18
+            );
 
             MockTermRepoToken(token).mint(testUser, amount);
             if (mintUnderlying) {
                 mockUSDC.mint(
-                    address(strategy), 
-                    termStrategy.calculateRepoTokenPresentValue(token, 0.05e18, amount)
+                    address(strategy),
+                    termStrategy.calculateRepoTokenPresentValue(
+                        token,
+                        0.05e18,
+                        amount
+                    )
                 );
             }
 
             vm.startPrank(testUser);
-            MockTermRepoToken(token).approve(address(strategy), type(uint256).max);
+            MockTermRepoToken(token).approve(
+                address(strategy),
+                type(uint256).max
+            );
 
             if (expectRevert) {
                 vm.expectRevert(err);
@@ -338,49 +484,109 @@ contract TestUSDCSellRepoToken is Setup {
 
     // 7 days (3), 14 days (9), 28 days (3)
     function testSellMultipleRepoTokens_7_14_28_3_9_3() public {
-        _sell3RepoTokens(repoToken1Week, 3e18, repoToken2Week, 9e18, repoToken4Week, 3e18);
+        _sell3RepoTokens(
+            repoToken1Week,
+            3e18,
+            repoToken2Week,
+            9e18,
+            repoToken4Week,
+            3e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
     // 14 days (9), 7 days (3), 28 days (3)
     function testSellMultipleRepoTokens_14_7_28_9_3_3() public {
-        _sell3RepoTokens(repoToken2Week, 9e18, repoToken1Week, 3e18, repoToken4Week, 3e18);
+        _sell3RepoTokens(
+            repoToken2Week,
+            9e18,
+            repoToken1Week,
+            3e18,
+            repoToken4Week,
+            3e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
     // 28 days (3), 14 days (9), 7 days (3)
     function testSellMultipleRepoTokens_28_14_7_3_9_3() public {
-        _sell3RepoTokens(repoToken4Week, 3e18, repoToken2Week, 9e18, repoToken1Week, 3e18);
+        _sell3RepoTokens(
+            repoToken4Week,
+            3e18,
+            repoToken2Week,
+            9e18,
+            repoToken1Week,
+            3e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
     // 28 days (3), 7 days (3), 14 days (9)
     function testSellMultipleRepoTokens_28_7_14_3_3_9() public {
-        _sell3RepoTokens(repoToken4Week, 3e18, repoToken1Week, 3e18, repoToken2Week, 9e18);
+        _sell3RepoTokens(
+            repoToken4Week,
+            3e18,
+            repoToken1Week,
+            3e18,
+            repoToken2Week,
+            9e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1330560);
     }
 
     // 7 days (6), 14 days (2), 28 days (8)
     function testSellMultipleRepoTokens_7_14_28_6_2_8() public {
-        _sell3RepoTokens(repoToken1Week, 6e18, repoToken2Week, 2e18, repoToken4Week, 8e18);
+        _sell3RepoTokens(
+            repoToken1Week,
+            6e18,
+            repoToken2Week,
+            2e18,
+            repoToken4Week,
+            8e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1587600);
     }
 
     // 7 days (8), 14 days (1), 28 days (3)
     function testSellMultipleRepoTokens_7_14_28_8_1_3() public {
-        _sell3RepoTokens(repoToken1Week, 8e18, repoToken2Week, 1e18, repoToken4Week, 3e18);
+        _sell3RepoTokens(
+            repoToken1Week,
+            8e18,
+            repoToken2Week,
+            1e18,
+            repoToken4Week,
+            3e18
+        );
         _sell3RepoTokensCheckHoldings();
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
         assertEq(weightedTimeToMaturity, 1108800);
     }
 
@@ -390,16 +596,25 @@ contract TestUSDCSellRepoToken is Setup {
 
         bytes32 idHash = bytes32("offer id hash 1");
 
-        MockTermAuction repoToken4WeekAuction = new MockTermAuction(repoToken4Week);
+        MockTermAuction repoToken4WeekAuction = new MockTermAuction(
+            repoToken4Week
+        );
 
         mockUSDC.mint(address(termStrategy), 3e6);
 
         vm.prank(management);
         termStrategy.submitAuctionOffer(
-            repoToken4WeekAuction, address(repoToken4Week), idHash, bytes32("test price"), 3e6
+            repoToken4WeekAuction,
+            address(repoToken4Week),
+            idHash,
+            bytes32("test price"),
+            3e6
         );
 
-        (uint256 weightedTimeToMaturity, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 weightedTimeToMaturity, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
 
         assertEq(weightedTimeToMaturity, 1108800);
     }
@@ -424,22 +639,14 @@ contract TestUSDCSellRepoToken is Setup {
             ,
             ,
             ,
+
         ) = termStrategy.strategyState();
 
         address currentController = address(currTermController);
         vm.prank(governor);
         termStrategy.setTermController(address(newController));
-         (
-            ,
-            ,
-            ,
-            prevTermController,
-            currTermController,
-            ,
-            ,
-            ,
-            ,
-        ) = termStrategy.strategyState();
+        (, , , prevTermController, currTermController, , , , , ) = termStrategy
+            .strategyState();
         assertEq(address(currTermController), address(newController));
         assertEq(address(prevTermController), currentController);
     }
@@ -450,17 +657,8 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(12345);
-         (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 timeToMaturityThreshold,
-            ,
-            ,
-        ) = termStrategy.strategyState();
+        (, , , , , , uint256 timeToMaturityThreshold, , , ) = termStrategy
+            .strategyState();
         assertEq(timeToMaturityThreshold, 12345);
     }
 
@@ -470,17 +668,8 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(governor);
         termStrategy.setRequiredReserveRatio(12345);
-         (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 requiredReserveRatio,
-            ,
-        ) = termStrategy.strategyState();
+        (, , , , , , , uint256 requiredReserveRatio, , ) = termStrategy
+            .strategyState();
         assertEq(requiredReserveRatio, 12345);
     }
 
@@ -490,17 +679,8 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(governor);
         termStrategy.setDiscountRateMarkup(12345);
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 discountRateMarkup,
-        ) = termStrategy.strategyState();
+        (, , , , , , , , uint256 discountRateMarkup, ) = termStrategy
+            .strategyState();
         assertEq(discountRateMarkup, 12345);
     }
 
@@ -513,20 +693,10 @@ contract TestUSDCSellRepoToken is Setup {
 
         vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 12345);
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 discountRateMarkup,
-        ) = termStrategy.strategyState();
+        (, , , , , , , , uint256 discountRateMarkup, ) = termStrategy
+            .strategyState();
         assertEq(discountRateMarkup, 12345);
     }
-
 
     function testRepoTokenValidationFailures() public {
         // start with some initial funds
@@ -541,40 +711,59 @@ contract TestUSDCSellRepoToken is Setup {
         // test: token has no auction clearing rate
         vm.expectRevert();
         vm.prank(testUser);
-        termStrategy.sellRepoToken(address(repoToken1Week), 1e18);           
+        termStrategy.sellRepoToken(address(repoToken1Week), 1e18);
 
-        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);     
-        termController.setOracleRate(repoTokenMatured.termRepoId(), 0.05e18);     
+        termController.setOracleRate(repoToken1Week.termRepoId(), 0.05e18);
+        termController.setOracleRate(repoTokenMatured.termRepoId(), 0.05e18);
 
         vm.prank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0);
 
         // test: min collateral ratio not set
-        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoToken1Week)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoToken1Week)
+            )
+        );
         vm.prank(testUser);
-        termStrategy.sellRepoToken(address(repoToken1Week), 1e18);         
+        termStrategy.sellRepoToken(address(repoToken1Week), 1e18);
 
         vm.startPrank(governor);
         termStrategy.setCollateralTokenParams(address(mockCollateral), 0.5e18);
         termStrategy.setTimeToMaturityThreshold(3 weeks);
         vm.stopPrank();
 
-        // test: matured repo token  
-        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(repoTokenMatured)));
+        // test: matured repo token
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(repoTokenMatured)
+            )
+        );
         vm.prank(testUser);
-        termStrategy.sellRepoToken(address(repoTokenMatured), 1e18);         
+        termStrategy.sellRepoToken(address(repoTokenMatured), 1e18);
     }
 
     function testAboveMaturityThresholdFailure() public {
         _sell1RepoToken(repoToken2Week, 2e18);
 
-        (uint256 timeToMat, ,) = termStrategy.simulateTransaction(address(0), 0);
+        (uint256 timeToMat, , ) = termStrategy.simulateTransaction(
+            address(0),
+            0
+        );
 
         vm.prank(governor);
         termStrategy.setTimeToMaturityThreshold(timeToMat);
 
         // test: can't sell 4 week repo token because of time to maturity threshold
-        _sell1RepoTokenExpectRevert(repoToken4Week, 4e18, abi.encodeWithSelector(Strategy.TimeToMaturityAboveThreshold.selector));
+        _sell1RepoTokenExpectRevert(
+            repoToken4Week,
+            4e18,
+            abi.encodeWithSelector(
+                Strategy.TimeToMaturityAboveThreshold.selector
+            )
+        );
 
         // test: can still sell 1 week repo token
         _sell1RepoToken(repoToken1Week, 4e18);
@@ -642,7 +831,10 @@ contract TestUSDCSellRepoToken is Setup {
         console.log("totalAssetValue", termStrategy.totalAssetValue());
 
         // external redemption
-        repoToken2Week.mockServicer().redeemTermRepoTokens(address(termStrategy), repoToken2Week.balanceOf(address(termStrategy)));
+        repoToken2Week.mockServicer().redeemTermRepoTokens(
+            address(termStrategy),
+            repoToken2Week.balanceOf(address(termStrategy))
+        );
 
         console.log("totalLiquidBalance", termStrategy.totalLiquidBalance());
         console.log("totalAssetValue", termStrategy.totalAssetValue());
@@ -714,18 +906,26 @@ contract TestUSDCSellRepoToken is Setup {
         vm.prank(governor);
         termStrategy.setRepoTokenConcentrationLimit(0.4e18);
 
-        termController.setOracleRate(repoToken2Week.termRepoId(), 0.05e18); 
+        termController.setOracleRate(repoToken2Week.termRepoId(), 0.05e18);
 
-        vm.expectRevert(abi.encodeWithSelector(RepoTokenList.InvalidRepoToken.selector, address(0)));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RepoTokenList.InvalidRepoToken.selector,
+                address(0)
+            )
+        );
         termStrategy.getRepoTokenConcentrationRatio(address(0));
 
-
-        uint256 concentrationLimit = termStrategy.getRepoTokenConcentrationRatio(address(repoToken2Week));
+        uint256 concentrationLimit = termStrategy
+            .getRepoTokenConcentrationRatio(address(repoToken2Week));
 
         _sell1RepoTokenNoMintExpectRevert(
-            repoToken2Week, 
+            repoToken2Week,
             500e18,
-            abi.encodeWithSelector(Strategy.RepoTokenConcentrationTooHigh.selector, address(repoToken2Week))
+            abi.encodeWithSelector(
+                Strategy.RepoTokenConcentrationTooHigh.selector,
+                address(repoToken2Week)
+            )
         );
     }
 
@@ -747,11 +947,7 @@ contract TestUSDCSellRepoToken is Setup {
         IERC4626(address(termStrategy)).deposit(depositAmount, testDepositor);
         vm.stopPrank();
 
-        _sell1RepoTokenExpectRevert(
-            repoToken2Week, 
-            2e18,
-            "Pausable: paused"
-        );
+        _sell1RepoTokenExpectRevert(repoToken2Week, 2e18, "Pausable: paused");
 
         vm.prank(governor);
         termStrategy.unpauseStrategy();

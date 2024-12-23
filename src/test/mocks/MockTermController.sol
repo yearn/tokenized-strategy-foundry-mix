@@ -12,7 +12,9 @@ contract MockTermController is ITermController {
     mapping(bytes32 => TermAuctionResults) internal auctionResults;
     mapping(address => bool) internal notTermDeployedContracts;
 
-    function isTermDeployed(address contractAddress) external view returns (bool) {
+    function isTermDeployed(
+        address contractAddress
+    ) external view returns (bool) {
         return !notTermDeployedContracts[contractAddress];
     }
 
@@ -34,7 +36,16 @@ contract MockTermController is ITermController {
         auctionResults[termRepoId].numOfAuctions = 1;
     }
 
-    function getTermAuctionResults(bytes32 termRepoId) external view returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions) {
-        return (auctionResults[termRepoId].auctionMetadata, auctionResults[termRepoId].numOfAuctions);
+    function getTermAuctionResults(
+        bytes32 termRepoId
+    )
+        external
+        view
+        returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions)
+    {
+        return (
+            auctionResults[termRepoId].auctionMetadata,
+            auctionResults[termRepoId].numOfAuctions
+        );
     }
 }

@@ -6,8 +6,12 @@ import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgrad
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlUpgradeable, ITermVaultEvents {
-
+contract TermVaultEventEmitter is
+    Initializable,
+    UUPSUpgradeable,
+    AccessControlUpgradeable,
+    ITermVaultEvents
+{
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DEVOPS_ROLE = keccak256("DEVOPS_ROLE");
     bytes32 public constant VAULT_CONTRACT = keccak256("VAULT_CONTRACT");
@@ -22,8 +26,7 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
     function initialize(
         address adminWallet_,
         address devopsWallet_
-    )
-    external initializer {
+    ) external initializer {
         UUPSUpgradeable.__UUPSUpgradeable_init();
         AccessControlUpgradeable.__AccessControl_init();
 
@@ -31,35 +34,55 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         _grantRole(DEVOPS_ROLE, devopsWallet_);
     }
 
-    function pairVaultContract(address vaultContract) external onlyRole(ADMIN_ROLE){
+    function pairVaultContract(
+        address vaultContract
+    ) external onlyRole(ADMIN_ROLE) {
         _grantRole(VAULT_CONTRACT, vaultContract);
         emit VaultContractPaired(vaultContract);
     }
 
-    function emitTermControllerUpdated(address oldController, address newController) external onlyRole(VAULT_CONTRACT) {
+    function emitTermControllerUpdated(
+        address oldController,
+        address newController
+    ) external onlyRole(VAULT_CONTRACT) {
         emit TermControllerUpdated(oldController, newController);
     }
 
-    function emitTimeToMaturityThresholdUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
+    function emitTimeToMaturityThresholdUpdated(
+        uint256 oldThreshold,
+        uint256 newThreshold
+    ) external onlyRole(VAULT_CONTRACT) {
         emit TimeToMaturityThresholdUpdated(oldThreshold, newThreshold);
     }
 
-    function emitRequiredReserveRatioUpdated(uint256 oldThreshold, uint256 newThreshold) external onlyRole(VAULT_CONTRACT) {
+    function emitRequiredReserveRatioUpdated(
+        uint256 oldThreshold,
+        uint256 newThreshold
+    ) external onlyRole(VAULT_CONTRACT) {
         emit RequiredReserveRatioUpdated(oldThreshold, newThreshold);
     }
 
-    function emitDiscountRateMarkupUpdated(uint256 oldMarkup, uint256 newMarkup) external onlyRole(VAULT_CONTRACT) {
+    function emitDiscountRateMarkupUpdated(
+        uint256 oldMarkup,
+        uint256 newMarkup
+    ) external onlyRole(VAULT_CONTRACT) {
         emit DiscountRateMarkupUpdated(oldMarkup, newMarkup);
     }
 
-    function emitMinCollateralRatioUpdated(address collateral, uint256 minCollateralRatio) external onlyRole(VAULT_CONTRACT) {
+    function emitMinCollateralRatioUpdated(
+        address collateral,
+        uint256 minCollateralRatio
+    ) external onlyRole(VAULT_CONTRACT) {
         emit MinCollateralRatioUpdated(collateral, minCollateralRatio);
     }
 
-    function emitRepoTokenConcentrationLimitUpdated(uint256 oldLimit, uint256 newLimit) external onlyRole(VAULT_CONTRACT) {
+    function emitRepoTokenConcentrationLimitUpdated(
+        uint256 oldLimit,
+        uint256 newLimit
+    ) external onlyRole(VAULT_CONTRACT) {
         emit RepoTokenConcentrationLimitUpdated(oldLimit, newLimit);
     }
-    
+
     function emitDepositPaused() external onlyRole(VAULT_CONTRACT) {
         emit DepositPaused();
     }
@@ -83,11 +106,16 @@ contract TermVaultEventEmitter is Initializable, UUPSUpgradeable, AccessControlU
         emit DiscountRateAdapterUpdated(oldAdapter, newAdapter);
     }
 
-    function emitRepoTokenBlacklistUpdated(address repoToken, bool blacklisted) external onlyRole(VAULT_CONTRACT) {
+    function emitRepoTokenBlacklistUpdated(
+        address repoToken,
+        bool blacklisted
+    ) external onlyRole(VAULT_CONTRACT) {
         emit RepoTokenBlacklistUpdated(repoToken, blacklisted);
     }
 
-    function emitNewGovernor(address newGovernor) external onlyRole(VAULT_CONTRACT) {
+    function emitNewGovernor(
+        address newGovernor
+    ) external onlyRole(VAULT_CONTRACT) {
         emit NewGovernor(newGovernor);
     }
 

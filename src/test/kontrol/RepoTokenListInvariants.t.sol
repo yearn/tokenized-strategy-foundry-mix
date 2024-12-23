@@ -50,7 +50,6 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
         // Call the function being tested
         _repoTokenList.insertSorted(repoToken);
 
-
         // Assert that the size of the list increased by 1
         assert(_countNodesInList() == count + 1);
 
@@ -70,9 +69,7 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
      * Test that insertSorted preserves the list invariants when trying to
      * insert a RepoToken that is already in the list.
      */
-    function testInsertSortedDuplicateToken(
-        address repoToken
-    ) external {
+    function testInsertSortedDuplicateToken(address repoToken) external {
         // Our initialization procedure guarantees this invariant,
         // so we assert instead of assuming
         _establishNoDuplicateTokens(Mode.Assert);
@@ -144,40 +141,35 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
         _establishPositiveBalance(Mode.Assert);
     }
 
-        function testGetCumulativeDataEmpty(
+    function testGetCumulativeDataEmpty(
         address repoToken,
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision
     ) external {
         _initializeRepoTokenListEmpty();
 
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
 
         (
             uint256 cumulativeWeightedTimeToMaturity,
             uint256 cumulativeRepoTokenAmount,
             bool found
         ) = _repoTokenList.getCumulativeRepoTokenData(
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            repoTokenAmount,
-            purchaseTokenPrecision
-        );
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                repoToken,
+                repoTokenAmount,
+                purchaseTokenPrecision
+            );
 
         assert(cumulativeWeightedTimeToMaturity == 0);
         assert(cumulativeRepoTokenAmount == 0);
         assert(found == false);
     }
 
-
-    function testGetPresentValueEmpty(
-        uint256 purchaseTokenPrecision
-    ) external {
+    function testGetPresentValueEmpty(uint256 purchaseTokenPrecision) external {
         _initializeRepoTokenListEmpty();
 
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
 
         uint256 totalPresentValue = _repoTokenList.getPresentValue(
             ITermDiscountRateAdapter(address(discountRateAdapter)),
@@ -196,8 +188,7 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
         _establishPositiveBalance(Mode.Assume);
 
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
 
         // Consider only the case where we are not trying to match a token
@@ -209,48 +200,44 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
             uint256 cumulativeRepoTokenAmount,
             bool found
         ) = _repoTokenList.getCumulativeRepoTokenData(
-            discountRateAdapter,
-            repoToken,
-            repoTokenAmount,
-            purchaseTokenPrecision
-        );
+                discountRateAdapter,
+                repoToken,
+                repoTokenAmount,
+                purchaseTokenPrecision
+            );
 
         assert(!found);
 
         // Removes matured tokens and returns their total value
-        uint256 cumulativeRepoTokenAmountMatured
-        = _filterMaturedTokensGetTotalValue(
-            discountRateAdapter,
-            purchaseTokenPrecision
-        );
+        uint256 cumulativeRepoTokenAmountMatured = _filterMaturedTokensGetTotalValue(
+                discountRateAdapter,
+                purchaseTokenPrecision
+            );
 
         // Simplified calculation for no matured tokens
         (
-         uint256 cumulativeWeightedTimeToMaturityNotMatured,
-         uint256 cumulativeRepoTokenAmountNotMatured
+            uint256 cumulativeWeightedTimeToMaturityNotMatured,
+            uint256 cumulativeRepoTokenAmountNotMatured
         ) = _cumulativeRepoTokenDataNotMatured(
-            discountRateAdapter,
-            purchaseTokenPrecision
-        );
+                discountRateAdapter,
+                purchaseTokenPrecision
+            );
 
         assert(
             cumulativeWeightedTimeToMaturity ==
-            cumulativeWeightedTimeToMaturityNotMatured
+                cumulativeWeightedTimeToMaturityNotMatured
         );
 
         assert(
             cumulativeRepoTokenAmount ==
-            cumulativeRepoTokenAmountMatured + cumulativeRepoTokenAmountNotMatured
+                cumulativeRepoTokenAmountMatured +
+                    cumulativeRepoTokenAmountNotMatured
         );
     }
 
-
-    function testGetPresentTotalValue(
-        uint256 purchaseTokenPrecision
-    ) external {
+    function testGetPresentTotalValue(uint256 purchaseTokenPrecision) external {
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapter(discountRateAdapter);
 
         vm.assume(0 < purchaseTokenPrecision);
@@ -272,6 +259,9 @@ contract RepoTokenListInvariantsTest is RepoTokenListTest {
             purchaseTokenPrecision
         );
 
-        assert(totalPresentValue == totalPresentValueMatured + totalPresentValueNotMatured);
+        assert(
+            totalPresentValue ==
+                totalPresentValueMatured + totalPresentValueNotMatured
+        );
     }
 }

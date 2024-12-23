@@ -38,10 +38,18 @@ contract CounterexamplesTest is Test {
 
         // Deploy two repo tokens with the same maturity date
         MockTermRepoToken repoToken1 = new MockTermRepoToken(
-            bytes32("test repo token 1"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp + 1 weeks
+            bytes32("test repo token 1"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 1 weeks
         );
         MockTermRepoToken repoToken2 = new MockTermRepoToken(
-            bytes32("test repo token 2"), address(mockUSDC), address(mockCollateral), 1e18, block.timestamp + 1 weeks
+            bytes32("test repo token 2"),
+            address(mockUSDC),
+            address(mockCollateral),
+            1e18,
+            block.timestamp + 1 weeks
         );
 
         // Initialize list to repoToken1 -> repoToken2 -> NULL_NODE

@@ -9,16 +9,16 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
-     /// @dev Previous term controller
+    /// @dev Previous term controller
     ITermController public prevTermController;
     /// @dev Current term controller
     ITermController public currTermController;
-    mapping(address => mapping (bytes32 => bool)) public rateInvalid;
+    mapping(address => mapping(bytes32 => bool)) public rateInvalid;
     mapping(address => uint256) public repoRedemptionHaircut;
 
     constructor(address termController_, address oracleWallet_) {
         currTermController = ITermController(termController_);
-        _grantRole(ORACLE_ROLE, oracleWallet_);        
+        _grantRole(ORACLE_ROLE, oracleWallet_);
     }
 
     /**
@@ -29,8 +29,10 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
      * @dev This function fetches the auction results for the repo token's term repo ID
      * and returns the clearing rate of the most recent auction
      */
-    function getDiscountRate(address termController, address repoToken) public view virtual returns (uint256) {
-        
+    function getDiscountRate(
+        address termController,
+        address repoToken
+    ) public view virtual returns (uint256) {
         if (repoToken == address(0)) return 0;
 
         ITermController tokenTermController;
@@ -51,33 +53,46 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
      * @dev This function fetches the auction results for the repo token's term repo ID
      * and returns the clearing rate of the most recent auction
      */
-    function getDiscountRate(address repoToken) public view virtual returns (uint256) {
+    function getDiscountRate(
+        address repoToken
+    ) public view virtual returns (uint256) {
         if (repoToken == address(0)) return 0;
-        ITermController tokenTermController = _identifyTermController(repoToken);
+        ITermController tokenTermController = _identifyTermController(
+            repoToken
+        );
         return _getDiscountRate(tokenTermController, repoToken);
     }
 
     /**
-    * @notice Sets the invalidity of the result of a specific auction for a given repo token
-    * @dev This function is used to mark auction results as invalid or not, typically in cases of suspected manipulation
-    * @param repoToken The address of the repo token associated with the auction
-    * @param termAuctionId The unique identifier of the term auction to be invalidated
-    * @param isInvalid The status of the rate invalidation
-    * @custom:access Restricted to accounts with the ORACLE_ROLE
-    */
+     * @notice Sets the invalidity of the result of a specific auction for a given repo token
+     * @dev This function is used to mark auction results as invalid or not, typically in cases of suspected manipulation
+     * @param repoToken The address of the repo token associated with the auction
+     * @param termAuctionId The unique identifier of the term auction to be invalidated
+     * @param isInvalid The status of the rate invalidation
+     * @custom:access Restricted to accounts with the ORACLE_ROLE
+     */
     function setAuctionRateValidator(
-        address repoToken, 
-        bytes32 termAuctionId, 
+        address repoToken,
+        bytes32 termAuctionId,
         bool isInvalid
     ) external onlyRole(ORACLE_ROLE) {
-        ITermController tokenTermController = _identifyTermController(repoToken);
+        ITermController tokenTermController = _identifyTermController(
+            repoToken
+        );
         // Fetch the auction metadata for the given repo token
-        (AuctionMetadata[] memory auctionMetadata, ) = tokenTermController.getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
+        (AuctionMetadata[] memory auctionMetadata, ) = tokenTermController
+            .getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
 
         // Check if the termAuctionId exists in the metadata
-        bool auctionExists = _validateAuctionExistence(auctionMetadata, termAuctionId);
+        bool auctionExists = _validateAuctionExistence(
+            auctionMetadata,
+            termAuctionId
+        );
 
-        require(auctionMetadata.length > 1, "Cannot invalidate the only auction result");
+        require(
+            auctionMetadata.length > 1,
+            "Cannot invalidate the only auction result"
+        );
         // Revert if the auction doesn't exist
         require(auctionExists, "Auction ID not found in metadata");
 
@@ -86,10 +101,12 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
     }
 
     /**
-    * @notice Sets the term controller
-    * @param termController The address of the term controller
+     * @notice Sets the term controller
+     * @param termController The address of the term controller
      */
-    function setTermController(address termController) external onlyRole(ORACLE_ROLE) {
+    function setTermController(
+        address termController
+    ) external onlyRole(ORACLE_ROLE) {
         prevTermController = currTermController;
         currTermController = ITermController(termController);
     }
@@ -99,38 +116,56 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
      * @param repoToken The address of the repo token
      * @param haircut The repo redemption haircut in 18 decimals
      */
-    function setRepoRedemptionHaircut(address repoToken, uint256 haircut) external onlyRole(ORACLE_ROLE) {
+    function setRepoRedemptionHaircut(
+        address repoToken,
+        uint256 haircut
+    ) external onlyRole(ORACLE_ROLE) {
         repoRedemptionHaircut[repoToken] = haircut;
     }
 
-    function _identifyTermController(address termRepoToken) internal view returns (ITermController) {
-       if (currTermController.isTermDeployed(termRepoToken)) {
-           return currTermController;
-       } else if (prevTermController.isTermDeployed(termRepoToken)) {
-           return prevTermController;
-       } else {
-           revert("Term controller not found");
-       }
+    function _identifyTermController(
+        address termRepoToken
+    ) internal view returns (ITermController) {
+        if (currTermController.isTermDeployed(termRepoToken)) {
+            return currTermController;
+        } else if (prevTermController.isTermDeployed(termRepoToken)) {
+            return prevTermController;
+        } else {
+            revert("Term controller not found");
+        }
     }
 
-    function _getDiscountRate(ITermController termController, address repoToken) internal view returns (uint256) {
-        (AuctionMetadata[] memory auctionMetadata, ) = termController.getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
+    function _getDiscountRate(
+        ITermController termController,
+        address repoToken
+    ) internal view returns (uint256) {
+        (AuctionMetadata[] memory auctionMetadata, ) = termController
+            .getTermAuctionResults(ITermRepoToken(repoToken).termRepoId());
 
         uint256 len = auctionMetadata.length;
         require(len > 0, "No auctions found");
 
         // If there is a re-opening auction, e.g. 2 or more results for the same token
         if (len > 1) {
-            uint256 latestAuctionTime = auctionMetadata[len - 1].auctionClearingBlockTimestamp;
+            uint256 latestAuctionTime = auctionMetadata[len - 1]
+                .auctionClearingBlockTimestamp;
             if ((block.timestamp - latestAuctionTime) < 30 minutes) {
                 for (int256 i = int256(len) - 2; i >= 0; i--) {
-                    if (!rateInvalid[repoToken][auctionMetadata[uint256(i)].termAuctionId]) {
+                    if (
+                        !rateInvalid[repoToken][
+                            auctionMetadata[uint256(i)].termAuctionId
+                        ]
+                    ) {
                         return auctionMetadata[uint256(i)].auctionClearingRate;
                     }
                 }
             } else {
                 for (int256 i = int256(len) - 1; i >= 0; i--) {
-                    if (!rateInvalid[repoToken][auctionMetadata[uint256(i)].termAuctionId]) {
+                    if (
+                        !rateInvalid[repoToken][
+                            auctionMetadata[uint256(i)].termAuctionId
+                        ]
+                    ) {
                         return auctionMetadata[uint256(i)].auctionClearingRate;
                     }
                 }
@@ -141,9 +176,11 @@ contract TermDiscountRateAdapter is ITermDiscountRateAdapter, AccessControl {
         // If there is only 1 result (not a re-opening) then always return result
         return auctionMetadata[0].auctionClearingRate;
     }
-    
 
-    function _validateAuctionExistence(AuctionMetadata[] memory auctionMetadata, bytes32 termAuctionId) private pure returns(bool auctionExists) {
+    function _validateAuctionExistence(
+        AuctionMetadata[] memory auctionMetadata,
+        bytes32 termAuctionId
+    ) private pure returns (bool auctionExists) {
         // Check if the termAuctionId exists in the metadata
         for (uint256 i = 0; i < auctionMetadata.length; i++) {
             if (auctionMetadata[i].termAuctionId == termAuctionId) {

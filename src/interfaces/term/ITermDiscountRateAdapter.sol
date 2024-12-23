@@ -6,5 +6,8 @@ interface ITermDiscountRateAdapter {
     function currTermController() external view returns (ITermController);
     function repoRedemptionHaircut(address) external view returns (uint256);
     function getDiscountRate(address repoToken) external view returns (uint256);
-    function getDiscountRate(address termController, address repoToken) external view returns (uint256);
+    function getDiscountRate(
+        address termController,
+        address repoToken
+    ) external view returns (uint256);
 }

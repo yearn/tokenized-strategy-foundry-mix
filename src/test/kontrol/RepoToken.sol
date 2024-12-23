@@ -41,11 +41,19 @@ contract RepoToken is ITermRepoToken, KontrolTest {
             termRepoServicerSlot := _termRepoServicer.slot
             termRepoCollateralManagerSlot := _termRepoCollateralManager.slot
         }
-        _storeUInt256(address(this), termRepoServicerSlot, uint256(uint160(address(termRepoServicer))));
+        _storeUInt256(
+            address(this),
+            termRepoServicerSlot,
+            uint256(uint160(address(termRepoServicer)))
+        );
 
         TermRepoCollateralManager termRepoCollateralManager = new TermRepoCollateralManager();
         termRepoCollateralManager.initializeSymbolic();
-        _storeUInt256(address(this), termRepoCollateralManagerSlot, uint256(uint160(address(termRepoCollateralManager))));
+        _storeUInt256(
+            address(this),
+            termRepoCollateralManagerSlot,
+            uint256(uint160(address(termRepoCollateralManager)))
+        );
     }
 
     function decimals() public pure returns (uint8) {
@@ -60,12 +68,16 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         return _redemptionValue;
     }
 
-    function config() external view returns (
-        uint256 redemptionTimestamp,
-        address purchaseToken,
-        address termRepoServicer,
-        address termRepoCollateralManager
-    ) {
+    function config()
+        external
+        view
+        returns (
+            uint256 redemptionTimestamp,
+            address purchaseToken,
+            address termRepoServicer,
+            address termRepoCollateralManager
+        )
+    {
         redemptionTimestamp = _redemptionTimestamp;
         purchaseToken = _purchaseToken;
         termRepoServicer = address(_termRepoServicer);
@@ -76,7 +88,10 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         return bytes32(freshUInt256());
     }
 
-    function allowance(address owner, address spender) external view returns (uint256) {
+    function allowance(
+        address owner,
+        address spender
+    ) external view returns (uint256) {
         return freshUInt256();
     }
 
@@ -94,7 +109,11 @@ contract RepoToken is ITermRepoToken, KontrolTest {
         return kevm.freshBool() > 0;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
         kevm.symbolicStorage(address(this));
         return kevm.freshBool() > 0;
     }

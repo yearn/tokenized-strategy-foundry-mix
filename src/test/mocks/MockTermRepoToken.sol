@@ -29,9 +29,15 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
         termRepoId = _termRepoId;
         repoTokenContext.redemptionTimestamp = _redemptionTimestamp;
         repoTokenContext.purchaseToken = _purchaseToken;
-        repoTokenContext.termRepoServicer = new MockTermRepoServicer(ITermRepoToken(address(this)), _purchaseToken);
-        repoTokenContext.termRepoCollateralManager = new MockTermRepoCollateralManager(
-            ITermRepoToken(address(this)), _collateral, _maintenanceRatio
+        repoTokenContext.termRepoServicer = new MockTermRepoServicer(
+            ITermRepoToken(address(this)),
+            _purchaseToken
+        );
+        repoTokenContext
+            .termRepoCollateralManager = new MockTermRepoCollateralManager(
+            ITermRepoToken(address(this)),
+            _collateral,
+            _maintenanceRatio
         );
     }
 
@@ -50,7 +56,7 @@ contract MockTermRepoToken is ERC20, ITermRepoToken {
     function mockServicer() external returns (MockTermRepoServicer) {
         return MockTermRepoServicer(address(repoTokenContext.termRepoServicer));
     }
-    
+
     function config()
         external
         view

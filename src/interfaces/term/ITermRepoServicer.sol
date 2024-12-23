@@ -6,7 +6,7 @@ interface ITermRepoServicer {
         address redeemer,
         uint256 amountToRedeem
     ) external;
-    
+
     function termRepoToken() external view returns (address);
 
     function termRepoLocker() external view returns (address);
