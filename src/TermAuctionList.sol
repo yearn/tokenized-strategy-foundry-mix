@@ -187,7 +187,7 @@ library TermAuctionList {
                 // because the offerLocker will have already removed the offer. 
                 // This applies if the repoToken hasn't been added to the repoTokenList 
                 // (only for new auctions, not reopenings).  
-                (bool isValidRepoToken, , uint256 redemptionTimestamp ) = repoTokenListData.validateAndInsertRepoToken(
+                (bool isValidRepoToken, uint256 redemptionTimestamp ) = repoTokenListData.validateAndInsertRepoToken(
                     ITermRepoToken(offer.repoToken), discountRateAdapter, asset
                 );
                 if (!isValidRepoToken && block.timestamp > redemptionTimestamp) {
