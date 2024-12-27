@@ -7,6 +7,7 @@ import glob from "glob";
 import fs from "fs";
 import "hardhat-abi-exporter";
 import "@typechain/hardhat";
+import "@nomicfoundation/hardhat-verify";
 
 
 
@@ -55,6 +56,11 @@ const config: HardhatUserConfig = {
     clear: true,
     flat: false,
     format: "json",
+  },
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: process.env.ETHERSCAN_API_KEY
   },
   typechain: {
     outDir: "typechain-types",
