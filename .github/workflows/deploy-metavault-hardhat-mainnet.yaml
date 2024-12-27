@@ -65,7 +65,7 @@ jobs:
       - run: yarn hardhat compile
       - run: yarn hardhat typechain
       - run: yarn mainnet:deploy-vault
-         env:
+        env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
