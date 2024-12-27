@@ -1,0 +1,87 @@
+name: "[mainnet-deploy] deploy metavault (hardhat)"
+on:
+  workflow_dispatch:
+    inputs:
+      asset:
+        description: 'Asset address'
+        required: true
+        default: '0x'
+      vaultName:
+        description: 'Yearn vault name'
+        required: true
+        default: '0x'
+      vaultSymbol:
+        description: 'Yearn vault symbol'
+        required: true
+        default: '0x'
+      profitMaxUnlockTime:
+        description: 'Profit max unlock time'
+        required: true
+        default: '0'
+      depositLimit:
+        description: 'Deposit limit'
+        required: false
+        default: '0'
+      defaultPerformance:
+        description: 'Default performance fee'
+        required: false
+        default: '0'
+      defaultMaxFee:
+        description: 'Default max fee'
+        required: false
+        default: '0'
+      defaultMaxGain:
+        description: 'Default max gain'
+        required: false
+        default: '0'
+      defaultMaxLoss:
+        description: 'Default max loss'
+        required: false
+        default: '0'
+    
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: mainnet
+      url: https://term-finance.github.io/yearn-v3-term-vault/
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+      - uses: foundry-rs/foundry-toolchain@v1
+      - run: forge install
+      - run: forge build
+      - run: forge remappings > remappings.txt
+      - id: nodeversion
+        run: echo "version=$(grep nodejs .tool-versions | sed -e 's/[^[:space:]]*[[:space:]]*//')" >> $GITHUB_OUTPUT
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.nodeversion.outputs.version }}
+          cache: yarn
+      - run: yarn install
+      - run: rm -rf src/test/kontrol/
+      - run: yarn hardhat compile
+      - run: yarn hardhat typechain
+      - run: yarn mainnet:deploy-vault
+         env:
+          RPC_URL:  ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          ASSET_ADDRESS: ${{ github.event.inputs.asset }}
+          VAULT_FACTORY: ${{ vars.VAULT_FACTORY }}
+          ACCOUNTANT_FACTORY: ${{ vars.ACCOUNTANT_FACTORY }}
+          VAULT_NAME: ${{ github.event.inputs.vaultName }}
+          VAULT_SYMBOL: ${{ github.event.inputs.vaultSymbol }}
+          FEE_RECIPIENT: ${{ vars.FEE_RECIPIENT }}
+          DEPOSIT_LIMIT: ${{ github.event.inputs.depositLimit }}
+          VAULT_GOVERNANCE_FACTORY: ${{ vars.VAULT_GOVERNANCE_FACTORY }}
+          KEEPER_ADDRESS: ${{ vars.KEEPER }}
+          STRATEGY_ADDER: ${{ vars.STRATEGY_ADDER }}
+          PROFIT_MAX_UNLOCK_TIME: ${{ github.event.inputs.profitMaxUnlockTime }}
+          DEFAULT_PERFORMANCE: ${{ github.event.inputs.defaultPerformance }}
+          DEFAULT_MAX_FEE: ${{ github.event.inputs.defaultMaxFee }}
+          DEFAULT_MAX_GAIN: ${{ github.event.inputs.defaultMaxGain }}
+          DEFAULT_MAX_LOSS: ${{ github.event.inputs.defaultMaxLoss }}
+  
