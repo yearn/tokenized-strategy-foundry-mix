@@ -90,7 +90,18 @@ class SetupVaultManagement {
     console.log("Accountant deployment transaction sent, waiting for confirmation...");
     const receipt = await tx.wait();
 
-    const accountantAddress = receipt.events?.[0].args?.accountant;
+    console.log("Transaction receipt:", receipt);
+    console.log("Events:", receipt.events);
+
+        // Locate the event that contains the vault address
+    const deployEvent = receipt.events?.find((event) => event.event === "NewAccountant");
+    if (!deployEvent || !deployEvent.args) {
+    throw new Error("VaultDeployed event not found or missing args");
+    }
+
+    // Extract the vault address
+    const accountantAddress = deployEvent.args.newAccountant;
+
     console.log("Accountant deployed at address:", accountantAddress);
 
     this.accountant = await ethers.getContractAt("Accountant", accountantAddress, this.managedSigner);
