@@ -66,9 +66,9 @@ class SetupVaultManagement {
     throw new Error("VaultDeployed event not found or missing args");
     }
 
-// Extract the vault address
-const vaultAddress = deployEvent.args.vault_address;
-console.log("Deployed vault address:", vaultAddress);
+    // Extract the vault address
+    const vaultAddress = deployEvent.args.vaultAddress;
+    console.log("Deployed vault address:", vaultAddress);
 
     console.log("Vault deployed at address:", vaultAddress);
 
