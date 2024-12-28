@@ -61,13 +61,13 @@ class SetupVaultManagement {
     console.log("Events:", receipt.events);
 
         // Locate the event that contains the vault address
-    const deployEvent = receipt.events?.find((event) => event.event === "VaultDeployed");
+    const deployEvent = receipt.events?.find((event) => event.event === "NewVault");
     if (!deployEvent || !deployEvent.args) {
     throw new Error("VaultDeployed event not found or missing args");
     }
 
 // Extract the vault address
-const vaultAddress = deployEvent.args.vault;
+const vaultAddress = deployEvent.args.vault_address;
 console.log("Deployed vault address:", vaultAddress);
 
     console.log("Vault deployed at address:", vaultAddress);
