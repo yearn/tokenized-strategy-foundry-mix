@@ -57,8 +57,19 @@ class SetupVaultManagement {
     );
     console.log("Vault deployment transaction sent, waiting for confirmation...");
     const receipt = await tx.wait();
+    console.log("Transaction receipt:", receipt);
+    console.log("Events:", receipt.events);
 
-    const vaultAddress = receipt.events?.[0].args?.vault;
+        // Locate the event that contains the vault address
+    const deployEvent = receipt.events?.find((event) => event.event === "VaultDeployed");
+    if (!deployEvent || !deployEvent.args) {
+    throw new Error("VaultDeployed event not found or missing args");
+    }
+
+// Extract the vault address
+const vaultAddress = deployEvent.args.vault;
+console.log("Deployed vault address:", vaultAddress);
+
     console.log("Vault deployed at address:", vaultAddress);
 
     this.vault = await ethers.getContractAt("IVault", vaultAddress, this.managedSigner);
