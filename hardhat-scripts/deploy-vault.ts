@@ -91,7 +91,8 @@ class SetupVaultManagement {
   
     console.log("ABI for", contractName, ":\n", JSON.stringify(artifact.abi, null, 2));
 
-    const tx = await accountantFactory.newAccountant();
+    const tx = await accountantFactory["newAccountant()"]();
+    
     console.log("Accountant deployment transaction sent, waiting for confirmation...");
     const receipt = await tx.wait();
 
