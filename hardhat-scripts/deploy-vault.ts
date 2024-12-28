@@ -135,7 +135,7 @@ class SetupVaultManagement {
     await (await this.vault.set_accountant(this.accountant.address)).wait();
     console.log("Accountant set for vault:", this.accountant.address);
 
-    await (await this.vault.set_deposit_limit(depositLimit)).wait();
+    await (await this.vault["set_deposit_limit(uint256)"](depositLimit)).wait();
     console.log("Deposit limit set:", depositLimit);
 
     await (await this.vault.set_use_default_queue(true)).wait();
