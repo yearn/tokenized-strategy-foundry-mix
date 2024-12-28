@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { ethers, run, artifacts } from "hardhat";
 import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
@@ -85,6 +85,11 @@ class SetupVaultManagement {
       accountantFactoryAddress,
       this.managedSigner
     );
+
+    const contractName = "AccountantFactory"; // Replace with your contract name
+    const artifact = await artifacts.readArtifact(contractName);
+  
+    console.log("ABI for", contractName, ":\n", JSON.stringify(artifact.abi, null, 2));
 
     const tx = await accountantFactory.newAccountant();
     console.log("Accountant deployment transaction sent, waiting for confirmation...");
