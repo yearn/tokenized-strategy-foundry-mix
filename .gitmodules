@@ -5,3 +5,6 @@
 [submodule "lib/octant-v2-core"]
 	path = lib/octant-v2-core
 	url = https://github.com/golemfoundation/octant-v2-core
+[submodule "lib/tokenized-strategy-periphery"]
+	path = lib/tokenized-strategy-periphery
+	url = https://github.com/golemfoundation/tokenized-strategy-periphery
