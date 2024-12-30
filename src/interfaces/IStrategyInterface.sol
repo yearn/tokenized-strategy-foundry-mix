@@ -4,5 +4,5 @@ pragma solidity ^0.8.18;
 import {IStrategy} from "octant-v2-core/src/interfaces/IStrategy.sol";
 
 interface IStrategyInterface is IStrategy {
-//TODO: Add your specific implementation interface in here.
+    function setUp(bytes calldata initializeParams) external;
 }

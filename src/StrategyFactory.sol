@@ -5,56 +5,48 @@ import {Strategy, ERC20} from "./Strategy.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
 contract StrategyFactory {
-    event NewStrategy(address indexed strategy, address indexed asset);
+    error InvalidStrategyId();
 
-    address public immutable emergencyAdmin;
+    event NewStrategy(address indexed strategy, uint256 indexed strategyId);
 
-    address public management;
-    address public performanceFeeRecipient;
-    address public keeper;
+    /// @notice Track the deployments. strategyId => strategy address
+    mapping(uint256 => address) public deployments;
 
-    /// @notice Track the deployments. asset => pool => strategy
-    mapping(address => address) public deployments;
+    uint256 public strategyId;
 
-    constructor(address _management, address _performanceFeeRecipient, address _keeper, address _emergencyAdmin) {
-        management = _management;
-        performanceFeeRecipient = _performanceFeeRecipient;
-        keeper = _keeper;
-        emergencyAdmin = _emergencyAdmin;
+    constructor() {
+        strategyId = 0;
     }
 
     /**
-     * @notice Deploy a new Strategy.
-     * @param _asset The underlying asset for the strategy to use.
-     * @return . The address of the new strategy.
+     * @notice Deploy a new Strategy
+     * @param initializeParams The encoded parameters to initialize the strategy with
+     * @return address The address of the newly deployed strategy
      */
-    function newStrategy(address _asset, string calldata _name) external virtual returns (address) {
-        // tokenized strategies available setters.
-        IStrategyInterface _newStrategy = IStrategyInterface(address(new Strategy(_asset, _name)));
+    function newStrategy(bytes calldata initializeParams) external virtual returns (address) {
+        IStrategyInterface _newStrategy = IStrategyInterface(address(new Strategy()));
+        _newStrategy.setUp(initializeParams);
 
-        _newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
+        uint256 currentId = strategyId;
+        deployments[currentId] = address(_newStrategy);
 
-        _newStrategy.setKeeper(keeper);
+        emit NewStrategy(address(_newStrategy), currentId);
 
-        _newStrategy.setPendingManagement(management);
+        unchecked {
+            strategyId = currentId + 1;
+        }
 
-        _newStrategy.setEmergencyAdmin(emergencyAdmin);
-
-        emit NewStrategy(address(_newStrategy), _asset);
-
-        deployments[_asset] = address(_newStrategy);
         return address(_newStrategy);
     }
 
-    function setAddresses(address _management, address _performanceFeeRecipient, address _keeper) external {
-        require(msg.sender == management, "!management");
-        management = _management;
-        performanceFeeRecipient = _performanceFeeRecipient;
-        keeper = _keeper;
-    }
-
-    function isDeployedStrategy(address _strategy) external view returns (bool) {
-        address _asset = IStrategyInterface(_strategy).asset();
-        return deployments[_asset] == _strategy;
+    /**
+     * @notice Retrieve a deployed strategy address by ID
+     * @param _strategyId The ID of the strategy to look up
+     * @return address The strategy contract address
+     */
+    function getStrategy(uint256 _strategyId) external view returns (address) {
+        address strategy = deployments[_strategyId];
+        if (strategy == address(0)) revert InvalidStrategyId();
+        return strategy;
     }
 }

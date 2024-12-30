@@ -15,6 +15,6 @@
     "openzeppelin-contracts-upgradeable/=lib/octant-v2-core/lib/openzeppelin-contracts-upgradeable/",
     "openzeppelin-contracts/=lib/octant-v2-core/lib/openzeppelin-contracts/",
     "tokenized-strategy-periphery/=lib/tokenized-strategy-periphery/",
-    "zodiac/=lib/octant-v2-core/lib/zodiac/contracts/",
+    "zodiac/=lib/octant-v2-core/lib/zodiac/contracts/"
   ]
 }
