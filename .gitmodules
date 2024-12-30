@@ -2,3 +2,6 @@
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 	branch = master
+[submodule "lib/octant-v2-core"]
+	path = lib/octant-v2-core
+	url = https://github.com/golemfoundation/octant-v2-core
