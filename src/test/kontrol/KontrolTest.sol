@@ -23,7 +23,10 @@ contract KontrolTest is Test, KontrolCheats {
         Assert
     }
 
-    function _establish(Mode mode, bool condition) internal pure returns (bool) {
+    function _establish(
+        Mode mode,
+        bool condition
+    ) internal pure returns (bool) {
         if (mode == Mode.Assume) {
             vm.assume(condition);
             return true;
@@ -59,7 +62,13 @@ contract KontrolTest is Test, KontrolCheats {
         return mask & (slotValue >> shift);
     }
 
-    function _storeData(address contractAddress, uint256 slot, uint256 offset, uint256 width, uint256 value) internal {
+    function _storeData(
+        address contractAddress,
+        uint256 slot,
+        uint256 offset,
+        uint256 width,
+        uint256 value
+    ) internal {
         // `offset` and `width` must not overflow the slot
         assert(offset + width <= 32);
         // and `value` must fit into the designated part
@@ -83,23 +92,41 @@ contract KontrolTest is Test, KontrolCheats {
         vm.store(contractAddress, bytes32(slot), bytes32(slotValue));
     }
 
-    function _loadUInt256(address contractAddress, uint256 slot) internal view returns (uint256) {
+    function _loadUInt256(
+        address contractAddress,
+        uint256 slot
+    ) internal view returns (uint256) {
         return _loadData(contractAddress, slot, 0, 32);
     }
 
-    function _loadAddress(address contractAddress, uint256 slot) internal view returns (address) {
+    function _loadAddress(
+        address contractAddress,
+        uint256 slot
+    ) internal view returns (address) {
         return address(uint160(_loadData(contractAddress, slot, 0, 20)));
     }
 
-    function _storeUInt256(address contractAddress, uint256 slot, uint256 value) internal {
+    function _storeUInt256(
+        address contractAddress,
+        uint256 slot,
+        uint256 value
+    ) internal {
         _storeData(contractAddress, slot, 0, 32, value);
     }
 
-    function _storeAddress(address contractAddress, uint256 slot, address value) internal {
+    function _storeAddress(
+        address contractAddress,
+        uint256 slot,
+        address value
+    ) internal {
         _storeData(contractAddress, slot, 0, 20, uint160(value));
     }
 
-    function _storeBytes32(address contractAddress, uint256 slot, bytes32 value) internal {
+    function _storeBytes32(
+        address contractAddress,
+        uint256 slot,
+        bytes32 value
+    ) internal {
         _storeUInt256(contractAddress, slot, uint256(value));
     }
 

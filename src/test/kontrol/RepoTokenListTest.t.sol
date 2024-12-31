@@ -13,7 +13,6 @@ import "src/test/kontrol/TermAuction.sol";
 import "src/test/kontrol/TermAuctionOfferLocker.sol";
 import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
-
 contract RepoTokenListTest is KontrolTest {
     using RepoTokenList for RepoTokenListData;
 
@@ -32,14 +31,18 @@ contract RepoTokenListTest is KontrolTest {
     /**
      * Return the maturity timestamp of the given RepoToken.
      */
-    function _getRepoTokenMaturity(address repoToken) internal view returns (uint256 redemptionTimestamp) {
-        (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
+    function _getRepoTokenMaturity(
+        address repoToken
+    ) internal view returns (uint256 redemptionTimestamp) {
+        (redemptionTimestamp, , , ) = ITermRepoToken(repoToken).config();
     }
 
     /**
      * Return the this contract's balance in the given RepoToken.
      */
-    function _getRepoTokenBalance(address repoToken) internal view returns (uint256) {
+    function _getRepoTokenBalance(
+        address repoToken
+    ) internal view returns (uint256) {
         return ITermRepoToken(repoToken).balanceOf(address(this));
     }
 
@@ -109,7 +112,9 @@ contract RepoTokenListTest is KontrolTest {
         return false;
     }
 
-    function _repoTokensListToArray(uint256 length) internal view returns (address[] memory repoTokens) {
+    function _repoTokensListToArray(
+        uint256 length
+    ) internal view returns (address[] memory repoTokens) {
         address current = _repoTokenList.head;
         uint256 i;
         repoTokens = new address[](length);
@@ -142,28 +147,35 @@ contract RepoTokenListTest is KontrolTest {
     function _cumulativeRepoTokenDataNotMatured(
         ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision
-    ) internal view returns (
-        uint256 cumulativeWeightedTimeToMaturity,
-        uint256 cumulativeRepoTokenAmount
-    ) {
+    )
+        internal
+        view
+        returns (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeRepoTokenAmount
+        )
+    {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
-            (uint256 currentMaturity, , ,) = ITermRepoToken(current).config();
-            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(current);
+            (uint256 currentMaturity, , , ) = ITermRepoToken(current).config();
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                address(this)
+            );
+            uint256 repoRedemptionHaircut = discountRateAdapter
+                .repoRedemptionHaircut(current);
             uint256 timeToMaturity = currentMaturity - block.timestamp;
 
-            uint256 repoTokenAmountInBaseAssetPrecision =
-                RepoTokenUtils.getNormalizedRepoTokenAmount(
+            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+                .getNormalizedRepoTokenAmount(
                     current,
                     repoTokenBalance,
                     purchaseTokenPrecision,
                     repoRedemptionHaircut
                 );
 
-            uint256 weightedTimeToMaturity =
-                timeToMaturity * repoTokenAmountInBaseAssetPrecision;
+            uint256 weightedTimeToMaturity = timeToMaturity *
+                repoTokenAmountInBaseAssetPrecision;
 
             cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
             cumulativeRepoTokenAmount += repoTokenAmountInBaseAssetPrecision;
@@ -184,14 +196,17 @@ contract RepoTokenListTest is KontrolTest {
         while (current != RepoTokenList.NULL_NODE) {
             address next = _repoTokenList.nodes[current].next;
 
-            (uint256 currentMaturity, , ,) = ITermRepoToken(current).config();
+            (uint256 currentMaturity, , , ) = ITermRepoToken(current).config();
 
             if (currentMaturity <= block.timestamp) {
-                uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-                uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(current);
-            
-                totalPresentValue +=
-                    RepoTokenUtils.getNormalizedRepoTokenAmount(
+                uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                    address(this)
+                );
+                uint256 repoRedemptionHaircut = discountRateAdapter
+                    .repoRedemptionHaircut(current);
+
+                totalPresentValue += RepoTokenUtils
+                    .getNormalizedRepoTokenAmount(
                         current,
                         repoTokenBalance,
                         purchaseTokenPrecision,
@@ -200,13 +215,12 @@ contract RepoTokenListTest is KontrolTest {
 
                 if (current == _repoTokenList.head) {
                     _repoTokenList.head = next;
-                }
-                else {
+                } else {
                     _repoTokenList.nodes[prev].next = next;
                     current = prev;
                 }
             }
-            
+
             prev = current;
             current = next;
         }
@@ -223,26 +237,30 @@ contract RepoTokenListTest is KontrolTest {
         uint256 totalPresentValue = 0;
 
         while (current != RepoTokenList.NULL_NODE) {
-            (uint256 currentMaturity, , ,) = ITermRepoToken(current).config();
-            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
-            uint256 repoRedemptionHaircut = discountRateAdapter.repoRedemptionHaircut(current);
+            (uint256 currentMaturity, , , ) = ITermRepoToken(current).config();
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                address(this)
+            );
+            uint256 repoRedemptionHaircut = discountRateAdapter
+                .repoRedemptionHaircut(current);
             uint256 discountRate = discountRateAdapter.getDiscountRate(current);
             uint256 timeToMaturity = currentMaturity - block.timestamp;
 
-            uint256 repoTokenAmountInBaseAssetPrecision =
-                RepoTokenUtils.getNormalizedRepoTokenAmount(
+            uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+                .getNormalizedRepoTokenAmount(
                     current,
                     repoTokenBalance,
                     purchaseTokenPrecision,
                     repoRedemptionHaircut
                 );
 
-            uint256 timeLeftToMaturityDayFraction =
-                (timeToMaturity * purchaseTokenPrecision) / 360 days;
+            uint256 timeLeftToMaturityDayFraction = (timeToMaturity *
+                purchaseTokenPrecision) / 360 days;
 
-            uint256 presentValue =
-                (repoTokenAmountInBaseAssetPrecision * purchaseTokenPrecision) / 
-                (purchaseTokenPrecision + (discountRate * timeLeftToMaturityDayFraction / 1e18));
+            uint256 presentValue = (repoTokenAmountInBaseAssetPrecision *
+                purchaseTokenPrecision) /
+                (purchaseTokenPrecision +
+                    ((discountRate * timeLeftToMaturityDayFraction) / 1e18));
 
             totalPresentValue += presentValue;
 
@@ -252,15 +270,18 @@ contract RepoTokenListTest is KontrolTest {
         return totalPresentValue;
     }
 
-    function _establishInsertListPreservation(address insertedRepoToken, address[] memory repoTokens, uint256 repoTokensCount) internal view {
+    function _establishInsertListPreservation(
+        address insertedRepoToken,
+        address[] memory repoTokens,
+        uint256 repoTokensCount
+    ) internal view {
         address current = _repoTokenList.head;
         uint256 i = 0;
 
-        if(insertedRepoToken != address(0)) {
-
+        if (insertedRepoToken != address(0)) {
             while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
-                if(current != repoTokens[i]) {
-                    assert (current == insertedRepoToken);
+                if (current != repoTokens[i]) {
+                    assert(current == insertedRepoToken);
                     current = _repoTokenList.nodes[current].next;
                     break;
                 }
@@ -269,7 +290,7 @@ contract RepoTokenListTest is KontrolTest {
             }
 
             if (current != RepoTokenList.NULL_NODE && i == repoTokensCount) {
-                assert (current == insertedRepoToken);
+                assert(current == insertedRepoToken);
             }
         }
 
@@ -279,12 +300,15 @@ contract RepoTokenListTest is KontrolTest {
         }
     }
 
-    function _establishRemoveListPreservation(address[] memory repoTokens, uint256 repoTokensCount) internal view {
+    function _establishRemoveListPreservation(
+        address[] memory repoTokens,
+        uint256 repoTokensCount
+    ) internal view {
         address current = _repoTokenList.head;
         uint256 i = 0;
 
         while (current != RepoTokenList.NULL_NODE && i < repoTokensCount) {
-            if(current == repoTokens[i++]) {
+            if (current == repoTokens[i++]) {
                 current = _repoTokenList.nodes[current].next;
             }
         }
@@ -367,7 +391,9 @@ contract RepoTokenListTest is KontrolTest {
      * Note: This is equivalent to the above invariant if the NoMaturedTokens
      * invariant also holds.
      */
-    function _establishPositiveBalanceForNonMaturedTokens(Mode mode) internal view {
+    function _establishPositiveBalanceForNonMaturedTokens(
+        Mode mode
+    ) internal view {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
@@ -390,7 +416,7 @@ contract RepoTokenListTest is KontrolTest {
         address current = _repoTokenList.head;
 
         while (current != RepoTokenList.NULL_NODE) {
-            (, , address repoServicer,) = ITermRepoToken(current).config();
+            (, , address repoServicer, ) = ITermRepoToken(current).config();
             TermRepoServicer(repoServicer).guaranteeRedeemAlwaysSucceeds();
 
             current = _repoTokenList.nodes[current].next;

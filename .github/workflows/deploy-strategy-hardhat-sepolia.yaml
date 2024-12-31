@@ -87,6 +87,7 @@ jobs:
           EVENT_EMITTER_ADDRESS: ${{ vars.EVENT_EMITTER_IMPL }}
           SEPOLIA_RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           
           # TODO(andrew please confirm): I don't think these are used for this workflow
           # GOVERNOR_DEPLOYER_KEY: ${{ secrets.GOVERNANCE_DEPLOYER_KEY }}

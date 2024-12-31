@@ -1,4 +1,4 @@
-import { ethers } from "hardhat";  // Use direct ethers import
+import { ethers, run } from "hardhat";  // Added run import for verification
 import "@nomiclabs/hardhat-ethers";
 import { NonceManager } from "@ethersproject/experimental";
 import dotenv from "dotenv";
@@ -8,8 +8,24 @@ import path from 'path';
 import { Strategy } from '../typechain-types/src/Strategy';
 type StrategyParamsStruct = Strategy.StrategyParamsStruct;
 
-
 dotenv.config();
+
+async function verifyContract(address: string, constructorArguments: any[]) {
+  console.log("Verifying contract...");
+  try {
+    await run("verify:verify", {
+      address: address,
+      constructorArguments: constructorArguments,
+    });
+    console.log("Contract verified successfully");
+  } catch (error: any) {
+    if (error.message.includes("Already Verified")) {
+      console.log("Contract is already verified");
+    } else {
+      console.log("Error verifying contract:", error);
+    }
+  }
+}
 
 function stringToAddressArray(input: string): string[] {
   if (!input) return [];
@@ -22,15 +38,14 @@ function stringToAddressArray(input: string): string[] {
   });
 }
 
-function stringToUintArray(input: string): string[] {  // Changed return type to string[]
+function stringToUintArray(input: string): string[] {
   if (!input) return [];
   return input.split(",").map((num) => {
     const trimmed = num.trim();
-    // Just validate that it's a valid number string but return the string
     if (isNaN(Number(trimmed))) {
       throw new Error(`Invalid number: ${trimmed}`);
     }
-    return trimmed;  // Return the string instead of parsing to number
+    return trimmed;
   });
 }
 
@@ -88,10 +103,15 @@ async function deployEventEmitter(managedSigner: Signer) {
   const EventEmitter = (
     await ethers.getContractFactory("TermVaultEventEmitter")
   ).connect(managedSigner);
+  
   if (!eventEmitterImpl) {
     const eventEmitterImplContract = await EventEmitter.deploy();
     await eventEmitterImplContract.deployed();
     console.log("Deployed event emitter impl to:", eventEmitterImplContract.address);
+    
+    // Verify EventEmitter implementation
+    await verifyContract(eventEmitterImplContract.address, []);
+    
     eventEmitterImpl = eventEmitterImplContract.address;
   }
   
@@ -109,8 +129,10 @@ async function deployEventEmitter(managedSigner: Signer) {
   );
   await eventEmitterProxy.deployed();
   console.log("Using event emitter impl at:", eventEmitterImpl);
-
   console.log("Deployed event emitter proxy to:", eventEmitterProxy.address);
+
+  // Verify Proxy contract
+  await verifyContract(eventEmitterProxy.address, [eventEmitterImpl, initData]);
 
   return ethers.getContractAt(
     "TermVaultEventEmitter",
@@ -135,7 +157,6 @@ async function main() {
   );
   console.log(JSON.stringify(params));
 
-  // Match your working pattern exactly
   const Strategy = await ethers.getContractFactory(
     "Strategy",
     {
@@ -146,9 +167,7 @@ async function main() {
   const strategyMeta = process.env.STRATEGY_META!;
   const [strategyName, strategySymbol] = strategyMeta.trim().split(",").map(x => x.trim())
   console.log(`Deploying strategy with (${strategyName}, ${strategySymbol})`);
-
   
-  // Create a struct that exactly matches the constructor's tuple type
   const strategy = await Strategy.deploy(
     strategyName,
     strategySymbol,
@@ -156,8 +175,10 @@ async function main() {
   );
 
   await strategy.deployed();
-  
   console.log("Deployed strategy to:", strategy.address);
+
+  // Verify Strategy contract
+  await verifyContract(strategy.address, [strategyName, strategySymbol, params]);
 
   // Post-deployment setup
   const strategyContract = await ethers.getContractAt(

@@ -30,7 +30,10 @@ contract TermFinanceVaultWrappedVotesToken is ERC20Votes, Ownable {
         require(amount > 0, "Amount must be greater than zero");
 
         // Transfer the underlying tokens from the user to the contract
-        require(underlyingToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
+        require(
+            underlyingToken.transferFrom(msg.sender, address(this), amount),
+            "Transfer failed"
+        );
 
         // Track the deposit
         deposits[msg.sender] += amount;
@@ -53,7 +56,10 @@ contract TermFinanceVaultWrappedVotesToken is ERC20Votes, Ownable {
         deposits[msg.sender] -= amount;
 
         // Transfer the underlying tokens back to the user
-        require(underlyingToken.transfer(msg.sender, amount), "Transfer failed");
+        require(
+            underlyingToken.transfer(msg.sender, amount),
+            "Transfer failed"
+        );
 
         emit Unwrapped(msg.sender, amount);
     }

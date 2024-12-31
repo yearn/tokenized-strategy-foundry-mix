@@ -7,6 +7,7 @@ import glob from "glob";
 import fs from "fs";
 import "hardhat-abi-exporter";
 import "@typechain/hardhat";
+import "@nomicfoundation/hardhat-verify";
 
 
 
@@ -25,18 +26,26 @@ const resolveImportPath = (importPath: string): string => {
   return importPath;
 };
 
-task("compile", "Compiles the project, excluding specific files", async (_, { run }) => {
+task("compile", "Compiles the project, including libraries in the lib folder", async (_, { run }) => {
   const excludedPaths = [
     path.resolve(__dirname, "src/test/kontrol/*.sol"),
   ];
 
-  const allFiles = glob.sync(path.resolve(__dirname, "src/*.sol"));
+  // Locate all source files in the src folder
+  const sourceFiles = glob.sync(path.resolve(__dirname, "src/**/*.sol"));
+
+  // Locate all library files in the lib folder
+  const libraryFiles = glob.sync(path.resolve(__dirname, "lib/**/*.sol"));
+
+  // Combine source files and library files, excluding specific paths
+  const allFiles = [...sourceFiles, ...libraryFiles];
   const filesToCompile = allFiles.filter(
     (file) => !excludedPaths.some((excluded) => file.startsWith(excluded))
   );
 
   console.log("Files to compile:", filesToCompile);
 
+  // Run the Solidity compile task with the filtered list of files
   await run("compile:solidity", { sources: filesToCompile, force: false, quiet: false });
 });
 
@@ -55,6 +64,11 @@ const config: HardhatUserConfig = {
     clear: true,
     flat: false,
     format: "json",
+  },
+  etherscan: {
+    // Your API key for Etherscan
+    // Obtain one at https://etherscan.io/
+    apiKey: process.env.ETHERSCAN_API_KEY
   },
   typechain: {
     outDir: "typechain-types",

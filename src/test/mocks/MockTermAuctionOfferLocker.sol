@@ -45,7 +45,9 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         return auction.auctionEndTime();
     }
 
-    function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {
+    function lockedOffer(
+        bytes32 id
+    ) external view returns (TermAuctionOffer memory) {
         return lockedOffers[id];
     }
 
@@ -62,14 +64,22 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
             if (offer.amount > 0) {
                 if (offer.amount > submission.amount) {
                     // current amount > new amount, release tokens
-                    repoLocker.releasePurchaseTokens(msg.sender, offer.amount - submission.amount);
+                    repoLocker.releasePurchaseTokens(
+                        msg.sender,
+                        offer.amount - submission.amount
+                    );
                 } else if (offer.amount < submission.amount) {
-                    repoLocker.lockPurchaseTokens(msg.sender, submission.amount - offer.amount);
+                    repoLocker.lockPurchaseTokens(
+                        msg.sender,
+                        submission.amount - offer.amount
+                    );
                 }
                 // update locked amount
                 offer.amount = submission.amount;
             } else {
-                bytes32 offerId = keccak256(abi.encodePacked(submission.id,msg.sender,address(this)));
+                bytes32 offerId = keccak256(
+                    abi.encodePacked(submission.id, msg.sender, address(this))
+                );
 
                 offer.id = offerId;
                 offer.offeror = submission.offeror;
@@ -84,25 +94,40 @@ contract MockTermAuctionOfferLocker is ITermAuctionOfferLocker {
         }
     }
 
-    function processOffer(MockTermRepoToken mockRepoToken, bytes32 offerId, uint256 fillAmount, uint256 repoTokenAmount) external {
+    function processOffer(
+        MockTermRepoToken mockRepoToken,
+        bytes32 offerId,
+        uint256 fillAmount,
+        uint256 repoTokenAmount
+    ) external {
         require(lockedOffers[offerId].amount >= fillAmount);
         uint256 remainingAmount = lockedOffers[offerId].amount - fillAmount;
 
         lockedOffers[offerId].amount = remainingAmount;
 
         mockRepoToken.mint(lockedOffers[offerId].offeror, repoTokenAmount);
-        repoLocker.releasePurchaseTokens(lockedOffers[offerId].offeror, remainingAmount);
+        repoLocker.releasePurchaseTokens(
+            lockedOffers[offerId].offeror,
+            remainingAmount
+        );
     }
 
     function unlockOffers(bytes32[] calldata offerIds) external {
         for (uint256 i; i < offerIds.length; i++) {
             bytes32 offerId = offerIds[i];
-            repoLocker.releasePurchaseTokens(msg.sender, lockedOffers[offerId].amount);
+            repoLocker.releasePurchaseTokens(
+                msg.sender,
+                lockedOffers[offerId].amount
+            );
             delete lockedOffers[offerId];
         }
     }
 
-    function unlockOfferPartial(bytes32 offerId, address offeror, uint256 amount) external {
+    function unlockOfferPartial(
+        bytes32 offerId,
+        address offeror,
+        uint256 amount
+    ) external {
         delete lockedOffers[offerId];
         repoLocker.releasePurchaseTokens(offeror, amount);
     }

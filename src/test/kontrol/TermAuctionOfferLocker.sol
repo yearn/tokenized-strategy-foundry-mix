@@ -13,7 +13,15 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
     uint256 private lockedOffersSlot;
 
     function lockedOfferSlot(bytes32 offerId) internal view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(uint256(offerId), uint256(lockedOffersSlot))));
+        return
+            uint256(
+                keccak256(
+                    abi.encodePacked(
+                        uint256(offerId),
+                        uint256(lockedOffersSlot)
+                    )
+                )
+            );
     }
 
     function initializeSymbolic(address termReposervicer) public {
@@ -71,14 +79,15 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
         return _termRepoServicer;
     }
 
-    function lockedOffer(bytes32 id) external view returns (TermAuctionOffer memory) {
+    function lockedOffer(
+        bytes32 id
+    ) external view returns (TermAuctionOffer memory) {
         return _lockedOffers[id];
     }
 
     function lockOffers(
         TermAuctionOfferSubmission[] calldata offerSubmissions
     ) external view returns (bytes32[] memory) {
-
         uint256 length = offerSubmissions.length;
         bytes32[] memory offers = new bytes32[](length);
 
@@ -96,7 +105,7 @@ contract TermAuctionOfferLocker is ITermAuctionOfferLocker, KontrolTest {
         }
 
         for (uint256 i = 0; i < offerIds.length; ++i) {
-            delete(_lockedOffers[offerIds[i]]);
+            delete (_lockedOffers[offerIds[i]]);
         }
     }
 }

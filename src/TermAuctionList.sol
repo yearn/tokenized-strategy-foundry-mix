@@ -47,7 +47,10 @@ library TermAuctionList {
      * @param current The current node
      * @return The next node
      */
-    function _getNext(TermAuctionListData storage listData, bytes32 current) private view returns (bytes32) {
+    function _getNext(
+        TermAuctionListData storage listData,
+        bytes32 current
+    ) private view returns (bytes32) {
         return listData.nodes[current].next;
     }
 
@@ -60,7 +63,9 @@ library TermAuctionList {
      * @param listData The list data
      * @return count The number of nodes in the list
      */
-    function _count(TermAuctionListData storage listData) internal view returns (uint256 count) {
+    function _count(
+        TermAuctionListData storage listData
+    ) internal view returns (uint256 count) {
         if (listData.head == NULL_NODE) return 0;
         bytes32 current = listData.head;
         while (current != NULL_NODE) {
@@ -77,7 +82,9 @@ library TermAuctionList {
      * @dev This function iterates through the list of offers and gathers their IDs into an array of `bytes32`.
      * This makes it easier to process and manage the pending offers.
      */
-    function pendingOffers(TermAuctionListData storage listData) internal view returns (bytes32[] memory offers) {
+    function pendingOffers(
+        TermAuctionListData storage listData
+    ) internal view returns (bytes32[] memory offers) {
         uint256 count = _count(listData);
         if (count > 0) {
             offers = new bytes32[](count);
@@ -99,7 +106,11 @@ library TermAuctionList {
      * @dev This function inserts a new pending offer while maintaining the list sorted by auction address.
      * The function iterates through the list to find the correct position for the new `offerId` and updates the pointers accordingly.
      */
-    function insertPending(TermAuctionListData storage listData, bytes32 offerId, PendingOffer memory pendingOffer) internal {
+    function insertPending(
+        TermAuctionListData storage listData,
+        bytes32 offerId,
+        PendingOffer memory pendingOffer
+    ) internal {
         bytes32 current = listData.head;
         require(!pendingOffer.termAuction.auctionCompleted());
 
@@ -113,13 +124,14 @@ library TermAuctionList {
 
         bytes32 prev;
         while (current != NULL_NODE) {
-
             // If the offerId is already in the list, exit
             if (current == offerId) {
                 break;
             }
 
-            address currentAuction = address(listData.offers[current].termAuction);
+            address currentAuction = address(
+                listData.offers[current].termAuction
+            );
             address auctionToInsert = address(pendingOffer.termAuction);
 
             // Insert offer before current if the auction address to insert is less than current auction address
@@ -181,38 +193,50 @@ library TermAuctionList {
             if (offer.termAuction.auctionCompleted()) {
                 // If auction is completed and closed, mark for removal and prepare to insert repo token
                 removeNode = true;
-                // Auction still open => include offerAmount in totalValue 
-                // (otherwise locked purchaseToken will be missing from TV)               
-                // Auction completed but not closed => include offer.offerAmount in totalValue 
-                // because the offerLocker will have already removed the offer. 
-                // This applies if the repoToken hasn't been added to the repoTokenList 
-                // (only for new auctions, not reopenings).  
-                (bool isValidRepoToken, uint256 redemptionTimestamp ) = repoTokenListData.validateAndInsertRepoToken(
-                    ITermRepoToken(offer.repoToken), discountRateAdapter, asset
-                );
-                if (!isValidRepoToken && block.timestamp > redemptionTimestamp) {
+                // Auction still open => include offerAmount in totalValue
+                // (otherwise locked purchaseToken will be missing from TV)
+                // Auction completed but not closed => include offer.offerAmount in totalValue
+                // because the offerLocker will have already removed the offer.
+                // This applies if the repoToken hasn't been added to the repoTokenList
+                // (only for new auctions, not reopenings).
+                (
+                    bool isValidRepoToken,
+                    uint256 redemptionTimestamp
+                ) = repoTokenListData.validateAndInsertRepoToken(
+                        ITermRepoToken(offer.repoToken),
+                        discountRateAdapter,
+                        asset
+                    );
+                if (
+                    !isValidRepoToken && block.timestamp > redemptionTimestamp
+                ) {
                     ITermRepoToken repoToken = ITermRepoToken(offer.repoToken);
                     (, , address repoServicerAddr, ) = repoToken.config();
-                    ITermRepoServicer repoServicer = ITermRepoServicer(repoServicerAddr);
-                    try repoServicer.redeemTermRepoTokens(address(this), repoToken.balanceOf(address(this))) {
-                    } catch {
-
-                    }
+                    ITermRepoServicer repoServicer = ITermRepoServicer(
+                        repoServicerAddr
+                    );
+                    try
+                        repoServicer.redeemTermRepoTokens(
+                            address(this),
+                            repoToken.balanceOf(address(this))
+                        )
+                    {} catch {}
                 }
             } else {
                 if (offer.termAuction.auctionCancelledForWithdrawal()) {
                     // If auction was canceled for withdrawal, remove the node and unlock offers manually
                     bytes32[] memory offerIds = new bytes32[](1);
                     offerIds[0] = current;
-                    try offer.offerLocker.unlockOffers(offerIds) { // unlocking offer in this scenario withdraws offer amount
+                    try offer.offerLocker.unlockOffers(offerIds) {
+                        // unlocking offer in this scenario withdraws offer amount
                         removeNode = true;
                     } catch {
                         removeNode = false;
                     }
                 } else {
                     if (offerAmount == 0) {
-                    // If offer amount is zero, it indicates the auction was canceled or deleted
-                    removeNode = true;
+                        // If offer amount is zero, it indicates the auction was canceled or deleted
+                        removeNode = true;
                     }
                 }
             }
@@ -223,8 +247,7 @@ library TermAuctionList {
                 delete listData.offers[current];
                 if (current == listData.head) {
                     listData.head = next;
-                }
-                else {
+                } else {
                     listData.nodes[prev].next = next;
                     current = prev;
                 }
@@ -266,7 +289,10 @@ library TermAuctionList {
             PendingOffer storage offer = listData.offers[current];
 
             // Filter by specific repo token if provided, address(0) bypasses this filter
-            if (repoTokenToMatch != address(0) && offer.repoToken != repoTokenToMatch) {
+            if (
+                repoTokenToMatch != address(0) &&
+                offer.repoToken != repoTokenToMatch
+            ) {
                 // Not a match, skip
                 // Move to the next token in the list
                 current = _getNext(listData, current);
@@ -278,14 +304,22 @@ library TermAuctionList {
             // Handle new or unseen repo tokens
             /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
             /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-            if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+            if (
+                offer.termAuction.auctionCompleted() &&
+                repoTokenListData.discountRates[offer.repoToken] == 0
+            ) {
                 if (edgeCaseAuction != address(offer.termAuction)) {
-                    uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                        offer.repoToken,
-                        ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                        purchaseTokenPrecision,
-                        discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
-                    );
+                    uint256 repoTokenAmountInBaseAssetPrecision = RepoTokenUtils
+                        .getNormalizedRepoTokenAmount(
+                            offer.repoToken,
+                            ITermRepoToken(offer.repoToken).balanceOf(
+                                address(this)
+                            ),
+                            purchaseTokenPrecision,
+                            discountRateAdapter.repoRedemptionHaircut(
+                                offer.repoToken
+                            )
+                        );
                     totalValue += RepoTokenUtils.calculatePresentValue(
                         repoTokenAmountInBaseAssetPrecision,
                         purchaseTokenPrecision,
@@ -332,15 +366,22 @@ library TermAuctionList {
         address repoToken,
         uint256 newOfferAmount,
         uint256 purchaseTokenPrecision
-    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeOfferAmount, bool found) {
+    )
+        internal
+        view
+        returns (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeOfferAmount,
+            bool found
+        )
+    {
         // If the list is empty, return 0s and false
         if (listData.head == NULL_NODE) return (0, 0, false);
         address edgeCaseAuction; // NOTE: handle edge case, assumes that pendingOffer is properly sorted by auction address
 
-
         bytes32 current = listData.head;
         while (current != NULL_NODE) {
-            PendingOffer storage offer =listData.offers[current];
+            PendingOffer storage offer = listData.offers[current];
 
             uint256 offerAmount;
             if (offer.repoToken == repoToken) {
@@ -353,16 +394,23 @@ library TermAuctionList {
                 // Handle new repo tokens or reopening auctions
                 /// @dev offer processed, but auctionClosed not yet called and auction is new so repoToken not on List and wont be picked up
                 /// checking repoTokendiscountRates to make sure we are not double counting on re-openings
-                if (offer.termAuction.auctionCompleted() && repoTokenListData.discountRates[offer.repoToken] == 0) {
+                if (
+                    offer.termAuction.auctionCompleted() &&
+                    repoTokenListData.discountRates[offer.repoToken] == 0
+                ) {
                     // use normalized repoToken amount if repoToken is not in the list
                     if (edgeCaseAuction != address(offer.termAuction)) {
-                        offerAmount = RepoTokenUtils.getNormalizedRepoTokenAmount(
-                            offer.repoToken,
-                            ITermRepoToken(offer.repoToken).balanceOf(address(this)),
-                            purchaseTokenPrecision,
-                            discountRateAdapter.repoRedemptionHaircut(offer.repoToken)
-                        );
-
+                        offerAmount = RepoTokenUtils
+                            .getNormalizedRepoTokenAmount(
+                                offer.repoToken,
+                                ITermRepoToken(offer.repoToken).balanceOf(
+                                    address(this)
+                                ),
+                                purchaseTokenPrecision,
+                                discountRateAdapter.repoRedemptionHaircut(
+                                    offer.repoToken
+                                )
+                            );
 
                         // Mark the edge case auction as processed to avoid double counting
                         // since multiple offers can be tied to the same auction, we need to mark
@@ -374,9 +422,11 @@ library TermAuctionList {
 
             if (offerAmount > 0) {
                 // Calculate weighted time to maturity
-                uint256 weightedTimeToMaturity = RepoTokenList.getRepoTokenWeightedTimeToMaturity(
-                    offer.repoToken, offerAmount
-                );
+                uint256 weightedTimeToMaturity = RepoTokenList
+                    .getRepoTokenWeightedTimeToMaturity(
+                        offer.repoToken,
+                        offerAmount
+                    );
 
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
                 cumulativeOfferAmount += offerAmount;

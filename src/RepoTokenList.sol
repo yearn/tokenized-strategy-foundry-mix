@@ -43,9 +43,11 @@ library RepoTokenList {
      *
      * @dev This function calls the `config()` method on the repoToken to retrieve its configuration details,
      * including the redemption timestamp, which it then returns.
-     */    
-    function getRepoTokenMaturity(address repoToken) internal view returns (uint256 redemptionTimestamp) {
-        (redemptionTimestamp, , ,) = ITermRepoToken(repoToken).config();
+     */
+    function getRepoTokenMaturity(
+        address repoToken
+    ) internal view returns (uint256 redemptionTimestamp) {
+        (redemptionTimestamp, , , ) = ITermRepoToken(repoToken).config();
     }
 
     /**
@@ -54,7 +56,10 @@ library RepoTokenList {
      * @param current The current node
      * @return The next node
      */
-    function _getNext(RepoTokenListData storage listData, address current) private view returns (address) {
+    function _getNext(
+        RepoTokenListData storage listData,
+        address current
+    ) private view returns (address) {
         return listData.nodes[current].next;
     }
 
@@ -63,7 +68,9 @@ library RepoTokenList {
      * @param listData The list data
      * @return count The number of nodes in the list
      */
-    function _count(RepoTokenListData storage listData) private view returns (uint256 count) {
+    function _count(
+        RepoTokenListData storage listData
+    ) private view returns (uint256 count) {
         if (listData.head == NULL_NODE) return 0;
         address current = listData.head;
         while (current != NULL_NODE) {
@@ -81,7 +88,9 @@ library RepoTokenList {
      * It first counts the number of repoTokens, initializes an array of that size, and then populates the array
      * with the addresses of the repoTokens.
      */
-    function holdings(RepoTokenListData storage listData) internal view returns (address[] memory holdingsArray) {
+    function holdings(
+        RepoTokenListData storage listData
+    ) internal view returns (address[] memory holdingsArray) {
         uint256 count = _count(listData);
         if (count > 0) {
             holdingsArray = new address[](count);
@@ -90,8 +99,8 @@ library RepoTokenList {
             while (current != NULL_NODE) {
                 holdingsArray[i++] = current;
                 current = _getNext(listData, current);
-            } 
-        }   
+            }
+        }
     }
 
     /**
@@ -101,14 +110,19 @@ library RepoTokenList {
      * @return weightedTimeToMaturity The weighted time to maturity in seconds x repoToken balance in base asset precision
      */
     function getRepoTokenWeightedTimeToMaturity(
-        address repoToken, uint256 repoTokenBalanceInBaseAssetPrecision
+        address repoToken,
+        uint256 repoTokenBalanceInBaseAssetPrecision
     ) internal view returns (uint256 weightedTimeToMaturity) {
         uint256 currentMaturity = getRepoTokenMaturity(repoToken);
 
         if (currentMaturity > block.timestamp) {
-            uint256 timeToMaturity = _getRepoTokenTimeToMaturity(currentMaturity);
+            uint256 timeToMaturity = _getRepoTokenTimeToMaturity(
+                currentMaturity
+            );
             // Not matured yet
-            weightedTimeToMaturity = timeToMaturity * repoTokenBalanceInBaseAssetPrecision;
+            weightedTimeToMaturity =
+                timeToMaturity *
+                repoTokenBalanceInBaseAssetPrecision;
         }
     }
 
@@ -126,22 +140,32 @@ library RepoTokenList {
      * @dev The `repoToken` and `repoTokenAmount` parameters are optional and provide flexibility
      * to adjust the calculations to include the provided repoToken and amount. If `repoToken` is
      * set to `address(0)` or `repoTokenAmount` is `0`, the function calculates the cumulative
-     * data without specific token adjustments. 
+     * data without specific token adjustments.
      */
     function getCumulativeRepoTokenData(
         RepoTokenListData storage listData,
         ITermDiscountRateAdapter discountRateAdapter,
-        address repoToken, 
+        address repoToken,
         uint256 repoTokenAmount,
         uint256 purchaseTokenPrecision
-    ) internal view returns (uint256 cumulativeWeightedTimeToMaturity, uint256 cumulativeRepoTokenAmount, bool found) {
+    )
+        internal
+        view
+        returns (
+            uint256 cumulativeWeightedTimeToMaturity,
+            uint256 cumulativeRepoTokenAmount,
+            bool found
+        )
+    {
         // Return early if the list is empty
         if (listData.head == NULL_NODE) return (0, 0, false);
 
         // Initialize the current pointer to the head of the list
         address current = listData.head;
         while (current != NULL_NODE) {
-            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                address(this)
+            );
 
             // Process if the repo token has a positive balance
             if (repoTokenBalance > 0) {
@@ -152,15 +176,19 @@ library RepoTokenList {
                 }
 
                 // Convert the repo token balance to base asset precision
-                uint256 repoTokenBalanceInBaseAssetPrecision = 
-                    RepoTokenUtils.getNormalizedRepoTokenAmount(
-                        current, repoTokenBalance, purchaseTokenPrecision, discountRateAdapter.repoRedemptionHaircut(current)
+                uint256 repoTokenBalanceInBaseAssetPrecision = RepoTokenUtils
+                    .getNormalizedRepoTokenAmount(
+                        current,
+                        repoTokenBalance,
+                        purchaseTokenPrecision,
+                        discountRateAdapter.repoRedemptionHaircut(current)
                     );
 
                 // Calculate the weighted time to maturity
                 uint256 weightedTimeToMaturity = getRepoTokenWeightedTimeToMaturity(
-                    current, repoTokenBalanceInBaseAssetPrecision
-                );
+                        current,
+                        repoTokenBalanceInBaseAssetPrecision
+                    );
 
                 // Accumulate the results
                 cumulativeWeightedTimeToMaturity += weightedTimeToMaturity;
@@ -178,41 +206,49 @@ library RepoTokenList {
      * @param discountRateAdapter The discount rate adapter
      * @param purchaseTokenPrecision The precision of the purchase token
      * @return totalPresentValue The total present value of the repoTokens
-     * @dev  Aggregates the present value of all repoTokens in the list. 
+     * @dev  Aggregates the present value of all repoTokens in the list.
      */
     function getPresentValue(
-        RepoTokenListData storage listData, 
+        RepoTokenListData storage listData,
         ITermDiscountRateAdapter discountRateAdapter,
         uint256 purchaseTokenPrecision
     ) internal view returns (uint256 totalPresentValue) {
         // If the list is empty, return 0
         if (listData.head == NULL_NODE) return 0;
-        
+
         address current = listData.head;
         while (current != NULL_NODE) {
             uint256 currentMaturity = getRepoTokenMaturity(current);
-            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+            uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                address(this)
+            );
             uint256 discountRate = discountRateAdapter.getDiscountRate(current);
 
             // Convert repo token balance to base asset precision
             // (ratePrecision * repoPrecision * purchasePrecision) / (repoPrecision * ratePrecision) = purchasePrecision
-            uint256 repoTokenBalanceInBaseAssetPrecision = 
-                RepoTokenUtils.getNormalizedRepoTokenAmount(
-                    current, repoTokenBalance, purchaseTokenPrecision, discountRateAdapter.repoRedemptionHaircut(current)
+            uint256 repoTokenBalanceInBaseAssetPrecision = RepoTokenUtils
+                .getNormalizedRepoTokenAmount(
+                    current,
+                    repoTokenBalance,
+                    purchaseTokenPrecision,
+                    discountRateAdapter.repoRedemptionHaircut(current)
                 );
 
             // Calculate present value based on maturity
             if (currentMaturity > block.timestamp) {
                 totalPresentValue += RepoTokenUtils.calculatePresentValue(
-                    repoTokenBalanceInBaseAssetPrecision, purchaseTokenPrecision, currentMaturity, discountRate
+                    repoTokenBalanceInBaseAssetPrecision,
+                    purchaseTokenPrecision,
+                    currentMaturity,
+                    discountRate
                 );
             } else {
                 totalPresentValue += repoTokenBalanceInBaseAssetPrecision;
             }
 
             // Move to the next token in the list
-            current = _getNext(listData, current);                    
-        }    
+            current = _getNext(listData, current);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -227,7 +263,9 @@ library RepoTokenList {
      * @dev This function calculates the difference between the redemption timestamp and the current block timestamp
      * to determine how many seconds are left until the repoToken reaches its maturity.
      */
-    function _getRepoTokenTimeToMaturity(uint256 redemptionTimestamp) private view returns (uint256) {
+    function _getRepoTokenTimeToMaturity(
+        uint256 redemptionTimestamp
+    ) private view returns (uint256) {
         return redemptionTimestamp - block.timestamp;
     }
 
@@ -238,7 +276,9 @@ library RepoTokenList {
      * @dev Iterates through the list of repoTokens and removes those that have matured. If a matured repoToken has a balance,
      * the function attempts to redeem it. This helps maintain the list by clearing out matured repoTokens and redeeming their balances.
      */
-    function removeAndRedeemMaturedTokens(RepoTokenListData storage listData) internal {
+    function removeAndRedeemMaturedTokens(
+        RepoTokenListData storage listData
+    ) internal {
         if (listData.head == NULL_NODE) return;
 
         address current = listData.head;
@@ -247,17 +287,23 @@ library RepoTokenList {
             address next;
             if (getRepoTokenMaturity(current) <= block.timestamp) {
                 bool removeMaturedToken;
-                uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(address(this));
+                uint256 repoTokenBalance = ITermRepoToken(current).balanceOf(
+                    address(this)
+                );
 
                 if (repoTokenBalance > 0) {
-                    (, , address termRepoServicer,) = ITermRepoToken(current).config();
-                    try ITermRepoServicer(termRepoServicer).redeemTermRepoTokens(
-                        address(this), 
-                        repoTokenBalance
-                    ) {
+                    (, , address termRepoServicer, ) = ITermRepoToken(current)
+                        .config();
+                    try
+                        ITermRepoServicer(termRepoServicer)
+                            .redeemTermRepoTokens(
+                                address(this),
+                                repoTokenBalance
+                            )
+                    {
                         removeMaturedToken = true;
                     } catch {
-                       // redemption failed, do not remove token from the list
+                        // redemption failed, do not remove token from the list
                     }
                 } else {
                     // already redeemed
@@ -270,7 +316,7 @@ library RepoTokenList {
                     if (current == listData.head) {
                         listData.head = next;
                     }
-                    
+
                     listData.nodes[prev].next = next;
                     delete listData.nodes[current];
                     delete listData.discountRates[current];
@@ -282,8 +328,8 @@ library RepoTokenList {
 
             prev = current;
             current = next;
-        }        
-    }    
+        }
+    }
 
     /**
      * @notice Validates a repoToken against specific criteria
@@ -291,20 +337,25 @@ library RepoTokenList {
      * @param repoToken The repoToken to validate
      * @param asset The address of the base asset
      * @return isRepoTokenValid Whether the repoToken is valid
-     * @return redemptionTimestamp The redemption timestamp of the validated repoToken 
-     * 
+     * @return redemptionTimestamp The redemption timestamp of the validated repoToken
+     *
      * @dev Ensures the repoToken is deployed, matches the purchase token, is not matured, and meets collateral requirements.
      * Reverts with `InvalidRepoToken` if any validation check fails.
-     */     
+     */
     function validateRepoToken(
         RepoTokenListData storage listData,
         ITermRepoToken repoToken,
         address asset
-    ) internal view returns (bool isRepoTokenValid, uint256 redemptionTimestamp) {
+    )
+        internal
+        view
+        returns (bool isRepoTokenValid, uint256 redemptionTimestamp)
+    {
         // Retrieve repo token configuration
         address purchaseToken;
         address collateralManager;
-        (redemptionTimestamp, purchaseToken, , collateralManager) = repoToken.config();
+        (redemptionTimestamp, purchaseToken, , collateralManager) = repoToken
+            .config();
 
         // Validate purchase token
         if (purchaseToken != asset) {
@@ -313,21 +364,27 @@ library RepoTokenList {
 
         // Check if repo token has matured
         if (redemptionTimestamp < block.timestamp) {
-             return (false, redemptionTimestamp);
+            return (false, redemptionTimestamp);
         }
 
         // Validate collateral token ratios
-        uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
+        uint256 numTokens = ITermRepoCollateralManager(collateralManager)
+            .numOfAcceptedCollateralTokens();
         for (uint256 i; i < numTokens; i++) {
-            address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
-            uint256 minCollateralRatio = listData.collateralTokenParams[currentToken];
+            address currentToken = ITermRepoCollateralManager(collateralManager)
+                .collateralTokens(i);
+            uint256 minCollateralRatio = listData.collateralTokenParams[
+                currentToken
+            ];
 
             if (minCollateralRatio == 0) {
-                 return (false, redemptionTimestamp);
+                return (false, redemptionTimestamp);
             } else if (
-                ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) < minCollateralRatio
+                ITermRepoCollateralManager(collateralManager)
+                    .maintenanceCollateralRatios(currentToken) <
+                minCollateralRatio
             ) {
-                 return (false, redemptionTimestamp);
+                return (false, redemptionTimestamp);
             }
         }
         return (true, redemptionTimestamp);
@@ -340,17 +397,17 @@ library RepoTokenList {
      * @param discountRateAdapter The discount rate adapter
      * @param asset The address of the base asset
      * @return validRepoToken Whether the repoToken is valid
-     * @return redemptionTimestamp The redemption timestamp of the validated repoToken     
+     * @return redemptionTimestamp The redemption timestamp of the validated repoToken
      */
     function validateAndInsertRepoToken(
-        RepoTokenListData storage listData, 
+        RepoTokenListData storage listData,
         ITermRepoToken repoToken,
         ITermDiscountRateAdapter discountRateAdapter,
         address asset
     ) internal returns (bool validRepoToken, uint256 redemptionTimestamp) {
         uint256 discountRate = listData.discountRates[address(repoToken)];
         if (discountRate != INVALID_AUCTION_RATE) {
-            (redemptionTimestamp, , ,) = repoToken.config();
+            (redemptionTimestamp, , , ) = repoToken.config();
 
             // skip matured repoTokens
             if (redemptionTimestamp < block.timestamp) {
@@ -358,10 +415,11 @@ library RepoTokenList {
             }
 
             uint256 oracleRate;
-            try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
+            try
+                discountRateAdapter.getDiscountRate(address(repoToken))
+            returns (uint256 rate) {
                 oracleRate = rate;
-            } catch {
-            }
+            } catch {}
 
             if (oracleRate != 0) {
                 if (discountRate != oracleRate) {
@@ -369,7 +427,9 @@ library RepoTokenList {
                 }
             }
         } else {
-            try discountRateAdapter.getDiscountRate(address(repoToken)) returns (uint256 rate) {
+            try
+                discountRateAdapter.getDiscountRate(address(repoToken))
+            returns (uint256 rate) {
                 discountRate = rate == 0 ? ZERO_AUCTION_RATE : rate;
             } catch {
                 discountRate = INVALID_AUCTION_RATE;
@@ -378,7 +438,11 @@ library RepoTokenList {
 
             bool isRepoTokenValid;
 
-            (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(listData, repoToken, asset);
+            (isRepoTokenValid, redemptionTimestamp) = validateRepoToken(
+                listData,
+                repoToken,
+                asset
+            );
             if (!isRepoTokenValid) {
                 return (false, redemptionTimestamp);
             }
@@ -395,9 +459,12 @@ library RepoTokenList {
      * @param repoToken The address of the repoToken to be inserted
      *
      * @dev Inserts the `repoToken` into the `listData` while maintaining the list sorted by the repoTokens' maturity timestamps.
-     * The function iterates through the list to find the correct position for the new `repoToken` and updates the pointers accordingly.     
+     * The function iterates through the list to find the correct position for the new `repoToken` and updates the pointers accordingly.
      */
-    function insertSorted(RepoTokenListData storage listData, address repoToken) internal {
+    function insertSorted(
+        RepoTokenListData storage listData,
+        address repoToken
+    ) internal {
         // Start at the head of the list
         address current = listData.head;
 
@@ -412,7 +479,6 @@ library RepoTokenList {
 
         address prev;
         while (current != NULL_NODE) {
-
             // If the repoToken is already in the list, exit
             if (current == repoToken) {
                 break;
@@ -433,7 +499,7 @@ library RepoTokenList {
 
             // Move to the next node
             address next = _getNext(listData, current);
-            
+
             // If at the end of the list, insert repoToken after current
             if (next == NULL_NODE) {
                 listData.nodes[current].next = repoToken;

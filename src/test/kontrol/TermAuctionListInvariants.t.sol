@@ -15,7 +15,10 @@ import "src/test/kontrol/TermAuctionListTest.t.sol";
 import "src/test/kontrol/TermAuctionOfferLocker.sol";
 import "src/test/kontrol/TermDiscountRateAdapter.sol";
 
-contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest {
+contract TermAuctionListInvariantsTest is
+    RepoTokenListTest,
+    TermAuctionListTest
+{
     using TermAuctionList for TermAuctionListData;
     using RepoTokenList for RepoTokenListData;
 
@@ -33,7 +36,10 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
      * Test that insertPending preserves the list invariants when a new offer
      * is added (that was not present in the list before).
      */
-    function testInsertPendingNewOffer(bytes32 offerId, address asset) external {
+    function testInsertPendingNewOffer(
+        bytes32 offerId,
+        address asset
+    ) external {
         // offerId must not equal zero, otherwise the linked list breaks
         vm.assume(offerId != TermAuctionList.NULL_NODE);
 
@@ -62,13 +68,19 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
 
         // Initialize RepoToken and OfferLocker, making sure that the addresses
         // also don't overlap with the symbolic auction
-        (RepoToken repoToken, TermAuctionOfferLocker offerLocker) =
-            this.newRepoTokenAndOfferLocker();
+        (RepoToken repoToken, TermAuctionOfferLocker offerLocker) = this
+            .newRepoTokenAndOfferLocker();
         offerLocker.initializeSymbolicLockedOfferFor(offerId);
-        (,, address termRepoServicer, address termRepoCollateralManager) =
-            repoToken.config();
+        (
+            ,
+            ,
+            address termRepoServicer,
+            address termRepoCollateralManager
+        ) = repoToken.config();
         _assumeRepoTokenValidate(address(repoToken), asset, true);
-        vm.assume(0 < TermAuctionOfferLocker(offerLocker).lockedOfferAmount(offerId));
+        vm.assume(
+            0 < TermAuctionOfferLocker(offerLocker).lockedOfferAmount(offerId)
+        );
         vm.assume(auction != address(repoToken));
         vm.assume(auction != address(offerLocker));
         vm.assume(auction != termRepoServicer);
@@ -84,7 +96,8 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         // Build new PendingOffer
         PendingOffer memory pendingOffer;
         pendingOffer.repoToken = address(repoToken);
-        pendingOffer.offerAmount = TermAuctionOfferLocker(offerLocker).lockedOfferAmount(offerId);
+        pendingOffer.offerAmount = TermAuctionOfferLocker(offerLocker)
+            .lockedOfferAmount(offerId);
         pendingOffer.termAuction = ITermAuction(auction);
         pendingOffer.offerLocker = ITermAuctionOfferLocker(offerLocker);
 
@@ -110,7 +123,6 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         _establishOfferAmountMatchesAmountLocked(Mode.Assert, bytes32(0));
         _assertRepoTokensValidate(asset);
     }
-
 
     /**
      * Test that insertPending preserves the list invariants when trying to
@@ -151,7 +163,11 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         vm.assume(offer.offerLocker == pendingOffer.offerLocker);
         // This is being checked by Strategy.submitAuctionOffer
         vm.assume(pendingOffer.offerAmount > 0);
-        vm.assume(pendingOffer.offerAmount == TermAuctionOfferLocker(address(pendingOffer.offerLocker)).lockedOfferAmount(offerId));
+        vm.assume(
+            pendingOffer.offerAmount ==
+                TermAuctionOfferLocker(address(pendingOffer.offerLocker))
+                    .lockedOfferAmount(offerId)
+        );
 
         // Call the function being tested
         _termAuctionList.insertPending(offerId, pendingOffer);
@@ -188,40 +204,57 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         }
     }
 
-    function _assumeRepoTokenValidate(address repoToken, address asset, bool assumeTimestamp) internal view {
+    function _assumeRepoTokenValidate(
+        address repoToken,
+        address asset,
+        bool assumeTimestamp
+    ) internal view {
         (
-         uint256 redemptionTimestamp,
-         address purchaseToken,
-         ,
-         address collateralManager
+            uint256 redemptionTimestamp,
+            address purchaseToken,
+            ,
+            address collateralManager
         ) = ITermRepoToken(repoToken).config();
 
         vm.assume(purchaseToken == asset);
-        if(assumeTimestamp) {
+        if (assumeTimestamp) {
             vm.assume(block.timestamp <= redemptionTimestamp);
         }
 
-        uint256 numTokens = ITermRepoCollateralManager(collateralManager).numOfAcceptedCollateralTokens();
+        uint256 numTokens = ITermRepoCollateralManager(collateralManager)
+            .numOfAcceptedCollateralTokens();
 
         for (uint256 i; i < numTokens; i++) {
-            address currentToken = ITermRepoCollateralManager(collateralManager).collateralTokens(i);
-            uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[currentToken];
+            address currentToken = ITermRepoCollateralManager(collateralManager)
+                .collateralTokens(i);
+            uint256 minCollateralRatio = _repoTokenList.collateralTokenParams[
+                currentToken
+            ];
 
             vm.assume(minCollateralRatio != 0);
-            vm.assume(ITermRepoCollateralManager(collateralManager).maintenanceCollateralRatios(currentToken) >= minCollateralRatio);
+            vm.assume(
+                ITermRepoCollateralManager(collateralManager)
+                    .maintenanceCollateralRatios(currentToken) >=
+                    minCollateralRatio
+            );
         }
     }
 
-    function _assumeRepoTokensValidate(address asset, bool assumeTimestamp) internal view {
+    function _assumeRepoTokensValidate(
+        address asset,
+        bool assumeTimestamp
+    ) internal view {
         bytes32 current = _termAuctionList.head;
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            if(assumeTimestamp) {
+            if (assumeTimestamp) {
                 _assumeRepoTokenValidate(repoToken, asset, true);
-            }
-            else {
-                bool auctionCompleted = _termAuctionList.offers[current].termAuction.auctionCompleted();
+            } else {
+                bool auctionCompleted = _termAuctionList
+                    .offers[current]
+                    .termAuction
+                    .auctionCompleted();
                 _assumeRepoTokenValidate(repoToken, asset, !auctionCompleted);
             }
 
@@ -234,7 +267,10 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            (bool isRepoTokenValid, ) = _repoTokenList.validateRepoToken(ITermRepoToken(repoToken), asset);
+            (bool isRepoTokenValid, ) = _repoTokenList.validateRepoToken(
+                ITermRepoToken(repoToken),
+                asset
+            );
             assert(isRepoTokenValid);
 
             current = _termAuctionList.nodes[current].next;
@@ -246,7 +282,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
 
         while (current != TermAuctionList.NULL_NODE) {
             address repoToken = _termAuctionList.offers[current].repoToken;
-            (, , address repoServicer,) = ITermRepoToken(repoToken).config();
+            (, , address repoServicer, ) = ITermRepoToken(repoToken).config();
             TermRepoServicer(repoServicer).guaranteeRedeemAlwaysSucceeds();
 
             current = _termAuctionList.nodes[current].next;
@@ -260,8 +296,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         // For simplicity, assume that the RepoTokenList is empty
         _repoTokenList.head = RepoTokenList.NULL_NODE;
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         // Our initialization procedure guarantees these invariants,
@@ -315,20 +350,19 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     ) external {
         _initializeTermAuctionListEmpty();
 
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
 
         (
             uint256 cumulativeWeightedTimeToMaturity,
             uint256 cumulativeOfferAmount,
             bool found
         ) = _termAuctionList.getCumulativeOfferData(
-            _repoTokenList,
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            newOfferAmount,
-            purchaseTokenPrecision
-        );
+                _repoTokenList,
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                repoToken,
+                newOfferAmount,
+                purchaseTokenPrecision
+            );
 
         assert(cumulativeWeightedTimeToMaturity == 0);
         assert(cumulativeOfferAmount == 0);
@@ -341,8 +375,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
     ) external {
         _initializeTermAuctionListEmpty();
 
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
 
         uint256 totalPresentValue = _termAuctionList.getPresentValue(
             _repoTokenList,
@@ -363,8 +396,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         uint256 purchaseTokenPrecision
     ) external {
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         _establishNoCompletedAuctions(Mode.Assume);
@@ -378,25 +410,27 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
             uint256 cumulativeOfferAmount,
             bool found
         ) = _termAuctionList.getCumulativeOfferData(
-            _repoTokenList,
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            newOfferAmount,
-            purchaseTokenPrecision
-        );
+                _repoTokenList,
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                repoToken,
+                newOfferAmount,
+                purchaseTokenPrecision
+            );
 
         (
             uint256 cumulativeWeightedTimeToMaturityNoCompletedAuctions,
             uint256 cumulativeOfferAmountNoCompletedAuctions,
             bool foundNoCompletedAuctions
-        ) = _getCumulativeOfferTimeAndAmount(
-            repoToken,
-            newOfferAmount        );
+        ) = _getCumulativeOfferTimeAndAmount(repoToken, newOfferAmount);
 
-        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityNoCompletedAuctions);
-        assert(cumulativeOfferAmount == cumulativeOfferAmountNoCompletedAuctions);
+        assert(
+            cumulativeWeightedTimeToMaturity ==
+                cumulativeWeightedTimeToMaturityNoCompletedAuctions
+        );
+        assert(
+            cumulativeOfferAmount == cumulativeOfferAmountNoCompletedAuctions
+        );
         assert(found == foundNoCompletedAuctions);
-
     }
 
     /* If there are no completed auctions in the list then getCumulativeOfferData should return the sum 
@@ -408,8 +442,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         uint256 purchaseTokenPrecision
     ) external {
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         _establishCompletedAuctions(Mode.Assume);
@@ -428,22 +461,25 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
             uint256 cumulativeOfferAmount,
             bool found
         ) = _termAuctionList.getCumulativeOfferData(
-            _repoTokenList,
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            newOfferAmount,
-            purchaseTokenPrecision
-        );
+                _repoTokenList,
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                repoToken,
+                newOfferAmount,
+                purchaseTokenPrecision
+            );
 
         (
             uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
             uint256 cumulativeOfferAmountCompletedAuctions
         ) = _getGroupedOfferTimeAndAmount(
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            purchaseTokenPrecision
-        );
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                purchaseTokenPrecision
+            );
 
-        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityCompletedAuctions);
+        assert(
+            cumulativeWeightedTimeToMaturity ==
+                cumulativeWeightedTimeToMaturityCompletedAuctions
+        );
         assert(cumulativeOfferAmount == cumulativeOfferAmountCompletedAuctions);
     }
 
@@ -463,8 +499,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
                 delete _termAuctionList.offers[current];
                 if (current == _termAuctionList.head) {
                     _termAuctionList.head = next;
-                }
-                else {
+                } else {
                     _termAuctionList.nodes[prev].next = next;
                     current = prev;
                 }
@@ -480,8 +515,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         uint256 purchaseTokenPrecision
     ) external {
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         _assumeNonMaturedRepoTokens();
@@ -499,12 +533,12 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
             uint256 cumulativeOfferAmount,
             bool found
         ) = _termAuctionList.getCumulativeOfferData(
-            _repoTokenList,
-            ITermDiscountRateAdapter(address(discountRateAdapter)),
-            repoToken,
-            newOfferAmount,
-            purchaseTokenPrecision
-        );
+                _repoTokenList,
+                ITermDiscountRateAdapter(address(discountRateAdapter)),
+                repoToken,
+                newOfferAmount,
+                purchaseTokenPrecision
+            );
 
         assert(!found);
 
@@ -519,10 +553,21 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         (
             uint256 cumulativeWeightedTimeToMaturityCompletedAuctions,
             uint256 cumulativeOfferAmountCompletedAuctions
-        ) = _getCumulativeOfferDataCompletedAuctions(discountRateAdapter, purchaseTokenPrecision);
+        ) = _getCumulativeOfferDataCompletedAuctions(
+                discountRateAdapter,
+                purchaseTokenPrecision
+            );
 
-        assert(cumulativeWeightedTimeToMaturity == cumulativeWeightedTimeToMaturityIncompletedAuctions + cumulativeWeightedTimeToMaturityCompletedAuctions);
-        assert(cumulativeOfferAmount == cumulativeOfferAmountIncompletedAuctions + cumulativeOfferAmountCompletedAuctions);
+        assert(
+            cumulativeWeightedTimeToMaturity ==
+                cumulativeWeightedTimeToMaturityIncompletedAuctions +
+                    cumulativeWeightedTimeToMaturityCompletedAuctions
+        );
+        assert(
+            cumulativeOfferAmount ==
+                cumulativeOfferAmountIncompletedAuctions +
+                    cumulativeOfferAmountCompletedAuctions
+        );
     }
 
     function testGetPresentTotalValue(
@@ -530,8 +575,7 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         address repoTokenToMatch
     ) external {
         // Initialize a DiscountRateAdapter with symbolic storage
-        TermDiscountRateAdapter discountRateAdapter =
-            new TermDiscountRateAdapter();
+        TermDiscountRateAdapter discountRateAdapter = new TermDiscountRateAdapter();
         _initializeDiscountRateAdapterOffers(discountRateAdapter);
 
         _assumeOfferAmountLocked();
@@ -553,9 +597,14 @@ contract TermAuctionListInvariantsTest is RepoTokenListTest, TermAuctionListTest
         _filterDiscountRateSet();
         _filterRepeatedAuctions();
 
-        uint256 totalValueCompletedAuctions = _getTotalValueCompletedAuctions(ITermDiscountRateAdapter(address(discountRateAdapter)), purchaseTokenPrecision);
+        uint256 totalValueCompletedAuctions = _getTotalValueCompletedAuctions(
+            ITermDiscountRateAdapter(address(discountRateAdapter)),
+            purchaseTokenPrecision
+        );
 
-        assert(totalPresentValue == totalValueNonCompletedAuctions + totalValueCompletedAuctions);
+        assert(
+            totalPresentValue ==
+                totalValueNonCompletedAuctions + totalValueCompletedAuctions
+        );
     }
-
 }

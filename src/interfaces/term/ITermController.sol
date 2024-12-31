@@ -8,9 +8,16 @@ struct AuctionMetadata {
 }
 
 interface ITermController {
-    function isTermDeployed(address contractAddress) external view returns (bool);
+    function isTermDeployed(
+        address contractAddress
+    ) external view returns (bool);
 
     function getProtocolReserveAddress() external view returns (address);
 
-    function getTermAuctionResults(bytes32 termRepoId) external view returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions);
+    function getTermAuctionResults(
+        bytes32 termRepoId
+    )
+        external
+        view
+        returns (AuctionMetadata[] memory auctionMetadata, uint8 numOfAuctions);
 }

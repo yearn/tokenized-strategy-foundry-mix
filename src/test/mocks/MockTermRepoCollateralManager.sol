@@ -9,12 +9,19 @@ contract MockTermRepoCollateralManager is ITermRepoCollateralManager {
     mapping(address => uint256) public maintenanceCollateralRatios;
     address[] internal collateralTokenList;
 
-    constructor(ITermRepoToken _repoToken, address _collateral, uint256 _maintenanceRatio) {
+    constructor(
+        ITermRepoToken _repoToken,
+        address _collateral,
+        uint256 _maintenanceRatio
+    ) {
         repoToken = _repoToken;
         addCollateralToken(_collateral, _maintenanceRatio);
-    }    
+    }
 
-    function addCollateralToken(address _collateral, uint256 _maintenanceRatio) public {
+    function addCollateralToken(
+        address _collateral,
+        uint256 _maintenanceRatio
+    ) public {
         collateralTokenList.push(_collateral);
         maintenanceCollateralRatios[_collateral] = _maintenanceRatio;
     }
