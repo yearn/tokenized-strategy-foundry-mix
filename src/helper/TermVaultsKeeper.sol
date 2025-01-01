@@ -12,10 +12,17 @@ interface IStrategy {
 interface IVault {
     function process_report(address strategy) external;
     function updateDebt(address strategy, uint256 targetAmount) external;
+    function totalIdle() external returns (uint256);
+}
+
+interface ICommonReportTrigger {
+    function defaultStrategyReportTrigger(address _strategy) external view returns (bool, bytes memory);
+    function defaultVaultReportTrigger(address _vault, address _strategy) external view returns (bool, bytes memory);
 }
 
 contract TermVaultsKeeper is Initializable, AccessControlUpgradeable, UUPSUpgradeable {
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
+    address public constant COMMON_REPORT_TRIGGER_ADDRESS = 0xA045D4dAeA28BA7Bfe234c96eAa03daFae85A147;
 
      /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -34,14 +41,22 @@ contract TermVaultsKeeper is Initializable, AccessControlUpgradeable, UUPSUpgrad
     }
 
     function _callStrategyReports(address[] calldata strategies) internal  {
+        ICommonReportTrigger commonReportTrigger = ICommonReportTrigger(COMMON_REPORT_TRIGGER_ADDRESS);
         for (uint256 i = 0; i < strategies.length; i++) {
-            IStrategy(strategies[i]).report();
+            (bool shouldReport, ) = commonReportTrigger.defaultStrategyReportTrigger(strategies[i]);
+            if (shouldReport) {
+                IStrategy(strategies[i]).report();
+            }
         }
     }
 
     function _processReports(address vault, address[] calldata strategies) internal {
+        ICommonReportTrigger commonReportTrigger = ICommonReportTrigger(COMMON_REPORT_TRIGGER_ADDRESS);
         for (uint256 i = 0; i < strategies.length; i++) {
-            IVault(vault).process_report(strategies[i]);
+            (bool shouldReport, ) = commonReportTrigger.defaultVaultReportTrigger(vault, strategies[i]);
+            if (shouldReport) {
+                IVault(vault).process_report(strategies[i]);
+            }
         }
     }
 
@@ -60,7 +75,8 @@ contract TermVaultsKeeper is Initializable, AccessControlUpgradeable, UUPSUpgrad
         for (uint256 i = 0; i < depositStrategies.length - 1; i++) {
             IVault(vault).updateDebt(depositStrategies[i], despositTargetAmounts[i]);
         }
-        IVault(vault).updateDebt(depositStrategies[depositStrategies.length - 1], type(uint256).max);   
+        uint256 vaultIdle = IVault(vault).totalIdle();
+        IVault(vault).updateDebt(depositStrategies[depositStrategies.length - 1], vaultIdle);   
     }
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
