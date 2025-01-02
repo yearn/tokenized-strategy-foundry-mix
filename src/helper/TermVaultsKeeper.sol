@@ -60,7 +60,25 @@ contract TermVaultsKeeper is Initializable, AccessControlUpgradeable, UUPSUpgrad
         }
     }
 
+    function reportsNoTriggerCheck(address[] calldata strategies, address vault, address[] calldata vaultStrategies) external onlyRole(KEEPER_ROLE) {
+        _callStrategyReportsNoTriggerCheck(strategies);
+        _processReportsNoTriggerCheck(vault, vaultStrategies);
+    }
+
+    function _callStrategyReportsNoTriggerCheck(address[] calldata strategies) internal  {
+        for (uint256 i = 0; i < strategies.length; i++) {
+            IStrategy(strategies[i]).report();
+        }
+    }
+
+    function _processReportsNoTriggerCheck(address vault, address[] calldata strategies) internal {
+        for (uint256 i = 0; i < strategies.length; i++) {
+            IVault(vault).process_report(strategies[i]);
+        }
+    }
+
     function rebalanceVault(address vault, address[] calldata withdrawStrategies, uint256[] calldata withdrawTargetAmounts, address[] calldata depositStrategies, uint256[] calldata depositTargetAmounts) external onlyRole(KEEPER_ROLE) {
+        require(vault != address(0), "0 address vault");
         _withdraw(vault, withdrawStrategies, withdrawTargetAmounts);
         _deposit(vault, depositStrategies, depositTargetAmounts);
     }
@@ -71,9 +89,9 @@ contract TermVaultsKeeper is Initializable, AccessControlUpgradeable, UUPSUpgrad
         }
     }
 
-    function _deposit(address vault, address[] calldata depositStrategies, uint256[] calldata despositTargetAmounts) internal {
+    function _deposit(address vault, address[] calldata depositStrategies, uint256[] calldata depositTargetAmounts) internal {
         for (uint256 i = 0; i < depositStrategies.length - 1; i++) {
-            IVault(vault).updateDebt(depositStrategies[i], despositTargetAmounts[i]);
+            IVault(vault).updateDebt(depositStrategies[i], depositTargetAmounts[i]);
         }
         uint256 vaultIdle = IVault(vault).totalIdle();
         IVault(vault).updateDebt(depositStrategies[depositStrategies.length - 1], vaultIdle);   
