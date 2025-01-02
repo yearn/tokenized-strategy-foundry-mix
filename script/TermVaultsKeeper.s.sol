@@ -7,6 +7,12 @@ import "forge-std/Script.sol";
 
 contract TermVaultsKeeperDeployer is Script {
     function run() external {
+        uint256 deployerPK = vm.envUint("PRIVATE_KEY");
+
+        // Set up the RPC URL (optional if you're using the default foundry config)
+        string memory rpcUrl = vm.envString("RPC_URL");
+
+        vm.startBroadcast(deployerPK);
         // Load environment variables
         address devops = vm.envAddress("DEVOPS_ADDRESS"); // Replace with actual devops address from env variable
         address initialKeeper = vm.envAddress("INITIAL_KEEPER_ADDRESS"); // Replace with actual initial keeper address from env variable
@@ -19,5 +25,6 @@ contract TermVaultsKeeperDeployer is Script {
             console.log("Proxy deployed at:", address(proxy));
             console.log("Implementation deployed at:", implementation);
         }
+        vm.stopBroadcast();
     }
 }
