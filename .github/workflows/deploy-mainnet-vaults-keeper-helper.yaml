@@ -31,7 +31,7 @@ jobs:
       - run: forge tree
       - name: Run deploy script
         run: forge script script/TermVaultsKeeper.s.sol:TermVaultsKeeperDeployer --rpc-url $RPC_URL --verify --vvvv --broadcast
-        environment:
+        env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
