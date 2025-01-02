@@ -30,7 +30,7 @@ jobs:
       - run: forge build
       - run: forge tree
       - name: Run deploy script
-        run: forge script script/TermVaultsKeeper.s.sol:TermVaultsKeeperDeployer --rpc-url $RPC_URL --verify --vvvv --broadcast
+        run: forge script script/TermVaultsKeeper.s.sol:TermVaultsKeeperDeployer --rpc-url $RPC_URL --verify --broadcast --verbosity 4
         env:
           RPC_URL:  ${{ secrets.RPC_URL }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
