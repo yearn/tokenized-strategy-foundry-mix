@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.18;
 
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import "octant-v2-core/src/dragons/DragonTokenizedStrategy.sol";
+import "forge-std/console2.sol";
 import {Strategy, ERC20} from "./Strategy.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
@@ -12,10 +15,14 @@ contract StrategyFactory {
     /// @notice Track the deployments. strategyId => strategy address
     mapping(uint256 => address) public deployments;
 
+    address public strategyImplementation;
+    address public dragonTokenizedStrategyImplementation;
     uint256 public strategyId;
 
     constructor() {
         strategyId = 0;
+        strategyImplementation = address(new Strategy());
+        dragonTokenizedStrategyImplementation = address(new DragonTokenizedStrategy());
     }
 
     /**
@@ -23,9 +30,11 @@ contract StrategyFactory {
      * @param initializeParams The encoded parameters to initialize the strategy with
      * @return address The address of the newly deployed strategy
      */
-    function newStrategy(bytes calldata initializeParams) external virtual returns (address) {
-        IStrategyInterface _newStrategy = IStrategyInterface(address(new Strategy()));
-        _newStrategy.setUp(initializeParams);
+    function newStrategy(bytes memory initializeParams) external virtual returns (address) {
+        ERC1967Proxy _newStrategy = new ERC1967Proxy(
+            strategyImplementation,
+            abi.encodeWithSelector(Strategy(payable(address(0))).setUp.selector, initializeParams)
+        );
 
         uint256 currentId = strategyId;
         deployments[currentId] = address(_newStrategy);

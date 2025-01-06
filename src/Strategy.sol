@@ -68,12 +68,6 @@ contract Strategy is Module, BaseStrategy {
         transferOwnership(_owner);
     }
 
-    function initialize(address _asset, address _yieldSource) public {
-        require(yieldSource == address(0));
-        yieldSource = _yieldSource;
-        ERC20(_asset).approve(_yieldSource, type(uint256).max);
-    }
-
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
     //////////////////////////////////////////////////////////////*/

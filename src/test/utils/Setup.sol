@@ -9,7 +9,7 @@ import {StrategyFactory} from "../../StrategyFactory.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
 // Inherit the events so they can be checked if desired.
-import {IEvents} from "@tokenized-strategy/interfaces/IEvents.sol";
+import {IEvents} from "octant-v2-core/src/interfaces/IEvents.sol";
 
 interface IFactory {
     function governance() external view returns (address);
@@ -29,11 +29,16 @@ contract Setup is ExtendedTest, IEvents {
     mapping(string => address) public tokenAddrs;
 
     // Addresses for different roles we will use repeatedly.
-    address public user = address(10);
-    address public keeper = address(4);
-    address public management = address(1);
-    address public performanceFeeRecipient = address(3);
+    address public user = address(1);
+    address public keeper = address(2);
+    address public management = address(3);
+    address public dragonRouter = address(4);
     address public emergencyAdmin = address(5);
+    address public yieldSource = address(6);
+    address public deployer = address(7);
+    address public owner = address(8);
+    address public tokenizedStrategyImplementation;
+    address public dragonTokenizedStrategyImplementation;
 
     // Address of the real deployed Factory
     address public factory;
@@ -41,6 +46,7 @@ contract Setup is ExtendedTest, IEvents {
     // Integer variables that will be used repeatedly.
     uint256 public decimals;
     uint256 public MAX_BPS = 10_000;
+    uint256 public maxReportDelay = 1 days;
 
     // Fuzz from $0.01 of 1e6 stable coins up to 1 trillion of a 1e18 coin
     uint256 public maxFuzzAmount = 1e30;
@@ -58,12 +64,14 @@ contract Setup is ExtendedTest, IEvents {
         // Set decimals
         decimals = asset.decimals();
 
-        strategyFactory = new StrategyFactory(management, performanceFeeRecipient, keeper, emergencyAdmin);
-
+        strategyFactory = new StrategyFactory();
+        tokenizedStrategyImplementation = address(strategyFactory.strategyImplementation());
+        dragonTokenizedStrategyImplementation = address(strategyFactory.dragonTokenizedStrategyImplementation());
         // Deploy strategy and set variables
         strategy = IStrategyInterface(setUpStrategy());
 
-        factory = strategy.FACTORY();
+        // factory = strategy.FACTORY();
+        factory = address(strategyFactory);
 
         // label all the used addresses for traces
         vm.label(keeper, "keeper");
@@ -71,16 +79,26 @@ contract Setup is ExtendedTest, IEvents {
         vm.label(address(asset), "asset");
         vm.label(management, "management");
         vm.label(address(strategy), "strategy");
-        vm.label(performanceFeeRecipient, "performanceFeeRecipient");
+        vm.label(dragonRouter, "dragonRouter");
     }
 
     function setUpStrategy() public returns (address) {
+        // Encode initialization parameters
+        bytes memory initParams = abi.encode(
+            owner,
+            abi.encode(
+                dragonTokenizedStrategyImplementation,
+                address(asset),
+                yieldSource,
+                management,
+                keeper,
+                dragonRouter,
+                maxReportDelay,
+                "Tokenized Strategy"
+            )
+        );
         // we save the strategy as a IStrategyInterface to give it the needed interface
-        IStrategyInterface _strategy =
-            IStrategyInterface(address(strategyFactory.newStrategy(address(asset), "Tokenized Strategy")));
-
-        vm.prank(management);
-        _strategy.acceptManagement();
+        IStrategyInterface _strategy = IStrategyInterface(address(strategyFactory.newStrategy(initParams)));
 
         return address(_strategy);
     }
@@ -120,19 +138,19 @@ contract Setup is ExtendedTest, IEvents {
         deal(address(_asset), _to, balanceBefore + _amount);
     }
 
-    function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
-        address gov = IFactory(factory).governance();
+    // function setFees(uint16 _protocolFee, uint16 _performanceFee) public {
+    //     address gov = IFactory(factory).governance();
 
-        // Need to make sure there is a protocol fee recipient to set the fee.
-        vm.prank(gov);
-        IFactory(factory).set_protocol_fee_recipient(gov);
+    //     // Need to make sure there is a protocol fee recipient to set the fee.
+    //     vm.prank(gov);
+    //     IFactory(factory).set_protocol_fee_recipient(gov);
 
-        vm.prank(gov);
-        IFactory(factory).set_protocol_fee_bps(_protocolFee);
+    //     vm.prank(gov);
+    //     IFactory(factory).set_protocol_fee_bps(_protocolFee);
 
-        vm.prank(management);
-        strategy.setPerformanceFee(_performanceFee);
-    }
+    //     vm.prank(management);
+    //     strategy.setPerformanceFee(_performanceFee);
+    // }
 
     function _setTokenAddrs() internal {
         tokenAddrs["WBTC"] = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;

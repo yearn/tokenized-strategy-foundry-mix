@@ -14,8 +14,9 @@ contract OperationTest is Setup {
         assertTrue(address(0) != address(strategy));
         assertEq(strategy.asset(), address(asset));
         assertEq(strategy.management(), management);
-        assertEq(strategy.performanceFeeRecipient(), performanceFeeRecipient);
         assertEq(strategy.keeper(), keeper);
+        assertEq(strategy.dragonRouter(), dragonRouter);
+        assertEq(strategy.name(), "Tokenized Strategy");
         // TODO: add additional check on strat params
     }
 
@@ -38,7 +39,7 @@ contract OperationTest is Setup {
         assertGe(profit, 0, "!profit");
         assertEq(loss, 0, "!loss");
 
-        skip(strategy.profitMaxUnlockTime());
+        // skip(strategy.profitMaxUnlockTime());
 
         uint256 balanceBefore = asset.balanceOf(user);
 
@@ -73,7 +74,7 @@ contract OperationTest is Setup {
         assertGe(profit, toAirdrop, "!profit");
         assertEq(loss, 0, "!loss");
 
-        skip(strategy.profitMaxUnlockTime());
+        // skip(strategy.profitMaxUnlockTime());
 
         uint256 balanceBefore = asset.balanceOf(user);
 
@@ -84,55 +85,55 @@ contract OperationTest is Setup {
         assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
     }
 
-    function test_profitableReport_withFees(uint256 _amount, uint16 _profitFactor) public {
-        vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
-        _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
+    // function test_profitableReport_withFees(uint256 _amount, uint16 _profitFactor) public {
+    //     vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
+    //     _profitFactor = uint16(bound(uint256(_profitFactor), 10, MAX_BPS));
 
-        // Set protocol fee to 0 and perf fee to 10%
-        setFees(0, 1_000);
+    //     // Set protocol fee to 0 and perf fee to 10%
+    //     setFees(0, 1_000);
 
-        // Deposit into strategy
-        mintAndDepositIntoStrategy(strategy, user, _amount);
+    //     // Deposit into strategy
+    //     mintAndDepositIntoStrategy(strategy, user, _amount);
 
-        assertEq(strategy.totalAssets(), _amount, "!totalAssets");
+    //     assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
-        // Earn Interest
-        skip(1 days);
+    //     // Earn Interest
+    //     skip(1 days);
 
-        // TODO: implement logic to simulate earning interest.
-        uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
-        airdrop(asset, address(strategy), toAirdrop);
+    //     // TODO: implement logic to simulate earning interest.
+    //     uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
+    //     airdrop(asset, address(strategy), toAirdrop);
 
-        // Report profit
-        vm.prank(keeper);
-        (uint256 profit, uint256 loss) = strategy.report();
+    //     // Report profit
+    //     vm.prank(keeper);
+    //     (uint256 profit, uint256 loss) = strategy.report();
 
-        // Check return Values
-        assertGe(profit, toAirdrop, "!profit");
-        assertEq(loss, 0, "!loss");
+    //     // Check return Values
+    //     assertGe(profit, toAirdrop, "!profit");
+    //     assertEq(loss, 0, "!loss");
 
-        skip(strategy.profitMaxUnlockTime());
+    //     skip(strategy.profitMaxUnlockTime());
 
-        // Get the expected fee
-        uint256 expectedShares = (profit * 1_000) / MAX_BPS;
+    //     // Get the expected fee
+    //     uint256 expectedShares = (profit * 1_000) / MAX_BPS;
 
-        assertEq(strategy.balanceOf(performanceFeeRecipient), expectedShares);
+    //     assertEq(strategy.balanceOf(performanceFeeRecipient), expectedShares);
 
-        uint256 balanceBefore = asset.balanceOf(user);
+    //     uint256 balanceBefore = asset.balanceOf(user);
 
-        // Withdraw all funds
-        vm.prank(user);
-        strategy.redeem(_amount, user, user);
+    //     // Withdraw all funds
+    //     vm.prank(user);
+    //     strategy.redeem(_amount, user, user);
 
-        assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
+    //     assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
 
-        vm.prank(performanceFeeRecipient);
-        strategy.redeem(expectedShares, performanceFeeRecipient, performanceFeeRecipient);
+    //     vm.prank(performanceFeeRecipient);
+    //     strategy.redeem(expectedShares, performanceFeeRecipient, performanceFeeRecipient);
 
-        checkStrategyTotals(strategy, 0, 0, 0);
+    //     checkStrategyTotals(strategy, 0, 0, 0);
 
-        assertGe(asset.balanceOf(performanceFeeRecipient), expectedShares, "!perf fee out");
-    }
+    //     assertGe(asset.balanceOf(performanceFeeRecipient), expectedShares, "!perf fee out");
+    // }
 
     function test_tendTrigger(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmount && _amount < maxFuzzAmount);
@@ -159,7 +160,7 @@ contract OperationTest is Setup {
         assertTrue(!trigger);
 
         // Unlock Profits
-        skip(strategy.profitMaxUnlockTime());
+        // skip(strategy.profitMaxUnlockTime());
 
         (trigger,) = strategy.tendTrigger();
         assertTrue(!trigger);

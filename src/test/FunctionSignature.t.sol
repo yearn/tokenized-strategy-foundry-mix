@@ -14,8 +14,8 @@ contract FunctionSignatureTest is Setup {
     // Does not check functions that are strategy dependant and will be checked in other tests
     function test_functionCollisions() public {
         uint256 wad = 1e18;
-        vm.expectRevert("initialized");
-        strategy.initialize(address(asset), "name", management, performanceFeeRecipient, keeper);
+        // vm.expectRevert("initialized");
+        // strategy.initialize(address(asset), yieldSource);
 
         // Check view functions
         assertEq(strategy.convertToAssets(wad), wad, "convert to assets");
@@ -26,16 +26,15 @@ contract FunctionSignatureTest is Setup {
         assertEq(strategy.previewRedeem(wad), wad, "preview redeem");
         assertEq(strategy.totalAssets(), 0, "total assets");
         assertEq(strategy.totalSupply(), 0, "total supply");
-        assertEq(strategy.unlockedShares(), 0, "unlocked shares");
+        assertEq(strategy.unlockedShares(user), 0, "unlocked shares");
         assertEq(strategy.asset(), address(asset), "asset");
-        assertEq(strategy.apiVersion(), "3.0.4", "api");
-        assertEq(strategy.MAX_FEE(), 5_000, "max fee");
-        assertEq(strategy.fullProfitUnlockDate(), 0, "unlock date");
-        assertEq(strategy.profitUnlockingRate(), 0, "unlock rate");
+        assertEq(strategy.apiVersion(), "1.0.0", "api");
+        // assertEq(strategy.fullProfitUnlockDate(), 0, "unlock date");
+        // assertEq(strategy.profitUnlockingRate(), 0, "unlock rate");
         assertGt(strategy.lastReport(), 0, "last report");
         assertEq(strategy.pricePerShare(), 10 ** asset.decimals(), "pps");
         assertTrue(!strategy.isShutdown());
-        assertEq(strategy.symbol(), string(abi.encodePacked("ys", asset.symbol())), "symbol");
+        assertEq(strategy.symbol(), string(abi.encodePacked("dgn", asset.symbol())), "symbol");
         assertEq(strategy.decimals(), asset.decimals(), "decimals");
 
         // Assure modifiers are working
@@ -48,20 +47,20 @@ contract FunctionSignatureTest is Setup {
         strategy.setKeeper(user);
         vm.expectRevert("!management");
         strategy.setEmergencyAdmin(user);
-        vm.expectRevert("!management");
-        strategy.setPerformanceFee(uint16(2_000));
-        vm.expectRevert("!management");
-        strategy.setPerformanceFeeRecipient(user);
-        vm.expectRevert("!management");
-        strategy.setProfitMaxUnlockTime(1);
+        // vm.expectRevert("!management");
+        // strategy.setPerformanceFee(uint16(2_000));
+        // vm.expectRevert("!management");
+        // strategy.setPerformanceFeeRecipient(user);
+        // vm.expectRevert("!management");
+        // strategy.setProfitMaxUnlockTime(1);
         vm.stopPrank();
 
         // Assure checks are being used
         vm.startPrank(strategy.management());
-        vm.expectRevert("Cannot be self");
-        strategy.setPerformanceFeeRecipient(address(strategy));
-        vm.expectRevert("too long");
-        strategy.setProfitMaxUnlockTime(type(uint256).max);
+        // vm.expectRevert("Cannot be self");
+        // strategy.setPerformanceFeeRecipient(address(strategy));
+        // vm.expectRevert("too long");
+        // strategy.setProfitMaxUnlockTime(type(uint256).max);
         vm.stopPrank();
 
         // Mint some shares to the user
