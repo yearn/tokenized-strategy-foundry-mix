@@ -11,7 +11,7 @@ interface IStrategy {
 
 interface IVault {
     function process_report(address strategy) external;
-    function updateDebt(address strategy, uint256 targetAmount) external;
+    function update_debt(address strategy, uint256 targetAmount) external;
     function totalIdle() external returns (uint256);
 }
 
@@ -130,10 +130,7 @@ contract TermVaultsKeeper is
         uint256[] calldata withdrawTargetAmounts
     ) internal {
         for (uint256 i = 0; i < withdrawStrategies.length; i++) {
-            IVault(vault).updateDebt(
-                withdrawStrategies[i],
-                withdrawTargetAmounts[i]
-            );
+            IVault(vault).update_debt(withdrawStrategies[i], withdrawTargetAmounts[i]);
         }
     }
 
@@ -143,16 +140,10 @@ contract TermVaultsKeeper is
         uint256[] calldata depositTargetAmounts
     ) internal {
         for (uint256 i = 0; i < depositStrategies.length - 1; i++) {
-            IVault(vault).updateDebt(
-                depositStrategies[i],
-                depositTargetAmounts[i]
-            );
+            IVault(vault).update_debt(depositStrategies[i], depositTargetAmounts[i]);
         }
         uint256 vaultIdle = IVault(vault).totalIdle();
-        IVault(vault).updateDebt(
-            depositStrategies[depositStrategies.length - 1],
-            vaultIdle
-        );
+        IVault(vault).update_debt(depositStrategies[depositStrategies.length - 1], vaultIdle);   
     }
 
     function _authorizeUpgrade(
