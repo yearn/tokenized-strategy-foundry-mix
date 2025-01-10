@@ -5,6 +5,13 @@ import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/Initializable.
 import "@openzeppelin/contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
 
+struct StrategyParams {
+    uint256 activation; 
+    uint256 last_report;
+    uint256 current_debt;
+    uint256 max_debt;
+}
+
 interface IStrategy {
     function report() external;
 }
@@ -13,6 +20,7 @@ interface IVault {
     function process_report(address strategy) external;
     function update_debt(address strategy, uint256 targetAmount) external;
     function totalIdle() external returns (uint256);
+    function strategies(address strategy) external view returns (StrategyParams memory);
 }
 
 interface ICommonReportTrigger {
@@ -120,8 +128,12 @@ contract TermVaultsKeeper is
         uint256[] calldata depositTargetAmounts
     ) external onlyRole(KEEPER_ROLE) {
         require(vault != address(0), "0 address vault");
-        _withdraw(vault, withdrawStrategies, withdrawTargetAmounts);
-        _deposit(vault, depositStrategies, depositTargetAmounts);
+        if (withdrawStrategies.length > 0) {
+            _withdraw(vault, withdrawStrategies, withdrawTargetAmounts);
+        } 
+        if (depositStrategies.length > 0) {
+            _deposit(vault, depositStrategies, depositTargetAmounts);
+        }
     }
 
     function _withdraw(
@@ -139,11 +151,13 @@ contract TermVaultsKeeper is
         address[] calldata depositStrategies,
         uint256[] calldata depositTargetAmounts
     ) internal {
+        IVault vaultContract = IVault(vault);
         for (uint256 i = 0; i < depositStrategies.length - 1; i++) {
-            IVault(vault).update_debt(depositStrategies[i], depositTargetAmounts[i]);
+            vaultContract.update_debt(depositStrategies[i], depositTargetAmounts[i]);
         }
-        uint256 vaultIdle = IVault(vault).totalIdle();
-        IVault(vault).update_debt(depositStrategies[depositStrategies.length - 1], vaultIdle);   
+        StrategyParams memory strategyParams = vaultContract.strategies(depositStrategies[depositStrategies.length - 1]);
+        uint256 newDebtTarget = strategyParams.current_debt + vaultContract.totalIdle();
+        vaultContract.update_debt(depositStrategies[depositStrategies.length - 1], newDebtTarget);   
     }
 
     function _authorizeUpgrade(
