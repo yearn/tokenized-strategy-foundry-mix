@@ -19,6 +19,6 @@ jobs:
           version: nightly
 
       - name: Slither analysis
-        uses: crytic/slither-action@v0.3.0
+        uses: crytic/slither-action@v0.4.0
         with:
           fail-on: 'medium'
