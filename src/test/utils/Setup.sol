@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
-import {Test} from "forge-std/Test.sol";	
+import {Test} from "forge-std/Test.sol";
 
 import {Strategy, ERC20} from "../../Strategy.sol";
 import {StrategyFactory} from "../../StrategyFactory.sol";
