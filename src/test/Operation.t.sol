@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
-import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 contract OperationTest is Setup {
     function setUp() public virtual override {
@@ -28,7 +28,7 @@ contract OperationTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
-        skip(1 days);
+        skip(1 minutes);
 
         // Report profit
         vm.prank(keeper);
@@ -66,11 +66,14 @@ contract OperationTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
-        skip(1 days);
+        skip(1 minutes);
 
         // TODO: implement logic to simulate earning interest.
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         airdrop(asset, address(strategy), toAirdrop);
+
+        vm.prank(keeper);
+        strategy.tend();
 
         // Report profit
         vm.prank(keeper);
@@ -111,11 +114,14 @@ contract OperationTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
-        skip(1 days);
+        skip(1 minutes);
 
         // TODO: implement logic to simulate earning interest.
         uint256 toAirdrop = (_amount * _profitFactor) / MAX_BPS;
         airdrop(asset, address(strategy), toAirdrop);
+
+        vm.prank(keeper);
+        strategy.tend();
 
         // Report profit
         vm.prank(keeper);
@@ -173,7 +179,8 @@ contract OperationTest is Setup {
         assertTrue(!trigger);
 
         // Skip some time
-        skip(1 days);
+
+        skip(1 minutes);
 
         (trigger, ) = strategy.tendTrigger();
         assertTrue(!trigger);

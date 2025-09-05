@@ -4,7 +4,7 @@ pragma solidity ^0.8.18;
 import "forge-std/console2.sol";
 import {Test} from "forge-std/Test.sol";
 
-import {Strategy, ERC20} from "../../Strategy.sol";
+import {ERC20} from "../../Strategy.sol";
 import {StrategyFactory} from "../../StrategyFactory.sol";
 import {IStrategyInterface} from "../../interfaces/IStrategyInterface.sol";
 
@@ -27,6 +27,7 @@ contract Setup is Test, IEvents {
     StrategyFactory public strategyFactory;
 
     mapping(string => address) public tokenAddrs;
+    mapping(string => address) public contractAddrs;
 
     // Addresses for different roles we will use repeatedly.
     address public user = address(10);
@@ -47,13 +48,14 @@ contract Setup is Test, IEvents {
     uint256 public minFuzzAmount = 10_000;
 
     // Default profit max unlock time is set for 10 days
-    uint256 public profitMaxUnlockTime = 10 days;
+    uint256 public profitMaxUnlockTime = 10 minutes;
 
     function setUp() public virtual {
         _setTokenAddrs();
+        _setContractAddrs();
 
         // Set asset
-        asset = ERC20(tokenAddrs["DAI"]);
+        asset = ERC20(tokenAddrs["USDC"]);
 
         // Set decimals
         decimals = asset.decimals();
@@ -85,13 +87,20 @@ contract Setup is Test, IEvents {
             address(
                 strategyFactory.newStrategy(
                     address(asset),
-                    "Tokenized Strategy"
+                    "Tokenized Strategy",
+                    contractAddrs["LendingMarketController"],
+                    contractAddrs["TokenVault"],
+                    "USDC",
+                    1e6 // 1 USDC
                 )
             )
         );
 
         vm.prank(management);
         _strategy.acceptManagement();
+
+        vm.prank(management);
+        _strategy.setProfitMaxUnlockTime(profitMaxUnlockTime);
 
         return address(_strategy);
     }
@@ -163,5 +172,14 @@ contract Setup is Test, IEvents {
         tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
         tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    }
+
+    function _setContractAddrs() internal {
+        contractAddrs[
+            "LendingMarketController"
+        ] = 0x35e9D8e0223A75E51a67aa731127C91Ea0779Fe2;
+        contractAddrs[
+            "TokenVault"
+        ] = 0xB74749b2213916b1dA3b869E41c7c57f1db69393;
     }
 }

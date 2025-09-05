@@ -1,7 +1,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/console2.sol";
-import {Setup, ERC20, IStrategyInterface} from "./utils/Setup.sol";
+import {Setup} from "./utils/Setup.sol";
 
 contract ShutdownTest is Setup {
     function setUp() public virtual override {
@@ -17,7 +17,7 @@ contract ShutdownTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
-        skip(1 days);
+        skip(1 hours);
 
         // Shutdown the strategy
         vm.prank(emergencyAdmin);
@@ -48,7 +48,7 @@ contract ShutdownTest is Setup {
         assertEq(strategy.totalAssets(), _amount, "!totalAssets");
 
         // Earn Interest
-        skip(1 days);
+        skip(1 hours);
 
         // Shutdown the strategy
         vm.prank(emergencyAdmin);
