@@ -128,7 +128,14 @@ contract Strategy is BaseStrategy {
      * @param . The address that is withdrawing from the strategy.
      * @return . The available amount that can be withdrawn in terms of `asset`
      */
-    function availableWithdrawLimit(address /*_owner*/ ) public view override returns (uint256) {
+    function availableWithdrawLimit(
+        address /*_owner*/
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         // NOTE: Withdraw limitations such as liquidity constraints should be accounted for HERE
         //  rather than _freeFunds in order to not count them as losses on withdraws.
 
