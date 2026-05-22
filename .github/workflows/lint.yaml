@@ -1,4 +1,4 @@
-name: Lint
+name: Format
 
 on:
   push:
@@ -8,51 +8,19 @@ on:
 
 jobs:
 
-    solidity:
-      runs-on: ubuntu-latest
+  solidity:
+    runs-on: ubuntu-latest
 
-      steps:
-      - name: Check out github repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
+    steps:
+    - name: Check out github repository
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
+      with:
+        fetch-depth: 1
 
-      - name: Setup node.js
-        uses: actions/setup-node@v1
-        with:
-          node-version: 18
+    - name: Install Foundry
+      uses: foundry-rs/foundry-toolchain@c7450ba673e133f5ee30098b3b54f444d3a2ca2d # v1
+      with:
+        version: nightly
 
-      - name: Set yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn cache dir)"
-
-      - name: Restore yarn cache
-        uses: actions/cache@v3
-        id: yarn-cache
-        with:
-          path: |
-            ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-            ${{ runner.os }}-yarn-
-      - name: Install node.js dependencies
-        run: yarn --frozen-lockfile
-
-      - name: Run formater check on *.sol and *.json
-        run: yarn format:check
-
-      - name: run linter check on *.sol file
-        run: yarn lint
-
-    commits:
-      runs-on: ubuntu-latest
-
-      steps:
-      - name: Check out github repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Run commitlint
-        uses: wagoid/commitlint-github-action@v5
+    - name: Check Solidity formatting
+      run: forge fmt --check
