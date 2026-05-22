@@ -23,10 +23,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 contract Strategy is BaseStrategy {
     using SafeERC20 for ERC20;
 
-    constructor(
-        address _asset,
-        string memory _name
-    ) BaseStrategy(_asset, _name) {}
+    constructor(address _asset, string memory _name) BaseStrategy(_asset, _name) {}
 
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
@@ -98,11 +95,7 @@ contract Strategy is BaseStrategy {
      * @return _totalAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _harvestAndReport()
-        internal
-        override
-        returns (uint256 _totalAssets)
-    {
+    function _harvestAndReport() internal override returns (uint256 _totalAssets) {
         // TODO: Implement harvesting logic and accurate accounting EX:
         //
         //      if(!TokenizedStrategy.isShutdown()) {
@@ -135,9 +128,7 @@ contract Strategy is BaseStrategy {
      * @param . The address that is withdrawing from the strategy.
      * @return . The available amount that can be withdrawn in terms of `asset`
      */
-    function availableWithdrawLimit(
-        address /*_owner*/
-    ) public view override returns (uint256) {
+    function availableWithdrawLimit(address /*_owner*/ ) public view override returns (uint256) {
         // NOTE: Withdraw limitations such as liquidity constraints should be accounted for HERE
         //  rather than _freeFunds in order to not count them as losses on withdraws.
 
@@ -171,16 +162,16 @@ contract Strategy is BaseStrategy {
      * @param . The address that is depositing into the strategy.
      * @return . The available amount the `_owner` can deposit in terms of `asset`
      *
-    function availableDepositLimit(
-        address _owner
-    ) public view override returns (uint256) {
-        TODO: If desired Implement deposit limit logic and any needed state variables .
-        
-        EX:    
-            uint256 totalAssets = TokenizedStrategy.totalAssets();
-            return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
-    }
-    */
+     * function availableDepositLimit(
+     *     address _owner
+     * ) public view override returns (uint256) {
+     *     TODO: If desired Implement deposit limit logic and any needed state variables .
+     *
+     *     EX:
+     *         uint256 totalAssets = TokenizedStrategy.totalAssets();
+     *         return totalAssets >= depositLimit ? 0 : depositLimit - totalAssets;
+     * }
+     */
 
     /**
      * @dev Optional function for strategist to override that can
@@ -203,8 +194,8 @@ contract Strategy is BaseStrategy {
      *
      * @param _totalIdle The current amount of idle funds that are available to deploy.
      *
-    function _tend(uint256 _totalIdle) internal override {}
-    */
+     * function _tend(uint256 _totalIdle) internal override {}
+     */
 
     /**
      * @dev Optional trigger to override if tend() will be used by the strategy.
@@ -212,8 +203,8 @@ contract Strategy is BaseStrategy {
      *
      * @return . Should return true if tend() should be called by keeper or false if not.
      *
-    function _tendTrigger() internal view override returns (bool) {}
-    */
+     * function _tendTrigger() internal view override returns (bool) {}
+     */
 
     /**
      * @dev Optional function for a strategist to override that will
@@ -236,13 +227,12 @@ contract Strategy is BaseStrategy {
      *
      * @param _amount The amount of asset to attempt to free.
      *
-    function _emergencyWithdraw(uint256 _amount) internal override {
-        TODO: If desired implement simple logic to free deployed funds.
-
-        EX:
-            _amount = min(_amount, aToken.balanceOf(address(this)));
-            _freeFunds(_amount);
-    }
-
-    */
+     * function _emergencyWithdraw(uint256 _amount) internal override {
+     *     TODO: If desired implement simple logic to free deployed funds.
+     *
+     *     EX:
+     *         _amount = min(_amount, aToken.balanceOf(address(this)));
+     *         _freeFunds(_amount);
+     * }
+     */
 }

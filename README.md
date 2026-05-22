@@ -12,7 +12,6 @@ For a more complete overview of how the Tokenized Strategies work please visit t
 
 - First you will need to install [Foundry](https://book.getfoundry.sh/getting-started/installation).
 NOTE: If you are on a windows machine it is recommended to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)
-- Install [Node.js](https://nodejs.org/en/download/package-manager/)
 
 ### Clone this repository
 
@@ -20,8 +19,6 @@ NOTE: If you are on a windows machine it is recommended to use [WSL](https://lea
 git clone --recursive https://github.com/yearn/tokenized-strategy-foundry-mix
 
 cd tokenized-strategy-foundry-mix
-
-yarn
 ```
 
 ### Set your environment Variables
