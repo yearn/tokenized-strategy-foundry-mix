@@ -28,7 +28,7 @@ contract FunctionSignatureTest is Setup {
         assertEq(strategy.totalSupply(), 0, "total supply");
         assertEq(strategy.unlockedShares(), 0, "unlocked shares");
         assertEq(strategy.asset(), address(asset), "asset");
-        assertEq(strategy.apiVersion(), "3.0.4", "api");
+        assertEq(strategy.apiVersion(), "3.1.0", "api");
         assertEq(strategy.MAX_FEE(), 5_000, "max fee");
         assertEq(strategy.fullProfitUnlockDate(), 0, "unlock date");
         assertEq(strategy.profitUnlockingRate(), 0, "unlock rate");
@@ -60,8 +60,8 @@ contract FunctionSignatureTest is Setup {
         vm.startPrank(strategy.management());
         vm.expectRevert("Cannot be self");
         strategy.setPerformanceFeeRecipient(address(strategy));
-        vm.expectRevert("too long");
         strategy.setProfitMaxUnlockTime(type(uint256).max);
+        assertEq(strategy.profitMaxUnlockTime(), type(uint256).max, "max unlock time");
         vm.stopPrank();
 
         // Mint some shares to the user
