@@ -12,7 +12,10 @@
     }
   },
   "lib/tokenized-strategy": {
-    "rev": "8c8929f1878e8c5ad78aa0a6dabc877a890f68d9"
+    "tag": {
+      "name": "v3.1.1",
+      "rev": "48c53aba0395885b3f579d0a4b426de276a7b69e"
+    }
   },
   "lib/tokenized-strategy-periphery": {
     "rev": "96994fb98dc239379a048aef1302f9f698b3e48d"
